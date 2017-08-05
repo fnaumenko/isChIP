@@ -254,4 +254,4 @@ Lognormal distribution is implemented as X=e^((Y*factor+term))<br>
 where Y is stated as a normal distributed value.<br>
 Accordingly, it is managed by 4 options: ```--mean``` and ```--sigma``` are defined the normal random generator, and ```--ln-factor``` and ```--ln-term``` are specified the lognormal outlet.<br>
 Size selection filter is managed by 3 options: ```--sz-sel-sigma``` and ```--frag-len``` response to standard deviation and mean in standard normal distribution, and   frag-dev is half-width on which the standard distribution is “expanded” (d on the figure).<br>
-![figure](https://github.com/fnaumenko/isChIP/tree/master/auxil)
+![figure](https://github.com/fnaumenko/isChIP/tree/master/auxil/sizeSelFilter.png)
