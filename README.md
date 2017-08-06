@@ -135,7 +135,7 @@ Default: 100
 ```-n|--cells <long>```<br>
 The number of “cells”. Each “cell” corresponds to one passage through the reference chromosome (dual for the numeric ones).<br>
 It is NOT the equivalent of number of cells in the real experiment. In the real experiment the overall loss can be reached to 99%. By default value of ```--fg-level``` option the model does not lose any related fragment.<br>
-The total program’s output heavy depends on correlation between established fragment size and parameters of fragment distribution and size selection. In general, by default distribution the number of 3-10 provides the output read mean density comparable with the actual “inputs”, and the number of 100-500 leads to data comparable with the actual tests in term of density.
+The total program’s output heavy depends on correlation between established fragment size and parameters of fragment distribution and size selection. In general, by default distribution the number of 3-10 provides the output read mean density comparable with the actual “inputs”, and the number of 100-500 leads to data comparable with the actual tests in term of density.<br>
 Default: 1
 
 ```-c|--chr <chars>```<br>
@@ -253,5 +253,4 @@ By using default distribution parameters, in dark blue – fragment distribution
 Lognormal distribution is implemented as X=e^(Y*factor+term)<br>
 where Y is stated as a normal distributed value.<br>
 Accordingly, it is managed by 4 options: ```--mean``` and ```--sigma``` are defined the normal random generator, and ```--ln-factor``` and ```--ln-term``` are specified the lognormal outlet.<br>
-Size selection filter is managed by 3 options: ```--sz-sel-sigma``` and ```--frag-len``` response to standard deviation and mean in standard normal distribution, and   frag-dev is half-width on which the standard distribution is “expanded” (d on the figure).<br>
-![figure](https://github.com/fnaumenko/isChIP/tree/master/auxil/sizeSelFilter.png)
+Size selection filter is managed by 3 options: ```--sz-sel-sigma``` and ```--frag-len``` response to standard deviation and mean in standard normal distribution, and   frag-dev is half-width on which the standard distribution is “expanded” (d on the ![figure](https://github.com/fnaumenko/isChIP/tree/master/auxil/sizeSelFilter.png)).
