@@ -29,8 +29,7 @@ Processing:
   -a|--amplif <int>     coefficient of amplification [1]
   -b|--bg-level <float> background of out-of-features fragments, in percent of foreground.
                         For test mode only [0]
-  --fg-level <float>    foreground of in-features fragments, in percent.
-                        For test mode only [100]
+  --fg-level <float>    foreground of in-features fragments, in percent. For test mode only [100]
   -n|--cells <long>     number of cells [1]
   -c|--chr <chars>      generate output for stated chromosome only
   --flat-len <int>      boundary flattening length. For test mode only [0]
@@ -40,13 +39,12 @@ Processing:
   --let-N               include the ambiguous reference characters (N) on the beginning
                         and on the end of chromosome
   --smode <SE|PE>       sequencing mode: SE - single-end, PE - paired-end [SE]
-  --strand-admix <OFF|ON>       turn on/off opposite strand admixture at the bound
-                        of binding site. For test mode only [ON]
-  --ts-uni              uniform template score
+  --strand-admix <OFF|ON>       turn on/off opposite strand admixture at the bound of binding site.
+                        For test mode only [ON]
+  --ts-uni              uniform template score. For test mode only
   -p|--threads <int>    number of threads [1]
   --debug               fix random emission to get repetitive results
-  -R|--regular <int>    regular mode: write each read on starting position
-                        increased by stated shift
+  -R|--regular <int>    regular mode: write each read on starting position increased by stated shift
 Fragment:
   --frag-len <int>      average size of selected fragments [200]
   --frag-dev <int>      deviation of selected fragments [20]
@@ -250,7 +248,7 @@ According to the some publications, in reality size selection has normal distrib
 But the strong implementation of this idea leads to great loss of fragments, i.e. run time increase, without any sense in output.
 For this reason in **isChIP** the size selection has a pseudo normal distribution view, as it is shown on the figure.
 By using default distribution parameters, in dark blue – fragment distribution, in light blue – hypothetical real size selection, in green – pseudo size selection.
-Lognormal distribution is implemented as X=e^((Y*factor+term))<br>
+Lognormal distribution is implemented as X=e^(Y*factor+term)<br>
 where Y is stated as a normal distributed value.<br>
 Accordingly, it is managed by 4 options: ```--mean``` and ```--sigma``` are defined the normal random generator, and ```--ln-factor``` and ```--ln-term``` are specified the lognormal outlet.<br>
 Size selection filter is managed by 3 options: ```--sz-sel-sigma``` and ```--frag-len``` response to standard deviation and mean in standard normal distribution, and   frag-dev is half-width on which the standard distribution is “expanded” (d on the figure).<br>
