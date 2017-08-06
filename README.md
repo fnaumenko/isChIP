@@ -185,31 +185,35 @@ Average size of selected fragments.<br>
 Default: 200
 
 ```--frag-dev <int>```<br>
-Deviation of selected fragments.<br>
-Default: 20
+Deviation of selected fragments. See [Fragments distribution and size selection](#fragments-distribution-and-size-selection) section.<br>
+Default: 20#
 
 ```--sz-sel <OFF|ON>```<br>
-Turn on/off fragment's size selection.<br>
+Turn on/off fragment's size selection. See [Fragments distribution and size selection](#fragments-distribution-and-size-selection) section.<br>
 Default: ON
 
 ```--sz-sel-sigma <int>```<br>
 Standard deviation of the fragment's size selection normal distribution.<br>
+See [Fragments distribution and size selection](#fragments-distribution-and-size-selection) section.<br>
 Default: 20
 
 ```--mean <int>```<br>
 Expectation of the fragment's size based normal distribution.<br>
-Default: 200
+See [Fragments distribution and size selection](#fragments-distribution-and-size-selection) section.<br>Default: 200
 
 ```--sigma <int>```<br>
 Standard deviation of the fragment's size based normal distribution.<br>
+See [Fragments distribution and size selection](#fragments-distribution-and-size-selection) section.<br>
 Default: 200
 
 ```--ln-factor <int>```<br>
 Power multiplication factor in fragment's size lognormal distribution.<br>
+See [Fragments distribution and size selection](#fragments-distribution-and-size-selection) section.<br>
 Default: 500
 
 ```--ln-term <float>```<br>
 Power summand in fragment's size lognormal distribution.<br>
+See [Fragments distribution and size selection](#fragments-distribution-and-size-selection) section.<br>
 Default: 5.1
 
 ```--read-name <NMB|POS>```<br>
@@ -248,8 +252,8 @@ Default: *test* mode: **mTest.\***, *control* mode: **mInput.\***, *regular* mod
 Reference sequence is cutting into fragments with lognormal distributed size. Then each fragment goes through the size selection filter.
 According to the some publications, in reality size selection has normal distributed view.
 But the strong implementation of this idea leads to great loss of fragments, i.e. run time increase, without any sense in output.
-For this reason in **isChIP** the size selection has a pseudo normal distribution view, as it is shown on the figure.
-By using default distribution parameters, in dark blue – fragment distribution, in light blue – hypothetical real size selection, in green – pseudo size selection.
+For this reason in **isChIP** the size selection has a pseudo normal distribution view, as it is shown on the ![figure](https://github.com/fnaumenko/isChIP/tree/master/auxil/sizeSelFilter.png).
+By using default distribution parameters, in dark blue – fragment distribution, in light blue – hypothetical real size selection, in green – pseudo size selection.<br>
 Lognormal distribution is implemented as X=e^(Y*factor+term)<br>
 where Y is stated as a normal distributed value.<br>
 Accordingly, it is managed by 4 options: ```--mean``` and ```--sigma``` are defined the normal random generator, and ```--ln-factor``` and ```--ln-term``` are specified the lognormal outlet.<br>
