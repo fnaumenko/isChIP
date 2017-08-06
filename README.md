@@ -1,7 +1,8 @@
 # isChIP
 **I**n **S**ilico **ChIP**-seq is a fast realistic ChIP sequencing simulator.
 
-It runs on the command line under Windows, Linux and Mac OS X.
+It runs on the command line under Windows, Linux and Mac OS X.<br>
+Non-numeric option values are case insensitive.
 
 ## Synopsis
 ```isChIP -g ref_genome –n 5```<br>
