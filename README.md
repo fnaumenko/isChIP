@@ -208,7 +208,7 @@ Default: 200
 
 ```--frag-dev <int>```<br>
 Deviation of selected fragments. See [Fragments distribution and size selection](#fragments-distribution-and-size-selection) section.<br>
-Default: 20#
+Default: 20
 
 ```--sz-sel <OFF|ON>```<br>
 Turn on/off fragment's size selection. See [Fragments distribution and size selection](#fragments-distribution-and-size-selection) section.<br>
