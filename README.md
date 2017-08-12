@@ -12,7 +12,7 @@ The real protocol of ChIP-seq is simulated by repeating the basic cycle. Each ba
 * size selection: selection of fragments fitted to desirable size;
 * sequencing of the fragments from positive and negative strands: cutting the 5’end of the fragment of desirable length; addition to the output file.
 
-Simulated binding events are specified by optional parameter, called [*template*](#Template). (Also see [Modes](#Modes))
+Simulated binding events are specified by optional parameter, called [*template*](#template). (Also see [Modes](#modes) section)
 
 The input parameters of simulation process (fragment size distribution,  total number of sequenced reads,  background levels, amplification coefficient, type of fragment library (single-end or paired-end, etc.) are adjusted correspondently to those in real ChIP-Seq experiment.
 
@@ -106,7 +106,7 @@ Other:
 *test* – simulation of site of interest sequencing; the output is test sequences/alignment<br>
 *control* – simulation of control production; the output is “input” sequences/alignment<br>
 *regular* – simple regular cutting of reference chromosome, an auxiliary mode for special use.<br>
-*Test* and *control* modes are distinguished only by involvement or elimination of sites of interest in a process, stated in optional parameter called  [*template*](#Template).
+*Test* and *control* modes are distinguished only by involvement or elimination of sites of interest in a process, stated in optional parameter called  [*template*](#template).
 
 ### Template
 *Template* represents a bunch of simulated binding events. It is a file in BED format.
