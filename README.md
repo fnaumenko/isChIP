@@ -120,7 +120,6 @@ Nevertheless it is possible to ignore stated scores by option ```--ts-uni```.
 
 
 Input files (reference genome and template) can be zipped by gzip.<br>
-Enumerable option values are case-insensitive.
 
 ### Options description
 Non-numeric option values are case insensitive.
