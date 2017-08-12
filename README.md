@@ -1,5 +1,5 @@
 # isChIP
-**I**n **S**ilico **ChIP**-seq is a fast realistic ChIP sequencing simulator.
+**I**n **S**ilico **ChIP**-seq is a fast realistic ChIP-seq simulator.
 
 The modelling of the chromatin immunoprecipitaion followed by next generation sequencing process is based on presumably on Illumina protocol. However, the **isChIP**’s options can be adjusted to the other techniques such as  Ion Torrent, etc.
 
