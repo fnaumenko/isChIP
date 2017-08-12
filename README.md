@@ -12,7 +12,7 @@ The real protocol of ChIP-seq is simulated by repeating the basic cycle. Each ba
 * size selection: selection of fragments fitted to desirable size;
 * sequencing of the fragments from positive and negative strands: cutting the 5’end of the fragment of desirable length; addition to the output file.
 
-Simulated binding events are specified by optional parameter, called [*template*](Template).
+Simulated binding events are specified by optional parameter, called [*template*](Template). (Also see [Modes](Modes))
 
 The input parameters of simulation process (fragment size distribution,  total number of sequenced reads,  background levels, amplification coefficient, type of fragment library (single-end or paired-end, etc.) are adjusted correspondently to those in real ChIP-Seq experiment.
 
