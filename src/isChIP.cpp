@@ -89,7 +89,7 @@ Options::Option Options::_Options [] = {
 //{ HPH, "stdout",	0, false,tBOOL,	FALSE, 0, 0, NULL, "Write output to the 'standard output' filehandle instead of 'standart error'" },
 	{ HPH,"smode",	0, true,tENUM,	oTREAT, 0, 0, 2, (char*)smodes,
 	"sequencing mode: ? - single-end, ? - paired-end" },
-	{ HPH,"strand-admix",0, true,tENUM,oTREAT, TRUE, 0, 2, (char*)Options::Booleans,
+	{ HPH,"strand-admix",0, true,tENUM,oTREAT, FALSE, 0, 2, (char*)Options::Booleans,
 	"turn on/off opposite strand admixture at the bound\nof binding site. For test mode only" },
 	{ HPH,"ts-uni",	0, false,tENUM, oTREAT, FALSE, 0, 2, NULL, "uniform template score" },
 	{ 'p',"threads",0, true, tINT,	oTREAT, 1, 1, 50, NULL, "number of threads"},
