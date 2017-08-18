@@ -57,7 +57,7 @@ Processing:
                         and on the end of chromosome
   --smode <SE|PE>       sequencing mode: SE - single-end, PE - paired-end [SE]
   --strand-admix <OFF|ON>       turn on/off opposite strand admixture at the bound of binding site.
-                        For test mode only [ON]
+                        For test mode only [OFF]
   --ts-uni              uniform template score. For test mode only
   -p|--threads <int>    number of threads [1]
   --debug               fix random emission to get repetitive results
@@ -187,7 +187,7 @@ Default: SE
 ```--strand-admix <OFF|ON>```<br>
 In *test* mode turn on/off opposite strand admixture at the bound of binding site.<br>
 In accordance with the nature of the binding of proteins, at the boundaries of the binding site, there should be reads with the same strand only. However, in practice, all the experimental sequences demonstrate at the boundaries of the binding sites the presence of small admixtures of reads with the opposite strand (see ![figure](https://github.com/fnaumenko/isChIP/tree/master/pict/mix-strand.png)). This option allows you to specify a "theoretical" or "practical" simulation.<br>
-Default: ON
+Default: OFF
 
 ```--ts-uni```<br>
 In *test* mode ignores features scores if they are established in *template*. All features will be simulated with maximum score.
