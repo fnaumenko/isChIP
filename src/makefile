@@ -3,7 +3,7 @@
 PROG=isChIP
 CC=g++
 #CC=icpc
-COPT=-c #-D_NO_HASHTABLE #-Wall
+COPT=-c -D_NO_HASHTABLE #-Wall
 LOPT=-lpthread -lz
 SRC=$(PROG).cpp bioTxtFile.cpp Imitator.cpp common.cpp Data.cpp TxtFile.cpp
 HDR=$(PROG).h def.h bioTxtFile.h Imitator.h common.h Data.h TxtFile.h
