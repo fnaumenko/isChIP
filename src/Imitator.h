@@ -1,9 +1,6 @@
 #pragma once
 #include "bioTxtFile.h"
 
-static const char* SignPar = "# ";	// Marker of output parameter
-static const char* SignDbg = "## ";	// Marker of output debug info
-
 //typedef enum {	// three states boolean 
 //   False	= 0,
 //   True		= 1,
@@ -434,14 +431,10 @@ private:
 		//	@nts: cutted chromosome
 		//	@currPos: current cutting position
 		//	@fragLen: length of current fragment
-		//	@revrsSample: the probability of generating reversing Read: from -1 to 1
-		//		if < 0 than increasing to the end of "left" fragment;
-		//		if 0 than fifty-fifty;
-		//		if > 0 than increasing to the end of "right" fragment;
+		//	@isReverse: true if read has negative strand
 		//	return: -1 if fragment is NULL, 0 if limitN is exceeded,
 		//		1 if Read(s) is(are) added, 2 if output file is NULL
 		int AddRead	(const Nts& nts, chrlen currPos, short fragLen, bool isReverse);
-			//float revrsSample);
 
 		friend class Imitator;
 	};

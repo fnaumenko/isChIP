@@ -10,7 +10,6 @@
 #define	SAMPLE_FG()		Options::GetDVal(oFG_VEVEL)
 #define	SAMPLE_BG()		Options::GetDVal(oBG_LEVEL)
 #define	SZ_SEL()		Options::GetBVal(oSZ_SEL)
-//#define	OPT_DEBUG()		Options::GetBVal(oDBG)
 
 enum optValue {
 	oAMPL,
@@ -19,11 +18,11 @@ enum optValue {
 	oNUMB_CELLS,
 	oGFILE,
 	oCHROM,
-	oFLAT_LEN,
 	oFRAG_LEN,
 	oFRAG_DEV,
 	oBG_ALL,
 	oBS_LEN,
+	oFLAT_LEN,
 	oMEAN,
 	oSIGMA,
 	oLN_FACTOR,
@@ -53,4 +52,3 @@ enum optValue {
 	oHELP
 };
 
-void PrintReadInfo();

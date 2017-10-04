@@ -1,4 +1,5 @@
 #include "bioTxtFile.h"
+#include "isChIP.h"
 
 /************************ class FqFile ************************/
 
@@ -93,15 +94,23 @@ string BedRFile::Ext = ".bed";			// Extention of output BED file .bed or .bed.gz
 const string BedRFile::Score = "60";
 
 // Initializes line write buffer; only for master, clones are initialized by master
-inline void BedRFile::InitToWrite() {
-	SetWriteBuffer( 
-		Chrom::MaxAbbrNameLength + // length of chrom name
+//	@commandLine: command line to add as comment on the first line
+void BedRFile::InitToWrite(const string& commandLine) {
+	rowlen buffLen =
+		Chrom::MaxAbbrNameLength +	// length of chrom name
 		Read::OutNameLength + 		// length of Read name
 		2 * CHRLEN_CAPAC +			// start + stop positions
 		Score.length() +			// score
-		1 + 6 + 1,					// strand + 5 TABs + EOL  + one for safety
-		TAB
-	);
+		1 + 6;						// strand + 5 TABs + EOL
+
+	ostringstream oss;
+	oss << TabFile::Comment << BLANK << commandLine;
+	string firstLine = oss.str();
+	if(firstLine.length() > buffLen)
+		buffLen = firstLine.length();
+	SetWriteBuffer(buffLen + 1, TAB);	// + 1 for safety
+	AddRecord(firstLine.c_str(), commandLine.length());
+	Write();	// write header in case of multithread
 }
 
 // Sets chrom's name to line write buffer
@@ -220,45 +229,25 @@ void SamFile::SetHeaderLine(
 }
 
 // Generates and writes SAM header
-//	@cFiles: chrom files
+//	@cSizes: chrom sizes
 //	@commandLine: command line
-void SamFile::CreateHeader(const ChromFiles& cFiles, const string& commandLine)
+void SamFile::CreateHeader(const ChromSizes& cSizes, const string& commandLine)
 {
-	const string& path = cFiles.Path();
-	vector<string> szFiles;
-	FS::GetFiles(szFiles, path, ChromSizes::Ext);
-	if(szFiles.size() > 1)
-		Err("more than one chromosome sizes files", path).Throw();
-	ChromSizes* cSizes;
-	if(szFiles.size())	// chrom.sizes exists
-		cSizes = new ChromSizes(path + szFiles[0]);
-	else {				// chrom.sizes doesn't exist
-		Timer tm;
-		cout << "Chromosome sizes file" << MsgFileAbsent;
-		fflush(stdout);
-		tm.Start();
-		cSizes = new ChromSizes(cFiles);
-		cout << MsgDone;
-		tm.Stop();
-	}
-
 	SetHeaderLine("HD", "VN", "1.0", "SO", "unsorted");
-	for(ChromFiles::cIter it=cFiles.cBegin(); it!=cFiles.cEnd(); it++)
-		if( cFiles.IsTreated(it) )
-			SetHeaderLine("SQ", "SN", Chrom::AbbrName(CID(it)), "LN", NSTR((*cSizes)[CID(it)]));
+	for(ChromSizes::cIter it=cSizes.cBegin(); it!=cSizes.cEnd(); it++)
+		SetHeaderLine("SQ", "SN", Chrom::AbbrName(CID(it)), "LN", NSTR(it->second));
 	SetHeaderLine("PG", "ID", Product::Title, "PN", Product::Title, false);
 	SetHeaderLine(NULL, "VN", Product::Version, NULL, StrEmpty, false);
 	SetHeaderLine(NULL, "CL", commandLine);
 	Write();	// write header in case of multithread
-	delete cSizes;
 }
 
 #define CL_LEN 3	// length of the header line tag 'CL:'
 
 // Initializes line write buffer and header and makes ready for writing
-//	@cFiles: chrom files
+//	@cSizes: chrom sizes
 //	@commandLine: command line
-void SamFile::InitToWrite(const ChromFiles& cFiles, const string& commandLine)
+void SamFile::InitToWrite(const ChromSizes&cSizes, const string& commandLine)
 {
 	if(!ReadStartPos) {		// first constructor call?
 		if( OutFile::PairedEnd() )	{ Flag[0] = "99";	Flag[1] = "147"; }
@@ -282,7 +271,7 @@ void SamFile::InitToWrite(const ChromFiles& cFiles, const string& commandLine)
 			rowlen(ReadStartPos+2*Read::Len), rowlen(commandLine.length()+CL_LEN));
 		SetWriteBuffer(buffLen, TAB);
 		ReadStartPos = buffLen - 2*Read::Len - 1;
-		CreateHeader(cFiles, commandLine);
+		CreateHeader(cSizes, commandLine);
 	}
 	InitBuffer();
 }
@@ -349,31 +338,31 @@ void SamFile::AddTwoReads(const string& rName,
 
 /************************ class OutFile ************************/
 
-BYTE OutFile::Mode = 0;	// 0 in case of one-side sequencing, 1 in case paired-end
+OutFile::eMode OutFile::Mode = mSE;
 
 OutFile::AddReads OutFile::callAddRead[] =
 	{ &OutFile::AddReadSE, &OutFile::AddReadPE, &OutFile::NoAddRead };
 
 // Creates new instance for writing.
 //	@fName: common file name without extention
-//	@mask: combination of 0x1, 0x2, 0x4
-//	@pairedEnd: 0 in case of one-side sequencing, 1 in case of paired-end
+//	@outType: types of output files
+//	@mode: SE or PE
 //	@isZipped: true if output files should be zipped
-OutFile::OutFile(const string& fName, int mask, UINT pairedEnd,	bool isZipped)
+OutFile::OutFile(const string& fName, eFormat outType, eMode mode,	bool isZipped)
 {
 	const string& zipExt = isZipped ? ZipFileExt : StrEmpty;
-	_mode = Mode = BYTE(pairedEnd);
+	_mode = Mode = mode;
 
 	_fqFile1 = _fqFile2 = NULL;
-	if( mask & 0x1 )
+	if( outType & ofFQ )
 		if( PairedEnd() ) {
 			_fqFile1 = new FqFile(fName, zipExt, 1);
 			_fqFile2 = new FqFile(fName, zipExt, 2);
 		}
 		else
 			_fqFile1 = new FqFile(fName, zipExt);
-	_bedFile = mask & 0x2 ? new BedRFile(fName, zipExt) : NULL;
-	_samFile = mask & 0x4 ? new SamFile	(fName, zipExt) : NULL;
+	_bedFile = outType & ofBED ? new BedRFile(fName, zipExt) : NULL;
+	_samFile = outType & ofSAM ? new SamFile (fName, zipExt) : NULL;
 }
 
 #ifdef _MULTITHREAD
@@ -399,14 +388,14 @@ OutFile::~OutFile()
 }
 
 // Initializes buffers and makes ready for writing
-//	@cFiles: chrom files
+//	@cSizes: chrom sizes or NULL
 //	@commandLine: command line
-void OutFile::Init(const ChromFiles& cFiles, const string& commandLine)
+void OutFile::Init(const ChromSizes* cSizes, const string& commandLine)
 {
 	if(_fqFile1)	_fqFile1->InitToWrite();
 	if(_fqFile2)	_fqFile2->InitToWrite();
-	if(_bedFile)	_bedFile->InitToWrite();
-	if(_samFile)	_samFile->InitToWrite(cFiles, commandLine);
+	if(_bedFile)	_bedFile->InitToWrite(commandLine);
+	if(_samFile)	_samFile->InitToWrite(*cSizes, commandLine);
 }
 
 ULONG OutFile::Count() const
@@ -468,6 +457,8 @@ void OutFile::Write() const
 	if(_samFile)	_samFile->Write();
 }
 
+const char* delim = ", ";
+
 // Prints output files as head info
 //	@signOut: output marker
 void OutFile::Print(const char* signOut) const
@@ -475,13 +466,15 @@ void OutFile::Print(const char* signOut) const
 	if(_fqFile1) {
 		cout << signOut << "Output sequence: " << _fqFile1->FileName();
 		if(_fqFile2)
-			cout << ", " << _fqFile2->FileName(); 
+			cout << delim << _fqFile2->FileName(); 
 		cout << endl;
 	}
 	if(_bedFile || _samFile) {
 		cout << signOut << "Output alignment: ";
-		if(_bedFile)	cout << _bedFile->FileName();
-		cout << " ";
+		if(_bedFile) {
+			cout << _bedFile->FileName();
+			if(_samFile)	cout << delim;
+		}
 		if(_samFile)	cout << _samFile->FileName();
 		cout << endl;
 	}

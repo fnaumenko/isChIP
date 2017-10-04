@@ -2,6 +2,8 @@
 #include "Imitator.h"
 #include <algorithm>    // std::sort
 
+static const char* SignDbg = "## ";	// Marker of output debug info
+
 /************************  class Average ************************/
 void Average::operator+=(UINT val)
 {
@@ -759,30 +761,25 @@ int Imitator::ChromCutter::CutChrom	(
 						*currPos += fracShift;				// in case of BG fracShift is always 0
 						
 						if( !indGr && Imitator::StrandAdmix ) {	// FG and admix opposite strand?
+	// Admix opposite strand:
+	// if fragment is on the left site of BS,
+	// likelihood of negative strand is linearly decreasing from 1 to 0.5 while moving fragment right
+	// if fragment is on the right site of BS,
+	// likelihood of negative strand is linearly decreasing from 0.5 to 0 while moving fragment right
+	// if fragment's centre is inside BS,
+	// likelihood of negative strand is 0.5
 							fracCentre = *currPos + (fracLen>>1);
-							if(fracCentre < start)
-								// if fragment is on the left site of BS boundary,
-								// likelihood of negative strand is linearly decreasing from 1 to 0.5
-								// while moving fragment right
-								featrBound = start;
-							else if(fracCentre > end)
-								// if fragment is on the right site of BS boundary,
-								// likelihood of negative strand is linearly decreasing from 0.5 to 0
-								// while moving fragment right
-								featrBound = end;
-							else
-								// if fragment's centre is inside of BS,
-								// likelihood of negative strand is 0.5
-								goto A;
-							reverse = _lnDist.RequestSample(float(featrBound - *currPos)/fracLen);
+							if(fracCentre < start)			featrBound = start;
+							else if(fracCentre > end)		featrBound = end;
+							else							goto A;
+							reverse = _lnDist.RequestSample( float(featrBound - *currPos)/fracLen );
 						}
 						else	// likelihood of neg strand is always 0.5
 A:							reverse = _lnDist.Boolean();
 						
 						addRdRes = AddRead(nts, *currPos, fracLen, reverse);
 
-						if( addRdRes < 0 )	
-							return 1;	// end of chromosome: continue treatment
+						if( addRdRes < 0 )		return 1;	// end of chromosome: continue treatment
 						if( addRdRes > 0 ) {
 							// increment of writed Reads in thread
 							// file may be NULL in case of SetSample()
@@ -802,17 +799,13 @@ A:							reverse = _lnDist.Boolean();
 //	@nts: cutted chromosome
 //	@pos: current cutting position
 //	@fragLen: length of current fragment
-//	@rvsSample: the probability of generating reversing Read: from -1 to 1
-//		if < 0 then increasing to the end of "left" fragment (intersected with feature with its right end);
-//		if 0 then fifty-fifty;
-//		if > 0 then increasing to the end of "right" fragment (intersected with feature with its left end);
+//	@isReverse: true if read has negative strand
 //	return: -1 if fragment is NULL,
 //		0 if limitN is exceeded,
 //		1 if Read(s) is(are) added,
 //		2 if output file is NULL
 inline int Imitator::ChromCutter::AddRead(
 	const Nts& nts, chrlen pos, short fragLen, bool isReverse)
-	//float rvsSample)
 {
 	return _partoFile->AddRead(_chrName, nts, 
 		// +1 since counters are not incremented yet
@@ -873,9 +866,8 @@ bool Imitator::CutRegular	()
 	Nts nts(_chrFiles.FileName(0), LetN);	// chromosome 1
 	ChromsThreads::ChromsThread csThread(true);
 	ChromCutter chrCutter(this, &csThread, false);
-
 	Timer timer;
-	timer.Start();
+
 	// Chromosome pnts is regulary cutted with writing to file
 	for( ULONG currPos = 0;
 		chrCutter.AddRead(nts, currPos, RegShift, false);

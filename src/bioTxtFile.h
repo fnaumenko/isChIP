@@ -100,7 +100,8 @@ public:
 #endif
 
 	// Initializes line write buffer; only for master, clones are initialized by master
-	void InitToWrite ();
+	//	@commandLine: command line to add as comment on the first line
+	void InitToWrite (const string& commandLine);
 
 	// Sets chrom's name to line write buffer
 	void BeginWriteChrom(chrid cID);
@@ -149,9 +150,9 @@ private:
 		);
 
 	// Generates and writes SAM header
-	//	@cFiles: chrom files
+	//	@cSizes: chrom sizes
 	//	@commandLine: command line
-	void CreateHeader(const ChromFiles& cFiles, const string& commandLine);
+	void CreateHeader(const ChromSizes& cSizes, const string& commandLine);
 
 	// Adds full-defined Read to the line's write buffer.
 	//	@rName: Read's name
@@ -182,9 +183,9 @@ public:
 #endif
 
 	// Initializes line write buffer and header and makes ready for writing
-	//	@cFiles: chrom files
+	//	@cSizes: chrom sizes
 	//	@commandLine: command line
-	void InitToWrite(const ChromFiles& cFiles, const string& commandLine);
+	void InitToWrite(const ChromSizes& cSizes, const string& commandLine);
 
 	// Sets current chrom
 	void BeginWriteChrom(chrid cID) { _cName = Chrom::AbbrName(cID); }
@@ -210,19 +211,35 @@ public:
 	inline ULONG Count() const { return RecordCount() - _headLineCnt; }
 };
 
+
 class OutFile
 /*
  * 'OutFile' wraps output files: FQ|SAM|BED.
  */
 {
+public:
+	// Output file formats
+	enum eFormat {
+		ofFQ	= 0x1,
+		ofBED	= 0x2,
+		ofSAM	= 0x4
+	};
+
+	// Output file formats
+	enum eMode {
+		mSE	= 0,
+		mPE	= 1,
+		mEmpty = 2
+	};
+
 private:
-	static BYTE	Mode;	// 0 in case of one-side sequencing, 1 in case of paired-end
+	static eMode	Mode;	// 0 in case of one-side sequencing, 1 in case of paired-end
 	
 	typedef int	(OutFile::*AddReads)(string&, const Nts&, ULONG, chrlen, fraglen, bool);
 	static AddReads callAddRead[];	// 0: 'add SE Read' method,
 									// 1: 'add PE Read' method,
 									// 3: empty method (for trial cutting)
-	BYTE		_mode;
+	eMode		_mode;
 	FqFile	*	_fqFile1;	// mate1 or single FQ
 	FqFile	*	_fqFile2;	// mate2 FQ
 	BedRFile*	_bedFile;
@@ -246,11 +263,11 @@ public:
 
 	// Creates new instance for writing.
 	//	@fName: common file name without extention
-	//	@mask: combination of 0x1, 0x2, 0x4
-	//	@pairedEnd: 0 in case of one-side sequencing, 1 in case of paired-end
+	//	@outType: types of output files
+	//	@mode: SE or PE
 	//	@isZipped: true if output files should be zipped
 	//	@commandLine: command line
-	OutFile(const string& fName, int mask, UINT pairedEnd, bool isZipped);
+	OutFile(const string& fName, eFormat outType, eMode mode, bool isZipped);
 
 #ifdef _MULTITHREAD
 	// Creates a clone of existed instance for writing.
@@ -262,17 +279,20 @@ public:
 	~OutFile();
 
 	// Initializes buffers and makes ready for writing
-	//	@cFiles: chrom files
+	//	@cSizes: chrom sizes or NULL
 	//	@commandLine: command line
-	void Init(const ChromFiles& cFiles, const string& commandLine);
+	void Init(const ChromSizes* cSizes, const string& commandLine);
 
 	// Sets/clears empty mode.
 	// In empty mode no output is produced.
 	//	@val: if true, than set empty mode, otherwise working mode
-	inline void SetEmptyMode(bool val)	{ _mode = val ? 2 : Mode; }
+	inline void SetEmptyMode(bool val)	{ _mode = val ? mEmpty : Mode; }
 
 	// Returns count of writed Reads.
 	ULONG Count() const;
+
+	// Returns true if SAM type is assigned.
+	inline bool IsSamSet()	{ return (bool)_samFile; }
 
 	// Adds read(s) to output file
 	//	@cName: chrom's name
