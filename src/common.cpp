@@ -1,5 +1,12 @@
 #include "common.h"
 #include <sstream>
+#ifdef OS_Windows
+	#include <algorithm>
+	#define SLASH '\\'		// standard Windows path separator
+	#define REAL_SLASH '/'	// is permitted in Windows too
+#else
+	#define SLASH '/'	// standard Linux path separator
+#endif
 
 /************************ common Functions ************************/
 
@@ -98,8 +105,11 @@ chrlen AlignPos(chrlen pos, BYTE res, BYTE relative)
 #define PRINT_IN_PRTHS(v)	cout<<" ["<<(v)<<']'
 
 const char*	OptTitle = "Option ";
+const char*	optTitle = " option ";
+const char* Ambiguous = "Ambiguous";
 const char*	Default = " Default: ";
 const char*	Missing = "missing ";
+
 
 const char* Options::Booleans [] = {"OFF", "ON"};
 
@@ -114,7 +124,7 @@ const char Options::Option::EnumDelims [] = {'|', ','};
 #define ENUM_REPLACE '?'	// symbol in description that is replaced by enum value
 
 const string sValue = "value";
-const string sWrongValue = "wrong " + sValue;
+//const string sWrongValue = "wrong " + sValue;
 
 // Checks is string represents digital value
 bool isValidDigit(const char *str)
@@ -188,37 +198,38 @@ void PrintSubLine(char* buff, const char* str, const char* subStr, const char** 
 //	Return: 0 if success, -1 if not found, 1 if option or value is wrong
 int Options::Option::SetVal(bool isWord, char* opt, char* val, bool isNextOpt)
 {
-	if( (!isWord && Char == *opt)
-	|| (isWord && Str != NULL && !strcmp(Str, opt)) ) {
-		// check value existence
-		bool noVal = val == NULL || val[0] == HPH;
-		if( ValRequired ) {
-			if(noVal)	return PrintWrongOpt(isWord, opt, NULL, sValue + " required");
-		}
-		else if(!noVal && isNextOpt)
-			return PrintWrongOpt(isWord, opt, NULL, sValue + " prohibited");
+	if( isWord ) { if(Str==NULL || strcmp(Str, opt))	return -1; }
+	else if(Char != *opt)	return -1;
 
-		switch(ValType) {
-			case tENUM:	if(SetEnum(val))	return 0;
-			case tCOMB:	if(SetComb(val))	return 0;
-			case tCHAR:	if(NVal != vUNDEF)
-							return SetTriedDigit(*val, isWord);		// value is treated as int
-			case tNAME: SVal = val;			return 0;	// and tCHAR where value is treated as string
-			case tHELP:	return PrintUsage(true);
-			case tVERS:	return PrintVersion();
-			default:	if(isValidDigit(val))
-							return SetTriedDigit(atof(val), isWord);	// numerical value
-		}
-		return PrintWrongOpt(isWord, opt, val, sWrongValue);
+	if(Sign.Is(Signs::Recogn))	return PrintAmbigOpt(isWord, opt, "Duplicated", NULL);
+	// check value existence
+	bool noVal = val==NULL || val[0]==HPH;	// true if no value
+	if(ValRequired())	{ if(noVal)	return PrintWrongOpt(isWord, opt, NULL, sValue + " required"); }
+	else if(!noVal&&isNextOpt)	return PrintWrongOpt(isWord, opt, NULL, sValue + " prohibited");
+
+	Sign.MarkAs(Signs::Recogn);
+	switch(ValType) {
+		case tENUM:	return SetEnum(val) ? 0 : PrintWrongOpt(isWord, opt, val);
+		case tCOMB:	return SetComb(val) ? 0 : PrintWrongOpt(isWord, opt, val);
+		case tCHAR:	
+			if(NVal != vUNDEF)
+				return SetTriedDigit(*val, isWord);	// value is treated as int
+													// and tCHAR where value is treated as string
+		case tNAME: SVal = val;			return 0;
+		case tHELP:	return PrintUsage(true);
+		case tVERS:	return PrintVersion();
+		default:
+			if(isValidDigit(val))
+				return SetTriedDigit(atof(val), isWord);	// numerical value
 	}
-	return -1;
+	return PrintWrongOpt(isWord, opt, val);
 }
 
 // Check option for obligatory.
 //	return: -1 if option is obligatory but not stated, otherwise 1
 int Options::Option::CheckOblig()
 {
-	if( OptOblig && ValRequired
+	if( Sign.Is(Signs::Oblig) && ValRequired()
 	&& ( (ValType == tNAME && SVal == NULL)
 		|| (ValType != tNAME && NVal == vUNDEF) ) ) {
 			cerr << Missing << "required option " 
@@ -241,7 +252,7 @@ int Options::Option::SetTriedDigit(double val, bool isWord)
 		const char* sign[] = {"less", "more"};
 		cerr << OptTitle << OptToStr(isWord, isWord ? Str : &Char);
 		cerr << MSGSEP_BLANK << sValue << setprecision(4) << BLANK << val
-				<< " is " << sign[outOfLimit] << " then permissible " 
+				<< " is " << sign[outOfLimit] << " than permissible " 
 				<< (!outOfLimit ? MinNVal: MaxNVal ) << EOL;
 		return 1;
 	}
@@ -254,7 +265,7 @@ int Options::Option::SetTriedDigit(double val, bool isWord)
 //	return: true if success
 bool Options::Option::SetEnum(char* val)
 {
-	if( ValRequired ) {				// non-boolean template
+	if( ValRequired() ) {				// non-boolean template
 		int ind = GetEnumInd(val);
 		if( ind < 0 )	return false;
 		NVal = ind + MinNVal;	// add possible minimum value as a shift
@@ -333,9 +344,9 @@ void Options::Option::Print(bool descr)
 		delete [] buffer;
 
 		// print DEFAULT
-		if( NVal != vUNDEF )
+		if( ValRequired() && NVal != vUNDEF )
 			if( ValType == tENUM || ValType == tCOMB ) {
-				if( ValRequired )
+				if( NVal >= MinNVal )	// do not print default if it is never set by user
 					PRINT_IN_PRTHS(	((char**)SVal)
 						[int(NVal)-int(MinNVal)] );	// offset by min enum value
 			}
@@ -353,7 +364,7 @@ void Options::Option::Print(bool descr)
 //	return: number of printed symbols
 BYTE Options::Option::PrintEnumVals()
 {
-	if( ValRequired ) {
+	if( ValRequired() ) {
 		char** vals = (char**)SVal;
 		BYTE wCnt = BYTE(MaxNVal),
 			 cCnt = BYTE(strlen(vals[0]));
@@ -393,10 +404,15 @@ int Options::SetOption (bool isWord, char* opt, char* val, bool isNextOpt, int *
 	int res;
 
 	opt += int(isWord)+1;
+	if(isWord) { if(strlen(opt) == 1)
+		return PrintAmbigOpt(isWord, opt, Ambiguous, "excess '-'?"); }
+	else if(strlen(opt) > 1)
+		return PrintAmbigOpt(isWord, opt, Ambiguous, "forgot '-'?");
+
 	for(int i=0; i<_OptCount; i++) {
 		res = _Options[i].SetVal(isWord, opt, val, isNextOpt);
 		if(!res) {
-			if( _Options[i].ValRequired )	(*argIndex)++;
+			if( _Options[i].ValRequired() )	(*argIndex)++;
 			return 0;
 		}
 		if(res>0)		return 1;
@@ -418,13 +434,32 @@ int	Options::PrintVersion()
 }
 
 // Ouptuts option with error message to cerr
+//	@isWord: true if option is long
+//	@opt: option
+//	@val: value or NULL
+//	@msg: error message about value
 int Options::PrintWrongOpt(bool isWord, const char* opt, const char* val, const string msg)
 {
-	cerr << OptTitle << OptToStr(isWord, opt) << MSGSEP_BLANK << msg;
+	cerr << OptTitle << OptToStr(isWord, opt)
+		 << MSGSEP_BLANK << (msg == StrEmpty ? "wrong " + sValue : msg);
 	if( val ) cerr << BLANK << val;
 	cerr << EOL;
 	return 1;
 }
+
+// Ouptuts ambiguous option with error message to cerr
+//	@isWord: true if option is long
+//	@opt: option
+//	@headMsg: message at the beginning
+//	@tailMsg: message at the end or NULL
+int Options::PrintAmbigOpt(bool isWord, const char* opt, const char* headMsg, const char* tailMsg)
+{
+	cerr << headMsg << optTitle << OptToStr(isWord, opt);
+	if( tailMsg )	cerr << MSGSEP_BLANK << tailMsg;
+	cerr << EOL;
+	return 1;
+}
+
 
 // Check obligatory options and output message about first absent obligatory option.
 //	return: -1 if some of obligatory options does not exists, otherwise 1
@@ -441,7 +476,6 @@ int Options::CheckObligs()
 int Options::PrintUsage (bool title)
 {
 	BYTE i, k;
-	const BYTE mask = 128;	// to mask temporary options printed in "Parameters" section 
 	if( title )		cout << Product::Descr << endl << endl;
 	
 	// output 'Usage' section
@@ -451,16 +485,13 @@ int Options::PrintUsage (bool title)
 		const Usage& usage = _Usages[k];
 		// output required options
 		for(i=0; i<_OptCount; i++)
-			if( _Options[i].OptOblig )
+			if( _Options[i].Sign.Is(Signs::Oblig) )
 				_Options[i].Print(false);
 		// output parameters
-		if( usage.OptVal != vUNDEF ) {
-			// output option in 'Usage'
-			_Options[usage.OptVal].Print(false);
-			_Options[usage.OptVal].OptOblig |= mask;	// mark as printed
-		}
-		else	// output text  in 'Usage'
-			cout << usage.Text;
+		if( usage.OptVal != vUNDEF )
+			_Options[usage.OptVal].Print(false);	// output option value
+		else
+			cout << usage.Text;						// output text
 		cout << endl;
 	}
 	cout << endl;
@@ -529,7 +560,7 @@ int Options::Tokenize(int argc, char* argv[], const char* obligPar)
 /************************ class Err ************************/
 
 const char* Err::_msgs [] = {
-/* NONE */		WARNING,
+/* NONE */		"WARNING: ",//WARNING,
 /* P_MISSED */	"missing",
 /* F_NON */		"no such file",
 /* FD_NON */	"no such file or directory",
@@ -538,21 +569,23 @@ const char* Err::_msgs [] = {
 /* F_CLOSE */	"could not close",
 /* F_READ */	"could not read",
 /* F_WRITE */	"could not write",
-/* F_BIGLINE */	"buffer is less then length of line",
+/* F_BIGLINE */	"buffer is less than length of line",
 /* F_NOREADREC*/"attempt to get record's info without reading record",
 /* FZ_MEM */	"wrong setting internal gzip buffer",
 /* FZ_OPEN */	"wrong reading mode ALL for zipped file",
 /* FZ_BUILD */	"this build does not support zipped files",
 #ifndef _FQSTATN
-/* TF_FIELD */	"wrong format: number of fields is less then expected",
+/* TF_FIELD */	"wrong format: number of fields is less than expected",
 /* TF_SPEC */	"wrong line format",
 /* TF_EMPTY */	"no",
-/* B_INVALID */	"'start' is equal or more then 'end'",
+/* BP_BADEND */	"'start' position is equal or more than 'end'",
+/* BP_NEGPOS */	"negative position is not allowed",
+/* BP_EXCEED */	"position exceeds chromosome length",
 #ifdef _BEDR_EXT
 /* BR_RNAME */	"wrong read name format:",
 #endif
 ///* BR_SIZE */	"different size of read",
-/* FA_LONGLEN */"length of chromosome is more then ULONG_MAX",
+/* FA_LONGLEN */"length of chromosome is more than ULONG_MAX",
 #endif
 #if defined(_ISCHIP) || defined(_FQSTATN)
 /* FQ_HEADER */	"no '@' marker; miss header line",
@@ -667,6 +700,25 @@ size_t FS::GetExtPos(const string &fname) {
 	return pos;
 }
 
+// Gets size of file or -1 if file doesn't exist
+LLONG FS::Size (const char* fname)
+{
+	struct_stat64 st;
+	return _stat64(fname, &st) == -1 ? -1 : st.st_size;
+}
+
+// Gets real size of zipped file  or -1 if file cannot open; limited by UINT
+LLONG FS::UncomressSize	(const char* fname)
+{
+	FILE *file = fopen(fname, "rb");	// "read+binary"
+	if( file == NULL )		return -1;
+	BYTE sz[4] = {0,0,0,0};
+	_fseeki64(file, -4, SEEK_END);
+	fread(sz, 1, 4, file);
+	fclose(file);
+	return (sz[3] << 3*8) + (sz[2] << 2*8) + (sz[1] << 8) + sz[0];
+}
+
 // Returns true if file has a specified  extension.
 //	@fname: file name
 //	@ext: extension includes dot symbol and can be composite
@@ -698,33 +750,56 @@ string const FS::FileNameWithoutExt (const string& fname)
 	return pos == string::npos ? fname : fname.substr(0, pos);
 }
 
+// Returns short file name by long one
+//	@fname: long file name
+string const FS::ShortFileName (const string& fname)
+{
+#ifdef OS_Windows
+	if(fname.find(REAL_SLASH) != string::npos) {
+		string tmp(fname);
+		replace(tmp.begin(), tmp.end(), REAL_SLASH, SLASH);
+		return tmp.substr(tmp.find_last_of(SLASH) + 1);
+	}
+#endif
+	return fname.substr(fname.find_last_of(SLASH) + 1);
+}
+
+// Returns directory name by long file name
+//	@fname: long file name
+//	@addSlash: true if slash sould be added at the end
+string const FS::DirName (const string& fname, bool addSlash)
+{
+#ifdef OS_Windows
+	if(fname.find(REAL_SLASH) != string::npos) {
+		string tmp(fname);
+		replace(tmp.begin(), tmp.end(), REAL_SLASH, SLASH);
+		return tmp.substr(0, tmp.find_last_of(SLASH) + int(addSlash));
+	}
+#endif
+	return fname.substr(0, fname.find_last_of(SLASH) + int(addSlash));
+}
+
 // Returns the name of last subdirectory by long file name
 //	@fname: long file name
-string const FS::LastSubDirName (const string& fname) {
+string const FS::LastSubDirName (const string& fname)
+{
 	const string& dir = FS::DirName(fname, false);
 	size_t pos = dir.find_last_of(SLASH);
-	return pos == string::npos ?
-		dir :
+	return pos == string::npos ? dir :
 		dir.substr(dir.substr(0, pos).length() + 1);
 }
 
-// Gets size of file or -1 if file doesn't exist
-LLONG FS::Size (const char* fname)
+// Returns the name ended by slash without checking the name
+string const FS::MakePath(const string& name)
 {
-	struct_stat64 st;
-	return _stat64(fname, &st) == -1 ? -1 : st.st_size;
-}
-
-// Gets real size of zipped file  or -1 if file cannot open; limited by UINT
-LLONG FS::UncomressSize	(const char* fname)
-{
-	FILE *file = fopen(fname, "rb");
-	if( file == NULL )		return -1;
-	BYTE sz[4] = {0,0,0,0};
-	_fseeki64(file, -4, SEEK_END);
-	fread(sz, 1, 4, file);
-	fclose(file);
-	return (sz[3] << 3*8) + (sz[2] << 2*8) + (sz[1] << 8) + sz[0];
+#ifdef OS_Windows
+	if(name.find(REAL_SLASH) != string::npos) {
+		string tmp(name + SLASH);
+		replace(tmp.begin(), tmp.end(), REAL_SLASH, SLASH);
+		return tmp;
+	}
+#endif
+	return name + SLASH;
 }
 
 #ifndef _WIGREG
@@ -741,7 +816,7 @@ bool FS::GetFiles	(vector<string>& files, const string& dirName,
 {
 	BYTE count = 0;
 #ifdef OS_Windows
-	string fileTempl = dirName + SLASH + '*' + fileExt;
+	string fileTempl = FS::MakePath(dirName) + '*' + fileExt;
 	WIN32_FIND_DATA ffd;
 
 	HANDLE hFind = FindFirstFile( fileTempl.c_str(), &ffd );
@@ -789,8 +864,8 @@ bool FS::GetFiles	(vector<string>& files, const string& dirName,
 /************************ end of class FileSystem ************************/
 
 /************************  class Timer ************************/
-bool	Timer::_Enabled = false;
-clock_t	Timer::_StartClock;
+bool	Timer::Enabled = false;
+clock_t	Timer::_StartCPUClock;
 
 // Prints elapsed time interval
 //	@title: string printed before time output
@@ -817,8 +892,8 @@ void Timer::PrintElapsed(const char *title, long elapsed, bool parentheses, bool
 //	@isCarrgReturn: if true then ended output by EOL
 void Timer::StopCPU(bool isCarrgReturn)
 {
-	if( _Enabled )
-		PrintElapsed("CPU: ", (clock()-_StartClock)/CLOCKS_PER_SEC, false, isCarrgReturn);
+	if( Enabled )
+		PrintElapsed("CPU: ", (clock()-_StartCPUClock)/CLOCKS_PER_SEC, false, isCarrgReturn);
 }
 
 // Stops enabled timer and print elapsed time with title
@@ -827,7 +902,7 @@ void Timer::StopCPU(bool isCarrgReturn)
 //	@isCarrgReturn: if true then ended output by EOL
 void Timer::Stop(const char *title, bool parentheses, bool isCarrgReturn)
 {
-	if( _Enabled ) {
+	if( Enabled ) {
 		time_t stopTime;
 		time( &stopTime );
 		PrintElapsed(title, (long)difftime(stopTime, _startTime), parentheses, isCarrgReturn);
@@ -964,6 +1039,21 @@ const BYTE		Chrom::MaxAbbrNameLength = BYTE(strlen(Chrom::Abbr)) + MaxShortNameL
 const BYTE		Chrom::MaxNamedPosLength = 
 	BYTE(strlen(Chrom::Abbr)) + MaxShortNameLength + CHRLEN_CAPAC + 1;
 
+chrid Chrom::_cID = UnID;	// user-defined chrom ID
+
+// Sets chromosome's ID stated by user with validation.
+//	@cID: chromosome's ID
+//	return: true if the check has passed, otherwise do not set and print message to cerr
+bool Chrom::SetStatedID(chrid cID)
+{
+	if( cID>64 && cID!=M && cID!=X && cID!=Y ) {
+		cerr << Name(cID) << ": wrong " << Title << "'s name\n";
+		return false;
+	}
+	_cID = cID;
+	return true;
+}
+
 // Returns a pointer to the first occurrence of C sunstring. Recurcive.
 //	@str: C string to find in
 //	@templ: C string to be located
@@ -1044,7 +1134,7 @@ BYTE	Read::OutNameLength = 0;
 
 char	Read::SeqQuality;		// the quality values for the sequence (ASCII)
 BYTE	Read::MapQuality = 1;	// the mapping quality
-Read::eName	Read::NameType;		// type of name of Read in output files
+Read::rNameType	Read::NameType;		// type of name of Read in output files
 short	Read::LimitN = vUNDEF;	// maximal permitted number of 'N' in Read or vUNDEF if all
 ULONG	Read::MaxCount;			// up limit of writed Reads
 ULONG	Read::Count = 0;		// counter of total writed Reads
@@ -1052,7 +1142,7 @@ const char*	Read::NmDelimiter = NULL;
 const char Read::ToUp	= 'a' - 'A';
 const char Read::Complements[] = {'T',0,'G',0,0,0,'C',0,0,0,0,0,0,'N',0,0,0,0,0,'A'};
 
-void Read::Init(readlen rLen, eName nmType, char seqQual, BYTE mapQual, short limN, ULONG maxCnt)
+void Read::Init(readlen rLen, rNameType nmType, char seqQual, BYTE mapQual, short limN, ULONG maxCnt)
 {
 	OutNameLength = 
 		Read::Name().length() + 1 +		// + 1 delimiter
@@ -1097,7 +1187,8 @@ int Read::CheckNLimit(const char* read)
 // Prints Read values - parameters.
 void Read::Print()
 {
-	cout << "Reads: length = " << int(Len)
+	cout << "Read: length = " << int(Len)
+		 << GroupParSep << "name includes a " << (NameType==nmPos ? "position" : "number")
 		 << GroupParSep << "FQ quality = " << SeqQuality
 		 << GroupParSep << "map quality = " << int(MapQuality)
 		 << GroupParSep << "N-limit = ";

@@ -47,7 +47,7 @@
 	#define fopen	fopen64
 	#define TRUE	1
 	#define FALSE	0
-	#define SLASH '/'
+	//#define SLASH '/'	// standard Linux path separator
 	//#define F_READ_MODE O_RDONLY
 #elif defined _WIN32
 	#define OS_Windows
@@ -64,7 +64,8 @@
 	#define retThreadValTrue	1
 
 	#define atol _atoi64
-	#define SLASH '\\'
+	//#define SLASH '\\'		// standard Windows path separator
+	//#define REAL_SLASH '/'	// is permitted in Windows too
 #endif
 
 #ifndef _NO_ZLIB
@@ -103,7 +104,7 @@ typedef float readscr;		// type score of Read
 #define sBACK	"\b"
 #define QUOT	'\''
 #define DOT		'.'
-#define HASH	'#'
+//#define HASH	'#'
 #define COLON	':'
 #define PERS	'%'
 
@@ -113,7 +114,7 @@ typedef float readscr;		// type score of Read
 #define MSGSEP_BLANK ": "	// message blank separator between subject and explanation
 
 using namespace std;
-static const char* WARNING = "WARNING: ";
+static const char* WARNING = "NOTICE: ";
 
 static const string ZipFileExt = ".gz";
 static const string StrEmpty = "";
@@ -122,11 +123,11 @@ static const char* Version = "version";
 #ifdef _ISCHIP
 static const char* GroupParSep = ";  ";		// option print: separator of option values in a group
 static const char* MsgFileAbsent = " is not exist. Generate...";
-static const char* MsgDone = " done\t";
 #endif	// _ISCHIP
 #ifndef _WIGREG
 static const char* Template = "template";
 #endif
+static const char* MsgDone = " done\t";
 
 /*** COMMON MACROS & FUNCTION ***/
 
@@ -292,13 +293,29 @@ private:
 	// do not forget to support the correlation with Options::_TypeNames []
 	enum eValType	{ tUNDEF, tNAME, tCHAR, tINT, tFLOAT, tLONG, tENUM, tCOMB, tHELP, tVERS };
 	
+	struct Signs {
+	private:
+		BYTE	signs;
+
+	public:
+		static const BYTE Oblig		= 0x1;	// obligatory option sign
+		static const BYTE Recogn	= 0x2;	// recognized option sign 
+		//static const BYTE Printed	= 0x4;	// printed option mask
+
+		inline Signs(int x)	{ signs = (BYTE)x; }	// to initialize obligatory in main()
+		// Returns true if given sign is set
+		bool inline Is(BYTE mark)		{ return signs & mark; }
+		// Sets given sign
+		void inline MarkAs(BYTE mark)	{ signs |= mark; }
+	};
+
 	// structure 'Option' keeps options attributes.
 	struct Option {
 		const char	Char;		// option - character
 		const char*	Str;		// option - string
-			  BYTE	OptOblig;	// 1 if option is obligatory, 0 otherwise;
-								// not bool since used as bit mask in PrintUsage()
-		const bool	ValRequired;// true if option's value is required
+			  Signs	Sign;		// initialize obligatory in main():
+								// 1 if option is obligatory, 0 otherwise;
+		//const bool	_ValRequired;// true if option's value is required
 		const eValType ValType;	// type of value
 		const BYTE	OptGroup;	// option's category
 			  double NVal;		// default or established numeric or enum value
@@ -312,6 +329,9 @@ private:
 		const char*	Descr;		// tip string
 
 		static const char EnumDelims[];	// specifies delimiter for enum [0] and combi [1] values
+
+		// returns true if option value is required
+		bool inline ValRequired() { return MinNVal != vUNDEF; }
 
 		// Sets option value.
 		//	@isWord: true if option is a word, false if option is a char
@@ -392,10 +412,22 @@ private:
 	static int PrintVersion();
 
 	// Ouptuts option with error message to cerr
-	static int PrintWrongOpt(bool isWord, const char* opt, const char* val, const string msg);
-	
-} options;
+	// Ouptuts option with error message to cerr
+	//	@isWord: true if option is long
+	//	@opt: option
+	//	@val: value or NULL
+	//	@msg: error message about value
+	static int PrintWrongOpt(bool isWord, const char* opt, const char* val,
+		const string msg = StrEmpty);
 
+	// Ouptuts ambiguous option with error message to cerr
+	//	@isWord: true if option is long
+	//	@opt: option
+	//	@headMsg: message at the beginning
+	//	@tailMsg: message at the end or NULL
+	static int PrintAmbigOpt(bool isWord, const char* opt, const char* headMsg, const char* tailMsg);
+
+} options;
 #define ErrWARNING	Err::NONE
 
 class Err
@@ -423,9 +455,11 @@ public:
 		TF_FIELD,
 		TF_SPEC,
 		TF_EMPTY,
-		B_INVALID,
+		BP_BADEND,	// bed position: start is is equal or more than end
+		BP_NEGPOS,	// bed position: negative position
+		BP_EXCEED,	// bed position: exceeded chrom length
 #ifdef _BEDR_EXT
-		BR_RNAME,
+		BR_RNAME,	// bed read: wrong read name format
 #endif
 		//BR_SIZE,
 		FA_LONGLEN,
@@ -547,18 +581,21 @@ private:
 	static size_t GetExtPos	(const string &fname);
 
 public:
+	// Gets size of file or -1 if file doesn't exist
+	static LLONG Size 	(const char*);
+
+	// Gets real size of zipped file  or -1 if file cannot open; limited by UINT
+	static LLONG UncomressSize	(const char*);
+
 	// Returns true if file exists
-	inline static bool IsFileExist	 (const char* name) {
-		return IsExist(name, S_IFREG);
-	}
+	inline static bool IsFileExist	 (const char* name) { return IsExist(name, S_IFREG); }
+	
 	// Returns true if directory exists
-	inline static bool IsDirExist	 (const char* name) {
-		return IsExist(name, S_IFDIR);
-	}
+	inline static bool IsDirExist	 (const char* name) { return IsExist(name, S_IFDIR); }
+	
 	// Returns true if file or directory exists
-	inline static bool IsFileDirExist(const char* name) {
-		return IsExist(name, S_IFDIR|S_IFREG);
-	}
+	inline static bool IsFileDirExist(const char* name) { return IsExist(name, S_IFDIR|S_IFREG); }
+	
 	// Checks if file doesn't exist
 	//	@name: name of file
 	//	@throwExcept: if true throws excwption,
@@ -567,14 +604,16 @@ public:
 	inline static bool CheckFileExist	(const char* name, bool throwExcept = true) {
 		return CheckExist(name, S_IFREG, throwExcept, Err::F_NON);
 	}
+
 	// Checks if file or directory doesn't exist
 	//	@name: name of file or directory
 	//	@throwExcept: if true throws excwption,
 	//	otherwise outputs Err message as warning without EOL
 	//	return: true if file or directory doesn't exist
-	inline static bool CheckFileDirExist	(const char* name, bool throwExcept = true) {
+	static inline bool CheckFileDirExist	(const char* name, bool throwExcept = true) {
 		return CheckExist(name, S_IFDIR|S_IFREG, throwExcept, Err::FD_NON);
 	}
+
 	// Throws exsception if file or directory doesn't exist
 	//	@name: name of file or directory
 	//	@ext: file extention; if set, check for file first
@@ -599,7 +638,7 @@ public:
 	// Returns a pointer to the file name checked if file exist, otherwise throws exception
 	//	@optVal: Options value
 	//	return: pointer to the checked file name
-	inline static const char* CheckedFileDirName	(int optVal) {
+	static inline const char* CheckedFileDirName	(int optVal) {
 		return CheckedFileDirName(Options::GetSVal(optVal));
 	}
 
@@ -614,7 +653,7 @@ public:
 	// Returns a pointer to the file name checked if file exist, otherwise throws exception
 	//	@optVal: Options value
 	//	return: pointer to the checked file name
-	inline static const char* CheckedFileName	(int optVal) {
+	static inline const char* CheckedFileName	(int optVal) {
 		return CheckedFileName(Options::GetSVal(optVal));
 	}
 
@@ -637,30 +676,24 @@ public:
 	//	return: string containing real file extension or empty string if no real extention
 	static string const GetExt(const char* fname);
 
-	// Returns short file name by long one
-	static inline string const ShortFileName (const string& longfname) {
-		return longfname.substr(longfname.find_last_of(SLASH) + 1);
-	}
-
 	// Returns file name without extentiom (slash|back-slash insensible)
 	static string const FileNameWithoutExt (const string& fname);
 
+	// Returns short file name by long one
+	//	@fname: long file name
+	static string const ShortFileName (const string& fname);
+
 	// Returns directory name by long file name
 	//	@fname: long file name
-	//	@plusSlash: true if slash sould be added at the end
-	static inline string const DirName (const string & fname, bool plusSlash) {
-		return fname.substr(0, fname.find_last_of(SLASH) + (plusSlash ? 1 : 0));
-	}
+	//	@addSlash: true if slash sould be added at the end
+	static string const DirName (const string& fname, bool addSlash = false);
 
 	// Returns the name of last subdirectory by long file name
 	//	@fname: long file name
-	static string const LastSubDirName (const string & fname);
+	static string const LastSubDirName (const string& fname);
 
-	// Gets size of file or -1 if file doesn't exist
-	static LLONG Size 	(const char*);
-
-	// Gets real size of zipped file  or -1 if file cannot open; limited by UINT
-	static LLONG UncomressSize	(const char*);
+	// Returns the name ended by slash without checking the name
+	static string const MakePath(const string& name);
 
 #ifndef _WIGREG
 	// Fills external vector of strings by file's names found in given directory
@@ -688,8 +721,7 @@ class Timer
 {
 private:
 	time_t _startTime;
-	static clock_t	_StartClock;
-	static bool		_Enabled;
+	static clock_t	_StartCPUClock;
 
 	// Prints elapsed time interval
 	//	@title: string printed before time output
@@ -699,21 +731,22 @@ private:
 	static void PrintElapsed(const char *title, long elapsed, bool parentheses, bool isCarriageReturn);
 
 public:
-	// Gets true if timer is enabled
-	static inline bool Enabled()	{ return _Enabled; }
+	// True if timing is enabled
+	static bool		Enabled;
 
-	// Starts enabled CPU timer
-	static inline void StartCPU()	{ if( _Enabled ) _StartClock = clock(); }
+	// Starts enabled CPU timer, if it is enabled
+	static inline void StartCPU()	{ if( Enabled ) _StartCPUClock = clock(); }
 	
 	// Stops enabled CPU timer and print elapsed time
 	//	@isCarrgReturn: if true then ended output by EOL
 	static void StopCPU(bool isCarrgReturn=true);
 
-	inline Timer(bool enabled = true)	{ _Enabled = enabled; }
+	// Creates a new Timer and starts it if timing is enabled
+	inline Timer()	{ Start(); }
 	
-	// Starts enabled timer 
-	inline void Start()				{ if( _Enabled ) time( &_startTime ); }
-	
+	// Restarts timer, if timing is enabled
+	inline void Start()				{ if( Enabled ) time( &_startTime ); }
+
 	// Stops enabled timer and print elapsed time with title
 	//	@title: string printed before time output
 	//	@parentheses: if true then output time in parentheses
@@ -827,17 +860,17 @@ public:
 
 #ifdef _BIOCC
 
-enum eCC {	// defines types of CC
-	ccP = 0x1,	// Pearson correlation coefficient: first bit
-	ccS = 0x2,	// signal correlation coefficient: second bit
-};
-
-static struct CCkey	// Represents correlation coeficcient constants and methods
+static struct CCkey	// Represents correlation coeficient constants and methods
 {
 private:
 	static const int Undef = 666;	// undefined coefficient
 
 public:
+	enum eCC {	// defines types of CC
+		ccP = 0x1,	// Pearson correlation coefficient: first bit
+		ccS = 0x2,	// signal correlation coefficient: second bit
+	};
+
 	// Returns true if parameter is signal coefficient
 	inline static bool IsS(eCC ecc)		{ return static_cast<bool>(ecc&ccS); }
 	// Returns true if parameter is Pearson coefficient
@@ -1135,7 +1168,7 @@ public:
 	//	@begin: low boundary of calculated range
 	//	@end: high boundary of calculated range
 	//	@return: pair of coefficients
-	CC const GetR (chrid cID, eCC ecc, const Array & arr, long begin=0, long end=0) 
+	CC const GetR (chrid cID, CCkey::eCC ecc, const Array & arr, long begin=0, long end=0) 
 	{
 		CCaggr ccaggr;
 		if( CCkey::IsP(ecc) )
@@ -1151,11 +1184,11 @@ public:
 	//	@arr: second array to compare
 	//	@begin: low boundary of calculated range
 	//	@end: high boundary of calculated range
-	void AccumVars (chrid cID, eCC ecc, CCaggr & ccaggr, const Array & arr, long begin=0, long end=0) const
+	void AccumVars (chrid cID, CCkey::eCC ecc, CCaggr & ccaggr, const Array & arr, long begin=0, long end=0) const
 	{
 		if( !end )	end = _len;
 		else if( begin >= end )
-			Err("begin " + NSTR(begin) + " is more or equal end " + NSTR(end),
+			Err("begin " + NSTR(begin) + " is equal or more than the end " + NSTR(end),
 				"Array.GetR").Throw();
 		long i;
 		if( CCkey::IsS(ecc) )	// signal
@@ -1210,9 +1243,11 @@ static class Chrom
  * and is a letter's ASCII code for literal names (X, Y).
  */
 {
-	//static const char	X = 'X';
-	//static const char	Y = 'Y';
+	static const char	X = 'X';
+	static const char	Y = 'Y';
 	static const char*	UndefName;
+
+	static chrid _cID;	// user-defined chrom ID
 
 public:
 	static const char	M = 'M';
@@ -1223,6 +1258,22 @@ public:
 	static const BYTE	MaxNamedPosLength;	// Maximal length of named chrom's position 'chrX:12345'
 	static const char*	Abbr;				// Chromosome abbreviation
 	static const string	Title;				// Chromosome title
+
+	// Gets chromosome's ID stated by user
+	static inline chrid StatedID()	{ return _cID; }
+
+	// Returns true if user stated all chromosomes
+	static inline bool StatedAll()	{ return _cID == UnID; }
+
+	// Sets chromosome's ID with validation.
+	//	@cID: chromosome's ID
+	//	return: true if the check has passed, otherwise do not set and print message to cerr
+	static bool SetStatedID(chrid cID);
+
+	// Sets chromosome's ID stated by user with validation.
+	//	@cName: chromosome's name
+	//	return: true if the check has passed, otherwise do not set and print message to cerr
+	static inline bool SetStatedID(const char* cName) { return SetStatedID(ID(cName)); }
 
 	// Gets chromosome's ID by name
 	//	@cName: any name ('file.fa' etc) or short name by default
@@ -1241,12 +1292,6 @@ public:
 	//	return: pointer to the chrom number in str,
 	//	or a null pointer if Chrom::Abbr is not part of str.
 	static const char* FindNumb(const char* str);
-
-	// Checks chrom ID.
-	//	return: true if ID is right
-	inline static bool CheckID(chrid cID) {
-		return cID<=64 || cID==M || cID==88 || cID==89;
-	}
 
 	// Gets chromosome's short name by ID.
 	inline static string Name(chrid cID) {
@@ -1302,10 +1347,10 @@ struct Read
  */
 {
 #if defined _ISCHIP || defined _BEDR_EXT
-	enum eName {		// defines types of Read's name
-		nmNumb	= 0,	// a unique number stated as name
-		nmPos	= 1,	// a start position stated as name
-		nmUndef = 2		// stated name is undefined
+	enum rNameType {	// defines types of Read's name
+		nmUndef = 0,	// undefined name: never stated by user
+		nmNumb	= 1,	// a unique number stated as name
+		nmPos	= 2		// a start position stated as name
 	};
 
 	static char	SeqQuality;						// the quality values for the sequence (ASCII)
@@ -1325,7 +1370,7 @@ struct Read
 private:
 	static short	LimitN;				// maximal permitted number of 'N' in Read or vUNDEF if all
 	static ULONG	Count;				// counter of total writed Reads
-	static eName	NameType;			// type of name of Read in output files
+	static rNameType	NameType;			// type of name of Read in output files
 	static const char ToUp;				// shift beween lowercase and uppercase characters
 	static const char Complements[];	// template for complementing Read
 
@@ -1333,7 +1378,7 @@ public:
 	static ULONG	MaxCount;	// up limit of writes Reads
 	static const char*	NmDelimiter;	// delimiter between chrom name & value: ":N" or ":"
 
-	static void Init(readlen rLen, eName name, char seqQual, BYTE mapQual, short limN, ULONG maxCnt);
+	static void Init(readlen rLen, rNameType name, char seqQual, BYTE mapQual, short limN, ULONG maxCnt);
 
 	// Gets true if start position is stated as name
 	//static inline bool IsPositionName () { return NameType == nmPos; }
@@ -1359,7 +1404,7 @@ public:
 	static void Print();
 
 #else
-	chrlen	Pos;		// Read's start position
+	chrlen	Pos;		// Read's actual start position
 
 #ifdef _BEDR_EXT
 	chrid	InitCID;	// initial chrom - owner
