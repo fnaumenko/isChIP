@@ -351,9 +351,10 @@ void TxtFile::LineAddCharBack(char chr, bool addDelim)
 //	@val: value to be set
 //	@ndigit: number of digits to generate
 //	@addDelim: if true then adds delimiter and increases current position
-void TxtFile::LineAddFloat(float val, BYTE ndigit, bool addDelim)
+void TxtFile::LineAddFloat(double val, BYTE ndigit, bool addDelim)
 {
-	_gcvt(float(val), ndigit, _buffLine+_buffLineOffset);
+	// double val, because casting int to float is not precise, f.e. (float)61342430 = 61342432
+	_gcvt(val, ndigit, _buffLine+_buffLineOffset);
 	_buffLineOffset+=strlen(_buffLine+_buffLineOffset);
 	if(addDelim)
 		LineAddDelim();
@@ -511,7 +512,7 @@ void Regions::FillOverlap(const Regions &regn1, const Regions &regn2)
 
 // Initializes this instance by inverted external Regions,
 // so the regions turns to the gaps and vice versa.
-// Each new region is less then proper old gap by 1 from each side.
+// Each new region is less than proper old gap by 1 from each side.
 //	@regn: external Regions
 //	@maxEnd: the maximum possible end-coordinate of region:
 //	the chromosome length in case of nucleotides sequance.
@@ -592,6 +593,7 @@ void Regions::Print () const
 #endif	// _WIGREG
 
 /************************ class TabFile ************************/
+const char TabFile::Comment = '#';
 
 // Creates new instance for reading.
 //	@fName: name of file
@@ -625,6 +627,7 @@ TabFile::TabFile(
 //	return: current line
 const char* TabFile::GetFirstLine(ULONG *cntLines)
 {
+	*cntLines = 0;
 	if( GetLine() )
 		*cntLines = (ULONG)(Length() / RecordLength() + 1);	// Add 1 for case no EOL marker in the last line.
 	// check _fieldPos
@@ -635,8 +638,8 @@ const char* TabFile::GetFirstLine(ULONG *cntLines)
 
 const char*	TabFile::GetLine()
 {
-	USHORT	currPos;	// a bit faster then using _currPos in heep
-	char*	currLine;	// a bit faster then using _currLine in heep
+	USHORT	currPos;	// a bit faster than using _currPos in heep
+	char*	currLine;	// a bit faster than using _currLine in heep
 
 	// fill _fieldPos 0 to check if all fields will be initialize
 	// _fieldPos keeps start positions for each field in line.
@@ -670,7 +673,7 @@ const char*	TabFile::GetLine()
 		_fieldPos[0] = currPos;		// set start position of first field
 		// replace TABs by 0
 		for(BYTE i=1; i<_cntFields; i++) {
-			//if( (currPos=_fieldPos[i]) == vUNDEF ) {	// last position may be 0 if numbers of TABs in line is less then number of fields
+			//if( (currPos=_fieldPos[i]) == vUNDEF ) {	// last position may be 0 if numbers of TABs in line is less than number of fields
 			if( _fieldPos[i] == vUNDEF ) {
 				currLine[RecordLength() -1] = '\0';		// close record by 0: it is necessery for last position
 				break;

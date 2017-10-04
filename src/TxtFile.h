@@ -3,7 +3,7 @@
 
 #define INT_CAPACITY	10		// maximal number of digits in integer
 // Number of basics file's reading|writing buffer blocks.
-// Should be less then 2047 because of ULONG type of block size variable.
+// Should be less than 2047 because of ULONG type of block size variable.
 // Otherwise the behaviour is unpredictable.
 #define NUMB_BLK 32
 #define BASE_BLK_SIZE (2 * 1024 * 1024)	// basic block 2 Mb
@@ -19,9 +19,9 @@ class TxtFile
  * Supports reading/writing zipped (gz) files.
  * Optimised for huge files.
  * Restriction: the default size of buffer, setting as NUMB_BLK * BASE_BLK_SIZE, 
- * should be bigger then the longest line in file. Otherwise file become invalid,
- * and less then UINT.
- * If size of reading files is less then default buffer's size, 
+ * should be bigger than the longest line in file. Otherwise file become invalid,
+ * and less than UINT.
+ * If size of reading files is less than default buffer's size, 
  * the buffer's size sets exactly to be sufficient to read a whole file.
  * The reading/writing unit is a 'record', which in common case is a predifined set of lines.
  * For FQ files 'record' is a set of 4 lines.
@@ -57,7 +57,7 @@ private:
 	};
 
 	string	_fName;			// file's name
-	LLONG	_fSize;			// the length of uncompressed file; for zipped file more then
+	LLONG	_fSize;			// the length of uncompressed file; for zipped file more than
 							// 4'294'967'295 its unzipped length is unpredictable
 	void *	_stream;		// FILE* (for unzipped file) or gzFile (for zipped file)
 	short	_flag;			// bitwise storage for signs included in eFlag
@@ -238,14 +238,14 @@ protected:
 	//	@val: value to be set
 	//	@ndigit: number of digits to generate
 	//	@addDelim: if true then adds delimiter and increases current position
-	void LineAddFloat(float val, BYTE ndigit, bool addDelim=true);
+	void LineAddFloat(double val, BYTE ndigit, bool addDelim=true);
 
 	// Adds integral value to the current position of the line write buffer,
 	//	adds delimiter after value and increases current position.
 	//	@val: value to be set
 	//	@ndigit: number of digits to generate
-	inline void LineAddInt(LLONG val, bool addDelim=true) { 
-		LineAddFloat(float(val), DigitsCount(val), addDelim);
+	inline void LineAddInt(LLONG val, bool addDelim=true) {
+		LineAddFloat(val, DigitsCount(val), addDelim);
 	}
 
 	// Copies block of chars to the current position of the line write buffer.
@@ -306,7 +306,7 @@ public:
 	inline Err::eCode ErrCode() const	{ return _errCode; }
 
 	// Gets size of uncompressed file,
-	// or size of compressed file if its uncompressed length is more then UINT_MAX.
+	// or size of compressed file if its uncompressed length is more than UINT_MAX.
 	// So it can be used for estimatation only.
 	inline LLONG Length() const	{ return _fSize; }
 
@@ -384,9 +384,8 @@ struct Region
 	// Gets length of region
 	inline chrlen Length() const {	return End - Start + 1; }
 
-	// Initializes instance with checking.
-	//	return: true if this instance is invalid
-	bool Init(chrlen start, chrlen end) { Start = start; End = end; return Start >= End; }
+	// Initializes instance
+	void Init(chrlen start, chrlen end) { Start = start; End = end; }
 
 	inline bool operator==(const Region& r) const { return End == r.End && Start == r.Start; }
 
@@ -538,6 +537,8 @@ private:
 	inline const char* SField(BYTE fInd)const {	return _currLine + _fieldPos[fInd]; }
 
 public:
+	static const char Comment;
+
 	// Creates new instance for reading.
 	//	@fName: name of file
 	//	@cntFields: number of fields separated by TAB
