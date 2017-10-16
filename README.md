@@ -54,7 +54,7 @@ chr1  40360157  40360172  ...
 Please note that correlation between the whole experimental and model alignment is incorrect due to the abundance of non-simulated peaks and artefacts.
 
 ## Usage
-```isChIP [options] -g|--gen <file> [template]```
+```isChIP [options] -g|--gen <name> [template]```
 
 ## Help
 ```
