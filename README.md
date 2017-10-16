@@ -54,14 +54,15 @@ chr1  40360157  40360172  ...
 Please note that correlation between the whole experimental and model alignment is incorrect due to the abundance of non-simulated peaks and artefacts.
 
 ## Usage
-```isChIP [options] -g|--gen <file> [template]
+```
+isChIP [options] -g|--gen <file> [template]
   template - bed file whose features specify binding sites
 ```
 ## Help
 ```
-*Input:*
+Input:
   -g|--gen <name>       reference genome library or single nucleotide sequence. Required
-*Processing:*
+Processing:
   -a|--amplif <int>     coefficient of amplification [1]
   -b|--bg-level <float> number of selected fragments outside the features,
                         in percent of foreground. For the test mode only [1]
@@ -81,17 +82,17 @@ Please note that correlation between the whole experimental and model alignment 
   -p|--threads <int>    number of threads [1]
   --fix                 fix random emission to get repetitive results
   -R|--regular <int>    regular mode: write each read on starting position increased by stated shift
-*Fragment:*
+Fragment:
   --frag-len <int>      average size of selected fragments [200]
   --frag-dev <int>      deviation of selected fragments [20]
   --sz-sel <OFF|ON>     turn on/off fragment's size selection [ON]
   --sz-sel-sigma <int>  standard deviation of the size selection normal distribution [20]
-*Fragment's size distribution:*
+Fragment's size distribution:
   --mean <int>          expectation of the based normal distribution [200]
   --sigma <int>         standard deviation of the based normal distribution [200]
   --ln-factor <int>     power multiplication factor in lognormal distribution [500]
   --ln-term <float>     power summand in lognormal distribution [5.1]
-*Reads:*
+Reads:
   -r|--read-len <int>   length of output read [50]
   --read-name <NMB|POS> name of read in output files includes:
                         NMB - read`s unique number within chromosome
@@ -100,12 +101,12 @@ Please note that correlation between the whole experimental and model alignment 
   --reads-limit <long>  maximum permitted number of total written reads [2e+08]
   --fq-qual <chars>     the quality values for the read in FQ output [~]
   --map-qual <int>      the mapping quality for the read in SAM output [42]
-*Output:*
+Output:
   -f|--format <FQ,BED,SAM>      format of output sequences/alignment, in any combination [FQ]
   -o|--out <name>       location of output files or existing directory
                         [Test mode: mTest.*, Control mode: mInput.*, Regular mode: mRegular.*]
   -z|--gzip             compress output files with gzip
-*Other:*
+Other:
   -t|--time             print run time
   -V|--verbose <CRIT|RES|RT|PAR|DBG>    set verbose level:
                         CRIT -  show critical messages only (silent mode)
@@ -359,3 +360,6 @@ and ```--ln-factor``` and ```--ln-term``` are specified the lognormal outlet.<br
 Size selection filter is managed by 3 options: 
 ```--sz-sel-sigma``` and ```--frag-len``` response to standard deviation and mean in standard normal distribution, 
 and ```--frag-dev``` is half-width on which the standard distribution is 'expanded' (d on the ![figure](https://github.com/fnaumenko/isChIP/tree/master/pict/sizeSelFilter.png)).
+
+
+If you face to bugs, incorrect English, or have commentary/suggestions, please do not hesitate to write me on fedor.naumenko@gmail.com
