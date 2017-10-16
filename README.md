@@ -4,7 +4,7 @@
 The modelling of the chromatin immunoprecipitaion followed by next generation sequencing process is based on presumably on Illumina protocol. 
 However, the **isChIP**’s options can be adjusted to the other techniques such as  Ion Torrent, etc.
 
-Simulated binding events are specified by optional parameter, called [*template*](#template). (Also see [Modes](#modes) section)
+Simulated binding events are specified by optional parameter, called [*template*](#template).<br>
 For more information about model see [Model: brief description](#model-brief-description).
 
 The program runs on the command line under Linux and Windows.
