@@ -6,17 +6,45 @@ However, the **isChIP**’s options can be adjusted to the other techniques such
 
 Simulated binding events are specified by optional parameter, called [*template*](#template). (Also see [Modes](#modes) section)
 
-For more information about model see [Model: brief description](#model:-brief-description).
+For more information about model see [Model: brief description](#model-brief-description).
 
 The program runs on the command line under Linux and Windows.
 
+## Installation
+### Executable file
+
+**Linux**<br>
+Go to the desire directory and type commands:<br>
+```wget -O isChIP.gz https://github.com/fnaumenko/isChIP/releases/download/1.0/isChIP-Linux-x64.gz```<br>
+```gzip -d isChIP.gz```<br>
+```chmod +x isChIP```
+
+**Windows**<br>
+Download archive from [here](https://github.com/fnaumenko/isChIP/releases/download/1.0/isChIP-Windows-x64.zip) and unzip by any archiver, for instance **WinRar**.
+
+### Compiling in Linux
+Required libraries:<br>
+g++<br>
+zlib (optionally)
+
+Go to the desired directory and type commands:<br>
+```wget -O isChIP.zip https://github.com/fnaumenko/isChIP/archive/1.0.zip```<br>
+```unzip isChIP.zip```<br>
+```cd isChIP-1.0```<br>
+```make```
+
+If **zlib** is not installed on your system, a message will be displayed from the linker.<br>
+In that case you can compile the program without the ability to work with .gz files. 
+To do this, open *makefile* in any text editor, uncomment last macro in the second line, comment third line, save *makefile*, and try again ```make```.<br>
+To be sure about **zlib** on your system, type ```whereis zlib```.
+
 ## Synopsis
 ```isChIP -g ref_genome –n 5```<br>
-Generates “input” sequences in FastQ with read length of 50 and average read density of about 9 read/kbs, comparable with what is experimentally observed.
+Generates 'input' sequences in FastQ with read length of 50 and average read density of about 9 read/kbs, comparable with what is experimentally observed.
 
 ```isChIP -g mm9_dir –n 250 –b 4 –r 36 –f fq,sam templ.bed```<br>
 Generates test sequences in FastQ and direct alignment in SAM, with read length of 36 and average foreground/background read density comparable with what is experimentally observed in [Series GSE56098](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE56098).<br>
-templ.bed consists of lines with features defining well-proven Oct4 binding motif in the centre of some peaks in the referenced experimental data:
+```templ.bed``` consists of lines with features defining well-proven Oct4 binding motif in the centre of some peaks in the referenced experimental data:
 ```
 chr1   9899347   9899362  ...
 chr1  16120224  16120239  ...
@@ -27,14 +55,13 @@ Please note that correlation between the whole experimental and model alignment 
 
 ## Usage
 ```isChIP [options] -g|--gen <file> [template]
-
   template - bed file whose features specify binding sites
 ```
 ## Help
 ```
-Input:
+*Input:*
   -g|--gen <name>       reference genome library or single nucleotide sequence. Required
-Processing:
+*Processing:*
   -a|--amplif <int>     coefficient of amplification [1]
   -b|--bg-level <float> number of selected fragments outside the features,
                         in percent of foreground. For the test mode only [1]
@@ -54,17 +81,17 @@ Processing:
   -p|--threads <int>    number of threads [1]
   --fix                 fix random emission to get repetitive results
   -R|--regular <int>    regular mode: write each read on starting position increased by stated shift
-Fragment:
+*Fragment:*
   --frag-len <int>      average size of selected fragments [200]
   --frag-dev <int>      deviation of selected fragments [20]
   --sz-sel <OFF|ON>     turn on/off fragment's size selection [ON]
   --sz-sel-sigma <int>  standard deviation of the size selection normal distribution [20]
-Fragment's size distribution:
+*Fragment's size distribution:*
   --mean <int>          expectation of the based normal distribution [200]
   --sigma <int>         standard deviation of the based normal distribution [200]
   --ln-factor <int>     power multiplication factor in lognormal distribution [500]
   --ln-term <float>     power summand in lognormal distribution [5.1]
-Reads:
+*Reads:*
   -r|--read-len <int>   length of output read [50]
   --read-name <NMB|POS> name of read in output files includes:
                         NMB - read`s unique number within chromosome
@@ -73,12 +100,12 @@ Reads:
   --reads-limit <long>  maximum permitted number of total written reads [2e+08]
   --fq-qual <chars>     the quality values for the read in FQ output [~]
   --map-qual <int>      the mapping quality for the read in SAM output [42]
-Output:
+*Output:*
   -f|--format <FQ,BED,SAM>      format of output sequences/alignment, in any combination [FQ]
   -o|--out <name>       location of output files or existing directory
                         [Test mode: mTest.*, Control mode: mInput.*, Regular mode: mRegular.*]
   -z|--gzip             compress output files with gzip
-Other:
+*Other:*
   -t|--time             print run time
   -V|--verbose <CRIT|RES|RT|PAR|DBG>    set verbose level:
                         CRIT -  show critical messages only (silent mode)
@@ -103,7 +130,7 @@ The sites are represented by the set of features stated in a BED file, called *t
 *Template* is a single optional parameter.
 
 ### Template
-*Template* is a file in BED format whose features correspond to binding events. 
+*Template* is a file in [BED](https://genome.ucsc.edu/FAQ/FAQformat.html#format1) format whose features correspond to binding events. 
 Each data line contains 3 (minimum required) or 5 and more fields. 
 First 3 fields define the binding site. 
 If there are no more fields in the line, all generating significant enriched regions have the same density. 
@@ -308,9 +335,10 @@ Each basic cycle corresponds to single cell simulation, and consists of the next
 * 'loss' of selected fragments according to desired percentage;
 * 'contamination' with background fragments; addition of the random reference genome fragments with correspondent length and desired relative number;
 * size selection: selection of fragments fitted to desirable size;
-* sequencing of the fragments from positive and negative strands: cutting the 5’end of the fragment of desirable length and reversing it randomly (in single end mode), or both ends (in paired end mode).
+* sequencing of the fragments from positive and negative strands: 
+cutting the 5’end of the fragment of desirable length, or the 3’end and reversing it (by random choice, in single end mode), or both ends (in paired end mode).
 
-The input parameters of simulation process (fragment size distribution, total number of sequenced reads,  background levels, amplification coefficient, type of fragment library etc.) are adjusted correspondently to those in real ChIP-Seq experiment.
+The input parameters of simulation process (fragment size distribution, background levels, amplification coefficient, type of fragment library etc.) are adjusted correspondently to those in real ChIP-Seq experiment.
 
 The model was developed by [Dr. Tatiana Subkhankulova](https://www.linkedin.com/in/tatiana-subkhankulova-0876a240), Imperial College London.
 
