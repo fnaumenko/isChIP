@@ -24,7 +24,7 @@ Download archive from [here](https://github.com/fnaumenko/isChIP/releases/downlo
 ### Compiling in Linux
 Required libraries:<br>
 g++<br>
-Pthread<br>
+pthread<br>
 zlib (optionally)
 
 Go to the desired directory and type commands:<br>
@@ -118,7 +118,7 @@ Other:
 
 ## Details
 
-### Modes
+### Mode
 
 **isChIP** generates output in one of three modes:<br>
 *test* – simulation of site of interest sequencing; the output is test sequences/alignment<br>
