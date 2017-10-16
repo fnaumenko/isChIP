@@ -5,7 +5,6 @@ The modelling of the chromatin immunoprecipitaion followed by next generation se
 However, the **isChIP**’s options can be adjusted to the other techniques such as  Ion Torrent, etc.
 
 Simulated binding events are specified by optional parameter, called [*template*](#template). (Also see [Modes](#modes) section)
-
 For more information about model see [Model: brief description](#model-brief-description).
 
 The program runs on the command line under Linux and Windows.
@@ -25,6 +24,7 @@ Download archive from [here](https://github.com/fnaumenko/isChIP/releases/downlo
 ### Compiling in Linux
 Required libraries:<br>
 g++<br>
+Pthread<br>
 zlib (optionally)
 
 Go to the desired directory and type commands:<br>
@@ -54,10 +54,8 @@ chr1  40360157  40360172  ...
 Please note that correlation between the whole experimental and model alignment is incorrect due to the abundance of non-simulated peaks and artefacts.
 
 ## Usage
-```
-isChIP [options] -g|--gen <file> [template]
-  template - bed file whose features specify binding sites
-```
+```isChIP [options] -g|--gen <file> [template]```
+
 ## Help
 ```
 Input:
@@ -361,5 +359,5 @@ Size selection filter is managed by 3 options:
 ```--sz-sel-sigma``` and ```--frag-len``` response to standard deviation and mean in standard normal distribution, 
 and ```--frag-dev``` is half-width on which the standard distribution is 'expanded' (d on the ![figure](https://github.com/fnaumenko/isChIP/tree/master/pict/sizeSelFilter.png)).
 
-
+##
 If you face to bugs, incorrect English, or have commentary/suggestions, please do not hesitate to write me on fedor.naumenko@gmail.com
