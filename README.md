@@ -19,7 +19,7 @@ Go to the desire directory and type commands:<br>
 ```chmod +x isChIP```
 
 **Windows**<br>
-Download archive from [here](https://github.com/fnaumenko/isChIP/releases/download/1.0/isChIP-Windows-x64.zip) and unzip by any archiver, for instance **WinRar**.
+Download archive from [here](https://github.com/fnaumenko/isChIP/releases/download/1.0/isChIP-Windows-x64.zip) and unzip by any archiver, for instance [WinRar](https://www.win-rar.com/download.html?&L=0).
 
 ### Compiling in Linux
 Required libraries:<br>
