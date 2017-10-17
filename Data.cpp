@@ -64,7 +64,7 @@ void Obj::Ambig::PrintLineAlarm(eCase ambig) const
 	if( _alarm ) {
 		if( !_alarmPrinted )	{ dout << EOL;	_alarmPrinted = true; }
 		_file->ThrowLineWarning(
-			_Msgs[ambig].LineAlarm + BLANK + EntityName() + SepC,
+			_Msgs[ambig].LineAlarm + BLANK + EntityName() + SepCl,
 			Message(ambig));
 	}
 }
@@ -86,7 +86,7 @@ void Obj::Ambig::PrintCaseStat(eCase ambig, chrlen allCnt, bool total) const
 		<< EntityName(cnt);
 	if(unsortedItems)		dout << " arisen after sorting";
 	if(totalAlarm)	dout << BLANK << totalAlarm;
-	dout << SepSC << Message(ambig);
+	dout << SepSCl << Message(ambig);
 	if(totalAlarm)	dout << '!';
 	dout << EOL;
 }
@@ -163,7 +163,7 @@ bool Obj::Ambig::Print(chrid cID, const char* title, ULONG totalItemCnt, ULONG a
 
 	if( title )	{		// additional mode: after extension
 		if(_info < Obj::iEXT || noAmbigs)		return false;	// no ambigs
-		dout << "    " << title << SepC;
+		dout << "    " << title << SepCl;
 		if(_info==Obj::iEXT)
 			PrintItems(cID, true, acceptItemCnt);
 		dout << EOL;
@@ -172,7 +172,7 @@ bool Obj::Ambig::Print(chrid cID, const char* title, ULONG totalItemCnt, ULONG a
 		bool printAccept = _info==Obj::iEXT && !noAmbigs;		// print accepted items
 
 		if(_info > Obj::iNM) {
-			dout << SepC << totalItemCnt;
+			dout << SepCl << totalItemCnt;
 			if(!noAmbigs)	dout << BLANK << Total;
 		}
 		if(printAccept)		dout << SepCm;
@@ -196,7 +196,7 @@ bool Obj::Ambig::Print(chrid cID, const char* title, ULONG totalItemCnt, ULONG a
 			PrintCaseStat(NEGL, totalItemCnt);
 		}
 		// print total remained entities
-		dout<< TAB << Total << ACCEPTED << SepC << acceptItemCnt
+		dout<< TAB << Total << ACCEPTED << SepCl << acceptItemCnt
 			<< sPercent(ULLONG(acceptItemCnt), ULLONG(totalItemCnt), 4) << BLANK
 			<< EntityName(acceptItemCnt);
 		res = true;
@@ -441,7 +441,7 @@ void Bed::PrintChrom() const
 {
 	for(cIter it=cBegin(); it!=cEnd(); it++)
 		cout << Chrom::AbbrName(CID(it)) << TAB
-		<< it->second.FirstInd << TAB << it->second.LastInd << SepCTab
+		<< it->second.FirstInd << TAB << it->second.LastInd << SepClTab
 		<< it->second.ItemsCount() << TAB << ItemTitle() << 's' << EOL;
 }
 

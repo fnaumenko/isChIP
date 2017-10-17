@@ -110,7 +110,7 @@ private:
 
 	// Gets string containing file name and current input line number.
 	const string LineNumbToStr(BYTE indInRecord) const {
-		return (IsFlagSet(PRNAME) ? (_fName + SepSC) : SepSC)
+		return (IsFlagSet(PRNAME) ? (_fName + SepSCl) : SepSCl)
 			+ "line " + NSTR(LineNumber(indInRecord));
 	}
 

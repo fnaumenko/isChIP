@@ -451,8 +451,8 @@ void ChromsThreads::Print()
 
 	for(; it!=_threads.end(); it++) {
 		cout << "thr " << int(it->Numb)
-			 //<< ":\tweight " << setprecision(3) << double(it->sumSize)/minSize << SepCTab;
-			 << ":\tweight " << (it->sumSize) << SepCTab;
+			 //<< ":\tweight " << setprecision(3) << double(it->sumSize)/minSize << SepClTab;
+			 << ":\tweight " << (it->sumSize) << SepClTab;
 		for(it1=it->chrIDs.begin(); it1!=it->chrIDs.end(); it1++) {
 			cout << Chrom::AbbrName(*it1) << BLANK;
 			if( Chrom::NameLength(*it1) == 1 )	cout << BLANK;	// padding
@@ -588,7 +588,7 @@ void Imitator::ChromCutter::OutputReadCnt(Imitator::eGround gr, const char* titl
 {
 	static BYTE charsCnt[2] = {0, 0};
 	// print count of reads
-	if(title)	cout << title << SepC;
+	if(title)	cout << title << SepCl;
 	cout << setw(Imitator::DigitsCnt[gr]) << setfill(BLANK)
 		 << (_wrReadsCnt[gr]<<OutFile::PairedEnd());
 	// print percent
@@ -614,7 +614,7 @@ void Imitator::ChromCutter::OutputChromInfo (const Nts& nts, Timer& timer, bool 
 	if( TestMode )
 		OutputReadCnt(Imitator::BG, "  bg");
 	if(Verbose(vPAR)) {
-		cout << "\tN" << SepC << sPercent(nts.CountN(), nts.Length(), 2, 4, false);
+		cout << "\tN" << SepCl << sPercent(nts.CountN(), nts.Length(), 2, 4, false);
 		if( !LetN )
 			cout << ", discard " << sPercent(nts.DefLength(), nts.Length(), 3, 0, false);
 		timer.Stop("\t", false, false);
@@ -629,7 +629,7 @@ void Imitator::ChromCutter::OutputChromInfo (const Nts& nts, Timer& timer, bool 
 void Imitator::ChromCutter::Terminate(const char*msg)
 {
 	_isTerminated = true;
-	cerr << "thread " << int(_thread.Numb) << SepC << msg << endl;
+	cerr << "thread " << int(_thread.Numb) << SepCl << msg << endl;
 }
 
 // Treats chromosomes given for current thread
@@ -846,7 +846,7 @@ const BedF	*Imitator::Bed = NULL;
 void Imitator::OutputChromName(chrid cID, bool isOutput)
 {
 	if( isOutput && Verbose(vRT) ) {
-		cout << Chrom::TitleName(cID) << SepCTab;
+		cout << Chrom::TitleName(cID) << SepClTab;
 		fflush(stdout);
 	}
 }
@@ -857,7 +857,7 @@ void Imitator::OutputChromName(chrid cID, bool isOutput)
 void Imitator::OutputReadCnt(eGround gr, const char* title)
 {
 	ULONG cnt = TotalWrReadsCnts[gr]<<OutFile::PairedEnd();
-	cout << title << SepC << cnt;		// print count
+	cout << title << SepCl << cnt;		// print count
 	if( NoAmplification )		// print percent
 		cout << sPercent(cnt, TotalSelReadsCnts[gr]<<OutFile::PairedEnd(), 3);
 }
@@ -869,7 +869,7 @@ void Imitator::Execute()
 	_oFile.Write();
 
 	if( Verbose(vRES) ) {
-		cout << "Total writed reads" << SepC << (_oFile.Count() + TotalSlaveWrReadsCnt);
+		cout << "Total writed reads" << SepCl << (_oFile.Count() + TotalSlaveWrReadsCnt);
 		if( TestMode ) {
 			OutputReadCnt(FG, ", from wich foreground");
 			OutputReadCnt(BG, ", background");
@@ -953,18 +953,18 @@ void Imitator::SetSample()
 		}
 		if( Verbose(vDEBUG) ) {
 			cout << SignDbg << "CHROMOSOME " << Chrom::Name(_chrFiles.FirstChromID()) << ":\n";
-			cout << SignDbg << "Numbers::\tfrags" << SepC << LognormDistribution::CallsCnt()
-				 << "\treads" << SepC << chrCutter._wrReadsCnt[0] << EOL;
-			cout << SignDbg << "coeff of ampl" << SepC << Amplification::SimpleMean() << EOL;
+			cout << SignDbg << "Numbers::\tfrags" << SepCl << LognormDistribution::CallsCnt()
+				 << "\treads" << SepCl << chrCutter._wrReadsCnt[0] << EOL;
+			cout << SignDbg << "coeff of ampl" << SepCl << Amplification::SimpleMean() << EOL;
 		}
 	}
 	Samples[0] = float(SAMPLE_FG()/100);
 	if( TestMode )
 		Samples[1] = float(Samples[0] * SAMPLE_BG()/100);
 	if( Verbose(vDEBUG) ) {
-		cout<< EOL << SignDbg << cAverage << SepC << "frag" << SepC << commonAvrg
-			<< "\tsaved" << SepC << savedAvrg << EOL;
-		cout << SignDbg << "sizeFactor" << SepC << sizeFactor << EOL;
+		cout<< EOL << SignDbg << cAverage << SepCl << "frag" << SepCl << commonAvrg
+			<< "\tsaved" << SepCl << savedAvrg << EOL;
+		cout << SignDbg << "sizeFactor" << SepCl << sizeFactor << EOL;
 	}
 	// *** Determine the total possible numbers of saved reads
 	ULLONG totalCnt = 0;	// total number of saved reads
@@ -982,20 +982,20 @@ void Imitator::SetSample()
 				cnt = (ULONG)(Samples[0] * FtrsLen * countFactor);
 				SetMaxDigitCnt(FG, cnt/3);	// 3 just to reduce digits number to 1
 				totalCnt += cnt;
-				//cout << "fg cnt" << SepC << cnt << TAB;
+				//cout << "fg cnt" << SepCl << cnt << TAB;
 			}
 			else
 				FtrsLen = 0;
 			// count of background Reads
 			cnt = ULLONG(Samples[1] *
 				(_chrFiles.ChromTreatLength(it, sizeFactor) - FtrsLen) * countFactor);
-			//cout << "bg cnt"<< SepC << cnt << EOL;
+			//cout << "bg cnt"<< SepCl << cnt << EOL;
 			SetMaxDigitCnt(TestMode ? BG : FG, cnt);
 			totalCnt += cnt;
 		}
 
 	if( Verbose(vDEBUG) )
-		cout << SignDbg << "CONTROL TOTAL READS TO WRITE" << SepC << totalCnt << EOL
+		cout << SignDbg << "CONTROL TOTAL READS TO WRITE" << SepCl << totalCnt << EOL
 			 << SignDbg << "MaxDigitCnt: fg = " << (int)DigitsCnt[0]
 			 << "\tbg = " << (int)DigitsCnt[1] << EOL;
 		

@@ -123,9 +123,9 @@ static const char* Notice = "NOTICE: ";
 static const char* Total = "total";
 static const char* Version = "version";
 static const char* SepCm = ", ";		// comma separator
-static const char* SepSC = "; ";		// semicolon separator
-static const char* SepC = ": ";			// colon separator
-static const char* SepCTab = ":\t";		// colon + tab separator
+static const char* SepCl = ": ";		// colon separator
+static const char* SepSCl = "; ";		// semicolon separator
+static const char* SepClTab = ":\t";	// colon + tab separator
 #ifdef _ISCHIP
 static const char* SepGroup = ";  ";	// option print: separator of option values in a group
 #endif	// _ISCHIP
@@ -499,7 +499,7 @@ public:
 	static const string IssueNumbToStr(const string& issName, ULONG issNumb, const string& fName)
 	{
 		string res = fName;
-		if(fName != strEmpty)	res += SepSC;
+		if(fName != strEmpty)	res += SepSCl;
 		return res + issName + BLANK + NSTR(issNumb);
 	}
 

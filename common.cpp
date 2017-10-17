@@ -251,7 +251,7 @@ int Options::Option::SetTriedDigit(double val, bool isWord)
 	if( outOfLimit >= 0 ) {
 		const char* sign[] = {"less", "more"};
 		cerr << OptTitle << OptToStr(isWord, isWord ? Str : &Char);
-		cerr << SepSC << sValue << setprecision(4) << BLANK << val
+		cerr << SepSCl << sValue << setprecision(4) << BLANK << val
 				<< " is " << sign[outOfLimit] << " than permissible " 
 				<< (!outOfLimit ? MinNVal: MaxNVal ) << EOL;
 		return 1;
@@ -449,7 +449,7 @@ int	Options::PrintVersion()
 int Options::PrintWrongOpt(bool isWord, const char* opt, const char* val, const string msg)
 {
 	cerr << OptTitle << OptToStr(isWord, opt)
-		 << SepSC << (msg == strEmpty ? "wrong " + sValue : msg);
+		 << SepSCl << (msg == strEmpty ? "wrong " + sValue : msg);
 	if( val ) cerr << BLANK << val;
 	cerr << EOL;
 	return 1;
@@ -463,7 +463,7 @@ int Options::PrintWrongOpt(bool isWord, const char* opt, const char* val, const 
 int Options::PrintAmbigOpt(bool isWord, const char* opt, const char* headMsg, const char* tailMsg)
 {
 	cerr << headMsg << optTitle << OptToStr(isWord, opt);
-	if( tailMsg )	cerr << SepSC << tailMsg;
+	if( tailMsg )	cerr << SepSCl << tailMsg;
 	cerr << EOL;
 	return 1;
 }
@@ -610,14 +610,14 @@ void Err::set_message(const char* sender, const char *text, const char *specifyT
 {
 	size_t senderLen = sender!=NULL ? strlen(sender) : 0;
 	size_t textLen = strlen(text);
-	size_t outLen = senderLen + textLen + 1 + strlen(SepSC);
+	size_t outLen = senderLen + textLen + 1 + strlen(SepSCl);
 	if(specifyText)	outLen += strlen(specifyText) + 1;
 	_outText = new char[outLen];
 	memset(_outText, '\0', outLen);
 	if(sender) {
 		if(senderLen)
 			strcpy(_outText, sender);
-		strcat(_outText, SepC);
+		strcat(_outText, SepCl);
 	}
 	strcat(_outText, text);
 	if(specifyText) {
@@ -648,7 +648,7 @@ void Err::Throw(bool throwException, bool endOfLine) {
 // Outputs warning with prefix "WARNING" and additional text, if it is setting.
 void Err::Warning(string const& addText) {
 	dout << _msgs[ErrWARNING];
-	if(_outText[0] != ':') dout << SepC;	// check if sender is not recorded
+	if(_outText[0] != ':') dout << SepCl;	// check if sender is not recorded
 	dout << _outText;
 	if( !addText.empty() )	
 		dout << addText;
@@ -1222,13 +1222,13 @@ int Read::CheckNLimit(const char* read)
 void Read::Print()
 {
 	cout << "Read: length = " << int(Len)
-		 << SepSC << "name includes a " << (NameType==nmPos ? "position" : "number")
-		 << SepSC << "FQ quality = " << SeqQuality
-		 << SepSC << "map quality = " << int(MapQuality)
-		 << SepSC << "N-limit = ";
+		 << SepSCl << "name includes a " << (NameType==nmPos ? "position" : "number")
+		 << SepSCl << "FQ quality = " << SeqQuality
+		 << SepSCl << "map quality = " << int(MapQuality)
+		 << SepSCl << "N-limit = ";
 	if( LimitN == vUNDEF )	cout << Options::GetBoolean(false);
 	else					cout << LimitN;
-	cout << SepSC << "limit = " << MaxCount;
+	cout << SepSCl << "limit = " << MaxCount;
 }
 
 #endif

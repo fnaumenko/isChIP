@@ -244,7 +244,7 @@ void PrintReadInfo()
 	cout << SignPar;
 	Read::Print();
 	cout<< EOL << SignPar << "Include N along the edges" 
-		<< SepC << Options::GetBoolean(oLET_N) << endl;
+		<< SepCl << Options::GetBoolean(oLET_N) << endl;
 }
 
 const char* Equel = " = ";
@@ -254,42 +254,43 @@ void PrintImitParams(const ChromFiles& cFiles, const char* templName, OutFile& o
 	if( !Imitator::Verbose(vPAR) )	return;
 	if( RegularMode )
 		cout << SignPar << "REGULAR MODE\n";
-	cout << SignPar << "Reference: genome" << SepC << cFiles.Path() << ", " << Chrom::Title << 's' << SepC;
+	cout << SignPar << "Reference: genome" << SepCl << cFiles.Path() 
+		 << SepCm << Chrom::Title << 's' << SepCl;
 	if(cFiles.ChromsCount() == 1)	cout << Chrom::Name(CID(cFiles.cBegin()));
 	else if(Chrom::StatedAll())		cout << "all";
 	else							cout << Chrom::Name(Chrom::StatedID());
 	cout << EOL;
 	if(templName)
-		cout << SignPar << "Template" << SepC << templName << EOL;
+		cout << SignPar << "Template" << SepCl << templName << EOL;
 	oFile.Print(SignPar);
 	if( RegularMode ) {
-		cout << SignPar << "Shift" << SepC << RGL_SHIFT() << EOL << EOL;
+		cout << SignPar << "Shift" << SepCl << RGL_SHIFT() << EOL << EOL;
 		PrintReadInfo();
 	}
 	else {
-		cout << SignPar << "Count of cells" << SepC << ULONG(Options::GetDVal(oNUMB_CELLS)) << EOL;
-		cout << SignPar << "Amplification" << SepC;
+		cout << SignPar << "Count of cells" << SepCl << ULONG(Options::GetDVal(oNUMB_CELLS)) << EOL;
+		cout << SignPar << "Amplification" << SepCl;
 		if(NoAmplification)	cout << Options::GetBoolean(false) << EOL;
 		else				cout << Amplification::Coefficient << EOL;
 		PrintReadInfo();
 		if( TestMode ) {
-			cout << SignPar << "Background for all chromosomes" << SepC;
+			cout << SignPar << "Background for all chromosomes" << SepCl;
 			if(bool(SAMPLE_BG()))	cout << Options::GetBoolean(oBG_ALL) << EOL;
 			else					cout << "negligible due to zero background sample\n";
 			cout << SignPar << "Input sample: foreground" << Equel << SAMPLE_FG()
 				 << PERS << SepGroup << "background" << Equel << SAMPLE_BG() << PERS << EOL;
-			cout << SignPar << "Binding length" << SepC << Options::GetIVal(oBS_LEN) << EOL;
-			cout << SignPar << "Boundary flattening length" << SepC << Options::GetIVal(oFLAT_LEN) << EOL;
-			cout << SignPar << "Strand admixture" << SepC << Options::GetBoolean(oSTRAND_MIX) << EOL;
-			cout << SignPar << "Uniform template score"  << SepC
+			cout << SignPar << "Binding length" << SepCl << Options::GetIVal(oBS_LEN) << EOL;
+			cout << SignPar << "Boundary flattening length" << SepCl << Options::GetIVal(oFLAT_LEN) << EOL;
+			cout << SignPar << "Strand admixture" << SepCl << Options::GetBoolean(oSTRAND_MIX) << EOL;
+			cout << SignPar << "Uniform template score"  << SepCl
 				 << (Options::GetBVal(oTS_UNIFORM) ? "YES" : "NO") << EOL;
 		}
-		cout << SignPar << "Lognormal distribution" << SepC
+		cout << SignPar << "Lognormal distribution" << SepCl
 			 << "sigma" << Equel << Options::GetIVal(oSIGMA)
 			 << SepGroup << "mean" << Equel << Options::GetIVal(oMEAN) 
 			 << SepGroup << "lnFactor" << Equel << Options::GetIVal(oLN_FACTOR)
 			 << SepGroup << "lnTerm" << Equel << Options::GetDVal(oLN_TERM) << EOL;
-		cout << SignPar << "Frag's size selection" << SepC;
+		cout << SignPar << "Frag's size selection" << SepCl;
 		if(SZ_SEL())
 			cout << "length" << Equel << Options::GetIVal(oFRAG_LEN) 
 				 << SepGroup << "deviation" << Equel << Options::GetIVal(oFRAG_DEV)
