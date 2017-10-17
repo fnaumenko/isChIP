@@ -122,6 +122,7 @@ static const char* MsgDone = " done\t";
 static const char* Notice = "NOTICE: ";
 static const char* Total = "total";
 static const char* Version = "version";
+static const char* SepCm = ", ";		// comma separator
 static const char* SepSC = "; ";		// semicolon separator
 static const char* SepC = ": ";			// colon separator
 static const char* SepCTab = ":\t";		// colon + tab separator

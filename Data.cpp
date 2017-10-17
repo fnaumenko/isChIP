@@ -86,7 +86,7 @@ void Obj::Ambig::PrintCaseStat(eCase ambig, chrlen allCnt, bool total) const
 		<< EntityName(cnt);
 	if(unsortedItems)		dout << " arisen after sorting";
 	if(totalAlarm)	dout << BLANK << totalAlarm;
-	dout << "; " << Message(ambig);
+	dout << SepSC << Message(ambig);
 	if(totalAlarm)	dout << '!';
 	dout << EOL;
 }
@@ -175,12 +175,12 @@ bool Obj::Ambig::Print(chrid cID, const char* title, ULONG totalItemCnt, ULONG a
 			dout << SepC << totalItemCnt;
 			if(!noAmbigs)	dout << BLANK << Total;
 		}
-		if(printAccept)		dout << ", ";
+		if(printAccept)		dout << SepCm;
 		PrintItems(cID, printAccept, acceptItemCnt);
 		res = true;
 	}
 	if(Count() && _info == Obj::iSTAT) {
-		if(!title)		dout << ", from which" << EOL;
+		if(!title)		dout << SepCm << "from which" << EOL;
 		for(BYTE i=0; i<_CasesCnt; i++)
 			PrintCaseStat(static_cast<eCase>(i), totalItemCnt);
 
@@ -1075,7 +1075,7 @@ ChromSizes::ChromSizes (const ChromFiles& cFiles, bool printReport)
 				dout << report << Chrom::Title << " sizes file...";
 				tm.Start();
 				printReport = false;
-				//fflush(dout);
+				fflush(stdout);
 			}
 			AddValFromFile(CID(it), cFiles);
 			updated = true;
@@ -1085,6 +1085,7 @@ ChromSizes::ChromSizes (const ChromFiles& cFiles, bool printReport)
 		dout << MsgDone;
 		tm.Stop(true, false);
 		dout << EOL;
+		fflush(stdout);
 	}
 }
 

@@ -284,7 +284,7 @@ public:
 	ULONG Count() const;
 
 	// Returns true if SAM type is assigned.
-	inline bool IsSamSet()	{ return (bool)_samFile; }
+	inline bool IsSamSet()	{ return _samFile != NULL; }
 
 	// Adds read(s) to output file
 	//	@cName: chrom's name

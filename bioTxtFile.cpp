@@ -105,7 +105,7 @@ void BedRFile::InitToWrite(const string& commandLine) {
 	ostringstream oss;
 	oss << TabFile::Comment << BLANK << commandLine;
 	string firstLine = oss.str();
-	if(firstLine.length() > buffLen)
+	if(firstLine.length() > short(buffLen))
 		buffLen = firstLine.length();
 	SetWriteBuffer(buffLen + 1, TAB);	// + 1 for safety
 	AddRecord(firstLine.c_str(), commandLine.length());
@@ -453,8 +453,6 @@ void OutFile::Write() const
 	if(_samFile)	_samFile->Write();
 }
 
-const char* delim = ", ";
-
 // Prints output files as head info
 //	@signOut: output marker
 void OutFile::Print(const char* signOut) const
@@ -462,14 +460,14 @@ void OutFile::Print(const char* signOut) const
 	if(_fqFile1) {
 		cout << signOut << "Output sequence: " << _fqFile1->FileName();
 		if(_fqFile2)
-			cout << delim << _fqFile2->FileName(); 
+			cout << SepCm << _fqFile2->FileName(); 
 		cout << endl;
 	}
 	if(_bedFile || _samFile) {
 		cout << signOut << "Output alignment: ";
 		if(_bedFile) {
 			cout << _bedFile->FileName();
-			if(_samFile)	cout << delim;
+			if(_samFile)	cout << SepCm;
 		}
 		if(_samFile)	cout << _samFile->FileName();
 		cout << endl;
