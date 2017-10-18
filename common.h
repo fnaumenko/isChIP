@@ -103,17 +103,24 @@ typedef float readscr;		// type score of Read
 #define USCORE	'_'
 #define BLANK	' '
 #define sBLANK	" "
-#define sBACK	"\b"
 #define QUOT	'\''
 #define DOT		'.'
-//#define HASH	'#'
 #define COLON	':'
 #define PERS	'%'
+#define AT		'@'
+#define PLUS	'+'
+//#define sBACK	"\b"
+//#define HASH	'#'
 
 #define EOL '\n'		// 10
 #define CR	'\r'		// 13
 
 using namespace std;
+
+#define SepCm		", "	// comma separator
+#define SepCl		": "	// colon separator
+#define SepSCl		"; "	// semicolon separator
+#define SepClTab	":\t"	// colon + tab separator
 
 static const string ZipFileExt = ".gz";
 static const string strEmpty = "";
@@ -122,14 +129,10 @@ static const char* MsgDone = " done\t";
 static const char* Notice = "NOTICE: ";
 static const char* Total = "total";
 static const char* Version = "version";
-static const char* SepCm = ", ";		// comma separator
-static const char* SepCl = ": ";		// colon separator
-static const char* SepSCl = "; ";		// semicolon separator
-static const char* SepClTab = ":\t";	// colon + tab separator
 #ifdef _ISCHIP
-static const char* SepGroup = ";  ";	// option print: separator of option values in a group
+#define SepGroup	";  "
 #endif	// _ISCHIP
-#ifndef _WIGREG
+#if !defined _WIGREG && !defined _FQSTATN
 static const char* Template = "template";
 #endif
 
@@ -230,13 +233,10 @@ static struct Product
 
 	// Gets title plus version.
 	//static inline const string& Name() { return Title + string(1, HPH) + string(Version); }
-
 } product;
 
+// 'Options' implements main() options and parameters treatment.
 static class Options
-/*
- * Class 'Options' implements main() options and parameters treatment.
- */
 {
 public:
 	static const char* Booleans [];		// boolean values
@@ -268,8 +268,6 @@ public:
 	//	negative if  tokenize complets wrong
 	static int Tokenize(int argc, char* argv[], const char* obligPar=NULL);
 	
-	//static void GetOpt(int i);
-
 	// Get double value by index
 	static inline double GetDVal(int i)	{ return _Options[i].NVal; }
 	// Get float value by index
@@ -349,7 +347,8 @@ private:
 		int CheckOblig();
 
 		// Prints option in full or short way.
-		//	@descr: if true, prints in full way: signature, description (marks as Required if needed), default value,
+		//	@descr: if true, prints in full way: 
+		//	signature, description (marks as Required if needed), default value, 
 		//	otherwise signature only
 		void Print(bool descr);
 
@@ -382,8 +381,13 @@ private:
 
 	// structure 'Usage' is used to output some Usage variants in PrintUsage()
 	struct Usage {
-		const int		OptVal;	// enum optValue which string option should be printes in Usage
-		const string	Text;	// text which string option should be printes in Usage
+		const int	Opt;		// option that should be printed in Usage as obligatory
+		const char*	Par;		// prog parameter that should be printed in Usage as obligatory
+		const bool	IsParOblig;	// true if parameter is obligatory, otherwise printed in square brackets
+		const char* ParDescr;	// description of prog parameter that should be printed in Usage
+
+		// Prints Usage params
+		void Print(Option* opts) const;
 	};
 
 	static const char*	_TypeNames [];	// names of option value types in help
@@ -455,7 +459,6 @@ public:
 		FZ_OPEN,	// TxtFile(): gzip open error
 		FZ_BUILD,	// TxtFile(): doen't support gzip
 		F_WRITE,	// file write error
-		//F_NOREADREC,
 #ifndef _FQSTATN
 		TF_FIELD,	// TabFile: number of fields is less than expected
 		//TF_SPEC,
@@ -467,7 +470,7 @@ public:
 #endif
 		//FA_LONGLEN,
 #endif
-#if defined(_ISCHIP) || defined(_FQSTATN)
+#if defined _ISCHIP || defined _FQSTATN
 		FQ_HEADER,
 		FQ_HEADER2,
 #elif defined _DENPRO || defined _BIOCC
@@ -755,6 +758,7 @@ struct TabFilePar {
 // 'File Type' implements bioinformatics file type routines 
 static class FT
 {
+private:
 	struct fType {
 		const char* Extens;			// file extension
 		const string Item;			// item title
@@ -763,6 +767,14 @@ static class FT
 	};
 	static const fType Types[];
 	static const BYTE	Count = 7;
+
+	// Validates file format
+	//	@fName: file name (with case insensitive extension and [.gz])
+	//	@t: file type
+	//	return: true if file extension correspondes to file type
+	//static bool CheckType(const char* fName, eTypes t) { 
+	//	return GetType(fName) == (t == ABED ? BED : t); 
+	//}
 
 public:
 	enum eTypes {
@@ -779,13 +791,13 @@ public:
 	//	@fName: file name (with case insensitive extension)
 	static eTypes GetType(const char* fName);
 
-	// Validates file format
+	// Validates file extension
 	//	@fName: file name (with case insensitive extension and [.gz])
 	//	@t: file type
+	//	@printfName: true if file name should be ptinted
+	//	@throwExc: true if throw exception, otherwise throw warning
 	//	return: true if file extension correspondes to file type
-	static bool CheckType(const char* fName, eTypes t) { 
-		return GetType(fName) == (t == ABED ? BED : t); 
-	}
+	static bool CheckType(const char* fName, eTypes t, bool printfName=true, bool throwExc=true);
 
 	// Gets file extension
 	//	@t: file type
@@ -857,7 +869,6 @@ public:
 	inline bool IsEnabled() const { return _enabled; }
 };
 
-
 #ifdef _ISCHIP
 	#define dout	cout
 #elif defined _WIGREG
@@ -880,8 +891,6 @@ public:
 
 extern ofstream outfile;	// file ostream duplicated stdout; inizialised by file in code
 extern dostream dout;		// stream's duplicator
-
-/*** end of class dostream ***/
 
 #endif	// _DENPRO || _BIOCC || _FQSTATN
 
@@ -1099,52 +1108,64 @@ private:
 	ULONG	_len;
 #ifdef _BIOCC
 	mutable double _mean;
-#endif // _BIOCC
+#endif
 
 protected:
-	T	*_data;
+	T*	_data;
 
-public:
-	// Reserves array capacity, initialized by 0.
-	//	@len: capacity
-	void Init(long len) {
-		if( (_len=len) > 0 ) {	_data = new T[len]; memset(_data, 0, len*sizeof(T)); }
-		else					_data = NULL;
+private:
+	void Dump() { if(_len) { if(_data) delete [] _data; _len = 0; } }
+
+	// Prepaires memory array to initialization or copying
+	ULONG MakeData(ULONG len) {
+		if(!len)	Dump();
+		else if(!_len)	_data = new T[_len = len];
+		else if(_len != len) { delete [] _data; _data = new T[_len = len]; }
+		return _len;
 	}
 
+	void Copy (const Array& arr)
+	{ if( MakeData(arr._len) )	copy(arr._data, arr._data+_len, _data);	}
+public:
 	// Creates an instance with capacity, initialized by 0.
 	//	@len: capacity
-	inline Array(long len=0)
+	inline Array(ULONG len) : _len(0), _data(NULL)
 #ifdef _BIOCC
-	: _mean(0)
-#endif // _BIOCC
-	{ Init(len); }
+		, _mean(0)
+#endif
+	{ Reserve(len); }
 
-	inline ~Array()		{ if(_data)	delete [] _data; }
+	// Creates an empty instance (default constructor)
+	inline Array() : _len(0), _data(NULL) 
+#ifdef _BIOCC
+		, _mean(0)
+#endif
+	{}
+
+	inline Array(const Array& arr) { Copy(arr); }
+
+	inline ~Array()		{ Dump(); }
 	
 	inline bool Empty() const	{ return !_len; }
 
 	inline ULONG Length() const	{ return _len; }
 
+	// Access data
+	//	returns: a direct pointer to the memory array used internally
+	inline T* Data() const	{ return _data; }
+
 	inline T& operator[](const ULONG i)				{ return _data[i]; }
 
 	inline const T& operator[](const ULONG i) const	{ return _data[i]; }
 
-	Array& operator=(const Array& arr) {
-		Reserve(arr._len);
-		if( arr._len )	copy(arr._data, arr._data+arr._len, _data);
-		return *this;
-	}
+	inline Array& operator=(const Array& arr) { Copy(arr); return *this; }
 
 	// Deletes previous data and reserves array capacity, initialized by 0.
 	//	@len: capacity
-	void Reserve(long len)	{ 
-		if(_data)	delete [] _data;
-		Init(len);
-	}
+	void Reserve(long len)	{ MakeData(len); Clear(); }
 
 	// CLears an instance: set all members to zero
-	inline void	Clear() { if(_data)	memset(_data, 0, _len*sizeof(T)); }
+	inline void	Clear() { if(_len)	memset(_data, 0, _len*sizeof(T)); }
 
 #if defined _DENPRO || defined _BIOCC
 	// Adds array to this instance.
@@ -1323,9 +1344,9 @@ typedef Array<chrlen> arrchrlen;
 typedef Array<BYTE> arrbmapval;
 #endif	// _BIOCC
 
+// 'Chrom' establishes correspondence between chromosome's ID and it's name.
 static class Chrom
 /*
- * Class 'Chrom' establishes correspondence between inner chromosome's ID and it's name.
  * Terms:
  * Short chromosome's name: 1, ..., Y.
  * Abbreviation chromosome's name: chr1, ..., chrY
@@ -1335,22 +1356,25 @@ static class Chrom
  * and is a letter's ASCII code for literal names (X, Y).
  */
 {
-	static const char	X = 'X';
-	static const char	Y = 'Y';
-	static const char*	UndefName;
-
-	static chrid _cID;	// user-defined chrom ID
-
 public:
+	static const char*	Abbr;				// Chromosome abbreviation
+#ifndef _FQSTATN
+	static const char*	Short;				// Chromosome shortening
+	static const string	Title;				// Chromosome title
 	static const char	M = 'M';
 	static const chrid	UnID = 0;				// Undefined ID
 	static const chrid	Count = 24;				// Count of chromosomes by default
 	static const BYTE	MaxShortNameLength = 2;	// Maximal length of short chrom's name
 	static const BYTE	MaxAbbrNameLength;		// Maximal length of abbreviation chrom's name
 	static const BYTE	MaxNamedPosLength;	// Maximal length of named chrom's position 'chrX:12345'
-	static const char*	Abbr;				// Chromosome abbreviation
-	static const char*	Short;				// Chromosome shortening
-	static const string	Title;				// Chromosome title
+
+private:
+		static const char	X = 'X';
+	static const char	Y = 'Y';
+	static const char*	UndefName;
+
+	static chrid _cID;	// user-defined chrom ID
+public:
 
 	// Gets chromosome's ID stated by user
 	static inline chrid StatedID()	{ return _cID; }
@@ -1436,19 +1460,17 @@ public:
 	}
 
 	//static char* LongToShortName(char* longName) ;
+#endif	// _FQSTATN
 } chrom;
 
 #if defined _DENPRO || defined _BIOCC
-static string sNoCommonChroms = "no common chroms\n";
-	//"no common " + Chrom::Title + 's' + EOL;
+static const char* sNoCommonChroms = "no common chromosomes";
 #endif	// _DENPRO || _BIOCC
 
 #if !defined _WIGREG && !defined _FQSTATN
 
+// 'Read' represents Read (with name and score in case of _BEDR_EXT) as item
 struct Read
-/*
- * 'Read' represents Read (with name and score in case of _BEDR_EXT) as item
- */
 {
 #if defined _ISCHIP || defined _BEDR_EXT
 	enum rNameType {	// defines types of Read's name
@@ -1465,7 +1487,7 @@ struct Read
 	static const string	NmSuffMate1,			// suffix of Read's name on pair-end first mate
 						NmSuffMate2;			// suffix of Read's name on pair-end second mate
 	static BYTE	OutNameLength;			// Maximum length of Read name in output file
-#endif	// _ISCHIP or _BEDR_EXT
+#endif	// _ISCHIP || _BEDR_EXT
 	static	readlen	Len;						// length of Read
 	static const char	Strand[2];				// strand markers: [0] - positive, [1] - negative
 
@@ -1522,9 +1544,7 @@ public:
 
 #endif
 	// Compares two Reads by position. For sorting a container.
-	static inline bool CompareByStartPos(const Read& r1, const Read& r2) {
-		return r1.Pos < r2.Pos;
-	}
+	static inline bool CompareByStartPos(const Read& r1, const Read& r2) { return r1.Pos < r2.Pos; }
 
 	//static inline bool CompareByNum(const Read& r1, const Read& r2) {
 	//	return r1.Num < r2.Num;

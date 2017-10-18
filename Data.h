@@ -269,7 +269,7 @@ protected:
 	typedef pair<chrid,T> chrItem;
 	typedef vector<chrItem> chrItems;
 
-	static bool Compare (const chrItem & ci1, const chrItem & ci2) {
+	static inline bool Compare (const chrItem& ci1, const chrItem& ci2) {
 		return ci1.first < ci2.first;
 	}
 #else

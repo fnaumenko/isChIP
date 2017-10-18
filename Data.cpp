@@ -257,9 +257,10 @@ void Obj::ThrowError(Err &err, bool abortInvalid)
 void Obj::Init	(const char* title, const string& fName, Ambig& ambig, void* addObj,
 	bool isInfo, bool abortInvalid)
 {
-	if( !FT::CheckType(fName.c_str(), ambig.FileType()) )	// in case of bioCC the list is checked already,
-		Err("wrong extension", fName).Throw(abortInvalid);	// so better is to add a parameter to Init(),
-															// but it is not worth it
+	// in case of bioCC the list is checked already,
+	// so better is to add a parameter to Init(),
+	// but it is not worth it
+	FT::CheckType(fName.c_str(), ambig.FileType(), true, abortInvalid);
 	bool printed;
 	dchrlen items;
 	Timer	timer(isInfo);
@@ -810,7 +811,7 @@ void Nts::Init(const string& fName, short minGapLen, bool fillNts, bool letN)
 	//cout << "Start: " << _commonDefRgn.Start << "\tEnd: " << _commonDefRgn.End << EOL;
 }
 
-#if defined(_FILE_WRITE) && defined(DEBUG)
+#if defined _FILE_WRITE && defined DEBUG
 #define FA_LINE_LEN	50	// length of wrtied lines
 
 void Nts::Write(const string & fName, const char *chrName) const

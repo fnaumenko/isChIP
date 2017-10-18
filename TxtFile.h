@@ -108,17 +108,19 @@ private:
 	// Returns file name or empty string depends on if name is printing
 	const string& FileNameToExcept() const { return IsFlagSet(PRNAME) ? _fName : strEmpty; }
 
-	// Gets string containing file name and current input line number.
-	const string LineNumbToStr(BYTE indInRecord) const {
-		return (IsFlagSet(PRNAME) ? (_fName + SepSCl) : SepSCl)
-			+ "line " + NSTR(LineNumber(indInRecord));
-	}
-
 	// Gets string containing file name and current record number.
-	inline const string RecordNumbToStr() const
-	{ return LineNumbToStr(0); }
+	//inline const string RecordNumbToStr() const
+	//{ return LineNumbToStr(0); }
 
 protected:
+	// Gets string containing file name and current current record number.
+	//	@recInd: index in record; if 0, then current line
+	const string LineNumbToStr(BYTE recInd = 0) const {
+		return (IsFlagSet(PRNAME) ? (_fName + SepSCl) : SepSCl)
+			+ "line " + NSTR(LineNumber(recInd));
+	}
+
+//protected:
 	mutable Err::eCode	_errCode;
 	
 	// General constructor, always is called first.
@@ -165,11 +167,13 @@ protected:
 		return IsFlagSet(ENDREAD) ? NULL : _buff + _currRecPos - _recLen;
 	}
 
-
+#ifdef _FQSTATN
 	// Throw exception if no record is readed.
-	//inline void CheckGettingRecord(const string & sender) const { 
-	//	if( !IsFlagSet(EOLSZSET) )	Err(Err::F_NOREADREC, sender).Throw();
-	//}
+	void CheckGettingRecord() const { 
+		if( !IsFlagSet(EOLSZSET) )
+			Err("attempt to get record's info without reading record", _fName.c_str()).Throw();
+	}
+#endif
 
 	// Sets _currLinePos to the beginning of next non-empty line inread/write buffer.
 	//	@counterN: if not NULL, adds to counterN the number of 'N' in a record. Used in Fa() only.
@@ -328,19 +332,19 @@ public:
 	// Throws exception occurred in the current reading line 
 	//	@code: exception code
 	inline void ThrowLineExcept(Err::eCode code) const {
-		Err(_errCode=code, RecordNumbToStr().c_str()).Throw();
+		Err(_errCode=code, LineNumbToStr().c_str()).Throw();
 	}
 
 	// Throws exception occurred in the current reading line 
 	//	@msg: exception message
 	inline void ThrowLineExcept(const string& msg) const {
-		Err(msg, RecordNumbToStr().c_str()).Throw();
+		Err(msg, LineNumbToStr().c_str()).Throw();
 	}
 
 	// Throws exception occurred in the current reading line 
 	//	@msg: exception message
 	inline void ThrowLineWarning(const string& msg, const string& warnMsg) const {
-		Err(msg, RecordNumbToStr().c_str()).Warning(warnMsg);
+		Err(msg, LineNumbToStr().c_str()).Warning(warnMsg);
 	}
 
 	// Gets size of uncompressed file,
@@ -760,3 +764,75 @@ public:
 
 #endif	// _WIGREG
 #endif	// _FQSTATN
+
+#if defined _ISCHIP || defined _FQSTATN
+// 'FqFile' implements reading/writing file in FQ format.
+class FqFile : public TxtFile
+{
+#ifdef _FQSTATN
+
+private:
+	enum eLineLenIndex { HEADER1, READ, HEADER2, QUAL };
+
+public:	
+	// Creates new instance for reading by file name
+	inline FqFile(const string& fileName)
+		: TxtFile(fileName, TxtFile::READ, 4, true, false) {}
+
+	// Returns checked length of current readed Read.
+	readlen ReadLength() const;
+	
+	// Gets checked Read from readed Sequence.
+	char* GetCurrRead() const;
+
+	// Returns checked Sequence.
+	char*	GetSequence	();
+	
+	// Returns count of sequences.
+	inline ULONG Count() const { return RecordCount(); }	// << PairEnd; }	// multiply by 2 in case pf
+#endif	// _FQSTATN
+
+#ifdef _FILE_WRITE
+
+private:
+	static rowlen ReadStartPos;		// constant Read field start position
+
+	// Presets line write buffer
+	void InitBuffer();
+
+public:
+	// Creates new instance for writing
+	//	@fName: file name without extention
+	//	@zipExt: zip extention if file should be zipped; otherwise empty string
+	inline FqFile(const string& fName, bool isZip)
+		: TxtFile(fName + FT::RealExt(FT::FQ, isZip), TxtFile::WRITE, 4) {}
+
+	// Creates new instance - mate - with predefined file's name and extention
+	//	@fName: file name without extention
+	//	@zipExt: zip extention if file should be zipped; otherwise empty string
+	//	@mateNumb: mate number: 1 or 2
+	inline FqFile(const string& fName, bool isZip, BYTE mateNumb)
+		: TxtFile(fName + USCORE + BSTR(mateNumb) + FT::RealExt(FT::FQ, isZip), TxtFile::WRITE, 4) {}
+
+#ifdef _MULTITHREAD
+	// Creates a clone of existed @file for writing only.
+	//	@threadNumb: used for forming buffer with differ sizes for anisochronous writing
+	inline FqFile(const FqFile& file, threadnumb threadNumb) : TxtFile(file, threadNumb)
+	{ InitBuffer(); }
+#endif
+
+	// Initializes line write buffer
+	void InitToWrite ();
+
+	// Forms Read from fragment and adds it to the file.
+	//	@rName: Read's name
+	//	@read: valid read
+	//	@reverse: if true then complement added read 
+	//	@mate: SINGLE for one-side sequensing, or MATE_FIRST | MATE_SECOND for paired-end
+	void AddRead	(const string& rName, const char* read, bool reverse, eMate mate);
+
+#endif	// _FILE_WRITE
+};
+#endif	// _ISCHIP || _FQSTATN
+
+

@@ -791,3 +791,91 @@ FaFile::FaFile(const string & fName, const char *chrName) : TxtFile(fName, WRITE
 
 #endif	// _ISCHIP, _DENPRO, _BIOCC
 #endif	// _FQSTATN
+
+#if defined _ISCHIP || defined _FQSTATN
+/************************ class FqFile ************************/
+
+#ifdef _FILE_WRITE
+
+
+#define PLUS '+'
+
+rowlen FqFile::ReadStartPos = 0;	// Read field constant start position 
+
+#endif	// _FILE_WRITE
+
+#ifdef _FQSTATN
+
+// Returns checked length of current readed Read.
+readlen FqFile::ReadLength() const
+{
+	CheckGettingRecord();
+	return LineLength(READ) - EOLSize(); 
+}
+
+// Gets checked Read from readed Sequence.
+char* FqFile::GetCurrRead() const
+{ 
+	CheckGettingRecord();
+	return NextRecord() - RecordLength() + LineLength(HEADER1); 
+}
+
+// Returns checked Sequence
+char* FqFile::GetSequence()
+{
+	char* record = GetRecord();
+	if(record != NULL) {
+		if(*record != AT)
+			Err(Err::FQ_HEADER, LineNumbToStr(0).c_str()).Throw();
+		if( *(record + LineLength(HEADER1) + LineLength(READ)) != PLUS )
+			Err(_errCode = Err::FQ_HEADER2, LineNumbToStr(2).c_str()).Throw();
+	}
+	return record;
+}
+
+#endif	// _FQSTATN
+
+#ifdef _FILE_WRITE
+
+// Presets line write buffer
+void FqFile::InitBuffer()
+{
+	LineSetOffset(ReadStartPos + Read::Len + 1);
+	LineAddChar(PLUS, true);
+	LineFill(ReadStartPos + Read::Len + 3, Read::SeqQuality, Read::Len);	// quality line
+}
+
+// Initializes line write buffer
+void FqFile::InitToWrite()
+{
+	if(!ReadStartPos)
+		ReadStartPos = Read::OutNameLength + 2;		// Read name + AT + EOL
+	
+	SetWriteBuffer(ReadStartPos + 2*Read::Len + 3, EOL);
+	InitBuffer();
+}
+
+// Forms Read from fragment and adds it to the file.
+//	@rName: Read's name
+//	@read: valid read
+//	@reverse: if true then complement added read 
+//	@mate: SINGLE for one-side sequensing, or MATE_FIRST | MATE_SECOND for paired-end
+void FqFile::AddRead(const string& rName, const char* read, bool reverse, eMate mate)
+{
+	// save Read
+	LineSetOffset(ReadStartPos);
+	if(reverse)
+		Read::CopyComplement(LineCurrPosBuf(), read);
+	else
+		LineCopyChars(read, Read::Len);
+	LineAddStrBack(rName);			// Read name
+	LineAddCharBack(AT);
+	LineBackToBuffer();
+
+	//if( IsBadReadPtr(_record + SeqHeaderLen, Read::Len) )	cout << "BAD PTR\n";
+}
+
+#endif	// _FILE_WRITE
+
+/************************ end of class FqFile ************************/
+#endif	// _ISCHIP || _FQSTATN

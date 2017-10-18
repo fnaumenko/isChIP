@@ -29,6 +29,8 @@
 
 using namespace std;
 
+#define SignPar	"# "	// Marker of output parameter in Usage
+
 const string Product::Title = "isChIP";
 const string Product::Version = "1.0";
 const string Product::Descr = "ChIP-seq simulator";
@@ -129,10 +131,8 @@ Options::Option Options::_Options [] = {
 const BYTE	Options::_OptCount = oHELP + 1;
 const BYTE	Options::_UsageCount = 1;		// count of 'Usage' variants in help
 const Options::Usage Options::_Usages[] = {	// content of 'Usage' variants in help
-	{	vUNDEF,	" [template]\n\n  template - bed file whose features specify binding sites"	},
+	{ vUNDEF, Template, false, "bed file whose features specify binding sites"	},
 };
-
-static const char* SignPar = "# ";	// Marker of output parameter in Usage
 
 // Returns common name of output files
 string GetOutFileName();

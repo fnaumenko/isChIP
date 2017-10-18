@@ -326,45 +326,42 @@ void Options::Option::Print(bool descr)
 		len += 1 + strlen(tname);
 	}
 	// ** description
-	if(descr) {
-		short cnt = DESCR_SHIFT - len / 8;	// 3*8: right boundary of descriptions
-		// align description 
-		//if(cnt <= 0 && !(len % 8))	cnt = 1;
-		if(!cnt || (cnt<0 && !(len % 8)))	cnt = 1;
-		//if(cnt <= 0 && !(len % 8))	cnt = 1;
-		for(BYTE i=0; i<cnt; i++)	cout << TAB;
+	if(!descr)	return;
+	short cnt = DESCR_SHIFT - len / 8;	// 3*8: right boundary of descriptions
+	// align description 
+	if(!cnt || (cnt<0 && !(len % 8)))	cnt = 1;
+	for(BYTE i=0; i<cnt; i++)	cout << TAB;
 
-		// print description
-		cnt = 0;	// use as external enum counter
-		len = strlen(Descr);	// from now len is used as length of description string
-		char* buffer = new char[len+1];
-		PrintSubLine(
-			buffer,
-			Descr,
-			strchr(Descr, EOL), 
-			fixValType ? (const char**)SVal : NULL, 
-			&cnt
-		);
-		delete [] buffer;
-		if(AddDescr) {
-			if(Descr[len-1] != EOL)	cout << BLANK;
-			cout << AddDescr;
-		}
-		if(Sign.Is(Signs::Oblig))	cout << " Required";
-		else if(ValType >= tHELP)	cout << " and exit";
-
-		// print default value
-		if(ValRequired() && NVal != vUNDEF)
-			if(fixValType) {
-				if( NVal >= MinNVal )	// do not print default if it is never set by user
-					PRINT_IN_PRTHS(	((char**)SVal)
-						[int(NVal)-int(MinNVal)] );	// offset by min enum value
-			}
-			else if(ValType == tCHAR)	PRINT_IN_PRTHS(char(NVal));
-			else						PRINT_IN_PRTHS(NVal);
-		else if( SVal != NULL )			PRINT_IN_PRTHS(ValType == tENUM ? "NONE" : SVal);
-		cout << EOL;
+	// print description
+	cnt = 0;	// use as external enum counter
+	len = strlen(Descr);	// from now len is used as length of description string
+	char* buffer = new char[len+1];
+	PrintSubLine(
+		buffer,
+		Descr,
+		strchr(Descr, EOL), 
+		fixValType ? (const char**)SVal : NULL, 
+		&cnt
+	);
+	delete [] buffer;
+	if(AddDescr) {
+		if(Descr[len-1] != EOL)	cout << BLANK;
+		cout << AddDescr;
 	}
+	if(Sign.Is(Signs::Oblig))	cout << " Required";
+	else if(ValType >= tHELP)	cout << " and exit";
+
+	// print default value
+	if(ValRequired() && NVal != vUNDEF)
+		if(fixValType) {
+			if( NVal >= MinNVal )	// do not print default if it is never set by user
+				PRINT_IN_PRTHS(	((char**)SVal)
+					[int(NVal)-int(MinNVal)] );	// offset by min enum value
+		}
+		else if(ValType == tCHAR)	PRINT_IN_PRTHS(char(NVal));
+		else						PRINT_IN_PRTHS(NVal);
+	else if( SVal != NULL )			PRINT_IN_PRTHS(ValType == tENUM ? "NONE" : SVal);
+	cout << EOL;
 }
 
 // Prints enum or combi values
@@ -398,6 +395,20 @@ int Options::Option::GetEnumInd (char* val)
 		if( !_stricmp(val, templ[i]) )
 			return i;
 	return -1;
+}
+
+// Prints Usage params
+void Options::Usage::Print(Option* opts) const
+{
+	if(Opt != vUNDEF)	// output option value
+		opts[Opt].Print(false);
+	else if(Par) {		// output parameter
+		if(IsParOblig)	cout << BLANK << Par;
+		else			PRINT_IN_PRTHS(Par);
+		if(ParDescr)	// output parameter description
+			cout << "\n  " << Par << " - " << ParDescr;
+	}
+	cout << endl;
 }
 
 // Set value of option 
@@ -489,24 +500,20 @@ int Options::PrintUsage (bool title)
 	// output 'Usage' section
 	cout << "Usage:";
 	for(k=0; k<_UsageCount; k++) {
-		cout << TAB << Product::Title << " [options]";
-		const Usage& usage = _Usages[k];
+		cout << TAB << Product::Title;	PRINT_IN_PRTHS("options");
 		// output required options
 		for(i=0; i<_OptCount; i++)
 			if( _Options[i].Sign.Is(Signs::Oblig) )
 				_Options[i].Print(false);
 		// output parameters
-		if( usage.OptVal != vUNDEF )
-			_Options[usage.OptVal].Print(false);	// output option value
-		else
-			cout << usage.Text;						// output text
-		cout << endl;
+		_Usages[k].Print(_Options);
 	}
 	cout << endl;
 
 	// output options section
+	cout << "Options:\n";
 	for(k=0; k<_GroupCount; k++) {
-		cout << _OptGroups[k] << ":\n";
+		if(_OptGroups[k])	cout << _OptGroups[k] << ":\n";
 		for(i=0; i<_OptCount; i++)
 			if( _Options[i].OptGroup == k )
 				_Options[i].Print(true);
@@ -583,7 +590,6 @@ const char* Err::_msgs [] = {
 /* FZ_OPEN */	"wrong reading mode ALL for zipped file",
 /* FZ_BUILD */	"this build does not support zipped files",
 /* F_WRITE */	"could not write",
-///* F_NOREADREC*/"attempt to get record's info without reading record",
 #ifndef _FQSTATN
 /* TF_FIELD */	"number of fields is less than expected",
 ///* TF_SPEC */	"wrong line format",
@@ -882,6 +888,20 @@ FT::eTypes FT::GetType(const char* fName)
 	return UNDEF;
 }
 
+// Validates file extension
+//	@fName: file name (with case insensitive extension and [.gz])
+//	@t: file type
+//	@printfName: true if file name should be ptinted
+//	@throwExc: true if throw exception, otherwise throw warning
+//	return: true if file extension correspondes to file type
+bool FT::CheckType(const char* fName, eTypes t, bool printfName, bool throwExc) { 
+	if( GetType(fName) != (t == ABED ? BED : t) ) {
+		Err("wrong extension", printfName ? fName : NULL).Throw(throwExc);
+		return false;
+	}
+	return true;
+}
+
 #ifdef _ISCHIP
 // Gets file extension, beginning at DOT and adding .gz if needed
 //	@t: file type
@@ -1063,9 +1083,11 @@ bool CCaggr::IncreaseSVars(ULLONG x, ULLONG y, chrid cID)
 /********************  end of class CCaggr *********************/
 #endif	// _BIOCC
 
+
 /************************ class Chrom ************************/
 
 const char*		Chrom::Abbr = "chr";
+#ifndef _FQSTATN
 const char*		Chrom::Short = "chrom ";
 const char*		Chrom::UndefName = "UNDEF";
 const string	Chrom::Title = "chromosome";
@@ -1142,13 +1164,14 @@ short Chrom::PrefixLength(const char* cLongName)
 //	short shift = PrefixLength(name);
 //	return shift > 0 ? name + shift : NULL;
 //}
+#endif	// _FQSTATN
 
 /************************ end of class Chrom ************************/
 
 #if !defined _WIGREG && !defined _FQSTATN
 
-#if defined _ISCHIP || defined _BEDR_EXT
 /************************ class Read ************************/
+#if defined _ISCHIP || defined _BEDR_EXT
 
 readlen	Read::Len;				// length of Read
 const char	 Read::Strand[] = { '+', '-' };
