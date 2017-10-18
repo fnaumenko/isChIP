@@ -56,7 +56,7 @@ Please note that correlation between the whole experimental and model alignment 
 ## Usage
 ```isChIP [options] -g|--gen <name> [template]```
 
-## Help
+### Help
 ```
 Input:
   -g|--gen <name>       reference genome library or single nucleotide sequence. Required
