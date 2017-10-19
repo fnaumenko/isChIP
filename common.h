@@ -1114,38 +1114,35 @@ protected:
 	T*	_data;
 
 private:
-	void Dump() { if(_len) { if(_data) delete [] _data; _len = 0; } }
+	//void Dump() { if(_len) { delete [] _data; _len = 0; } }
 
 	// Prepaires memory array to initialization or copying
-	ULONG MakeData(ULONG len) {
-		if(!len)	Dump();
-		else if(!_len)	_data = new T[_len = len];
-		else if(_len != len) { delete [] _data; _data = new T[_len = len]; }
-		return _len;
-	}
+	 ULONG MakeData(ULONG len) {	
+		 if(len) _data = new T[_len = len];
+		 return len;
+	 }
 
-	void Copy (const Array& arr)
-	{ if( MakeData(arr._len) )	copy(arr._data, arr._data+_len, _data);	}
 public:
 	// Creates an instance with capacity, initialized by 0.
 	//	@len: capacity
-	inline Array(ULONG len) : _len(0), _data(NULL)
+	Array(ULONG len=0) : _len(0), _data(NULL)	// inline is forbidden because of T& Chroms::AddEmptyClass()
 #ifdef _BIOCC
 		, _mean(0)
 #endif
 	{ Reserve(len); }
 
 	// Creates an empty instance (default constructor)
-	inline Array() : _len(0), _data(NULL) 
-#ifdef _BIOCC
-		, _mean(0)
-#endif
-	{}
+//	inline Array() : _len(0), _data(NULL)	// inline is forbidden because of T& Chroms::AddEmptyClass()
+//#ifdef _BIOCC
+//		, _mean(0)
+//#endif
+//	{}
 
-	inline Array(const Array& arr) { Copy(arr); }
+	//inline Array(const Array& arr) { Copy(arr); }
 
-	inline ~Array()		{ Dump(); }
-	
+	inline ~Array()		// only the data created in the constructor or MakeData() is freed
+	{ if(_len) delete [] _data; _len = 0; }
+
 	inline bool Empty() const	{ return !_len; }
 
 	inline ULONG Length() const	{ return _len; }
@@ -1160,12 +1157,16 @@ public:
 
 	inline Array& operator=(const Array& arr) { Copy(arr); return *this; }
 
+	inline void Copy (const Array& arr)
+	{ if(MakeData(arr._len))	copy(arr._data, arr._data + _len, _data); }
+
 	// Deletes previous data and reserves array capacity, initialized by 0.
 	//	@len: capacity
-	void Reserve(long len)	{ MakeData(len); Clear(); }
+	inline void Reserve(long len)
+	{ if(MakeData(len)) memset(_data, 0, _len*sizeof(T)); }	// no control of existing data
 
 	// CLears an instance: set all members to zero
-	inline void	Clear() { if(_len)	memset(_data, 0, _len*sizeof(T)); }
+	inline void Clear() { if(_len)	memset(_data, 0, _len*sizeof(T)); }
 
 #if defined _DENPRO || defined _BIOCC
 	// Adds array to this instance.
