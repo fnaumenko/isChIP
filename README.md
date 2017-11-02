@@ -33,9 +33,9 @@ Go to the desired directory and type commands:<br>
 ```cd isChIP-1.0```<br>
 ```make```
 
-If **zlib** is not installed on your system, a message will be displayed from the linker.<br>
-In that case you can compile the program without the ability to work with .gz files. 
-To do this, open *makefile* in any text editor, uncomment last macro in the second line, comment third line, save *makefile*, and try again ```make```.<br>
+If **zlib** is not installed on your system, a linker message will be displayed.<br>
+In that case you can compile the program without the ability to work with .gz files: 
+open *makefile* in any text editor, uncomment last macro in the second line, comment third line, save *makefile*, and try ```make``` again.<br>
 To be sure about **zlib** on your system, type ```whereis zlib```.
 
 ## Synopsis
@@ -67,7 +67,7 @@ Processing:
   --fg-level <float>    in test mode the number of selected fragments within the features, in percent;
                         in control mode the number of selected fragments, in percent [100]
   -n|--cells <long>     number of cells [1]
-  -c|--chr <chars>      generate output for the specified chromosome only
+  -c|--chr <name>       generate output for the specified chromosome only
   --bg-all <OFF|ON>     turn on/off generation background for all chromosomes. For the test mode only [ON]
   --bind-len <int>      minimum binding length. For the test mode only [1]
   --flat-len <int>      boundary flattening length. For the test mode only [0]
@@ -91,14 +91,15 @@ Fragment's size distribution:
   --ln-factor <int>     power multiplication factor in lognormal distribution [500]
   --ln-term <float>     power summand in lognormal distribution [5.1]
 Reads:
-  -r|--read-len <int>   length of output read [50]
-  --read-name <NMB|POS> name of read in output files includes:
+  -r|--rd-len <int>     length of generated read [50]
+  --rd-name <NMB|POS>   name of read in output files includes:
                         NMB - read`s unique number within chromosome
                         POS - read`s true start position [POS]
-  --read-Nlimit <int>   maximum permitted number of ambiguous characters (N) in read [--read-len]
-  --reads-limit <long>  maximum permitted number of total written reads [2e+08]
-  --fq-qual <chars>     the quality values for the read in FQ output [~]
-  --map-qual <int>      the mapping quality for the read in SAM output [42]
+  --rd-Nlimit <int>     maximum permitted number of ambiguous characters (N) in read [--read-len]
+  --rds-limit <long>    maximum permitted number of total written reads [2e+08]
+  --rd-ql <char>        uniform quality value for the sequence  [~]
+  --rd-ql-patt <name>   quality values pattern for the sequence 
+  --rd-map-ql <int>     read mapping quality for SAM and BED output [255]
 Output:
   -f|--format <FQ,BED,SAM>      format of output sequences/alignment, in any combination [FQ]
   -o|--out <name>       location of output files or existing directory
@@ -188,8 +189,9 @@ In general, by default a distribution of numbers from 3-10 provides an output re
 and a distribution of numbers from 100-500 leads to data comparable with the actual tests in term of density.<br>
 Default: 1
 
-```-c|--chr <chars>```<br>
-Generate output for the specified chromosome only, for instance ```–c 10```, ```--chr X```. 
+```-c|--chr <name>```<br>
+Generate output for the specified chromosome only. 
+```name``` means short chromosome name, i.e. number or  character, for instance ```–c 10```, ```--chr X```. 
 This creates the same effect as referencing to the chromosome file instead of directory. 
 This is a strong option, which abolishes the impact of option ```--bg-all``` and all other chromosomes from *template*.
 
@@ -286,11 +288,11 @@ Power summand in fragment's size lognormal distribution.<br>
 For more information see [Fragments distribution and size selection](#fragments-distribution-and-size-selection) section.<br>
 Default: 5.1
 
-```--read-name <NMB|POS>```<br>
+```--rd-name <NMB|POS>```<br>
 Forces to include in the name of each read its unique number (```NMB```) or its true start position (```POS```).<br>
 Default: ```POS```
 
-```--read-Nlimit <int>```<br>
+```--rd-Nlimit <int>```<br>
 Maximum permitted number of ambiguous reference characters ('N') in output reads.<br>
 In the real read sequences ambiguous characters could cause a failure in sequencing as well as undefined regions in the cut fragments, 
 while simulated reads are fully defined by reference library. 
@@ -298,18 +300,26 @@ Consequently the ambiguous characters in the library are translated into reads.
 Different aligners considered undefined characters in references differently: some of them as invalid, and some of them as an overlapping case.<br>
 Default: length of read (all characters could be ambiguous)
 
-```--reads-limit <long>```<br>
+```--rds-limit <long>```<br>
 Maximum number of total written reads. The value emulates sequencer’s limit.<br>
 This value restricts the number of written reads for each chromosome proportionally.<br>
 Default: 200 000 000. In practical simulation the default value is never achieved.
 
-```--fq-qual <chars>```<br>
-Quality value for all the positions in the read in FQ output.<br>
-Default: ~ (decimal 126, maximum)
+```--rd-ql <char>```<br>
+Quality value for all positions in the read for the sequence (for ```FQ``` and ```SAM``` output).<br>
+Default: '~' (decimal 126, maximum)
 
-```--map-qual <int>```<br>
-Mapping quality for the read in SAM output.<br>
-Default: 42 (maximum)
+```--rd-ql-patt <name>```<br>
+Set pattern of the read quality values for the sequence (for ```FQ``` and ```SAM``` output). 
+```name``` is a plain text file containing at least one line encodes the quality values for the sequence exactly as described in [FastQ](https://en.wikipedia.org/wiki/FASTQ_format) format.<br>
+If the length of line is less then read length, the rest of pattern is filed by value defined by ```--rd-ql``` option.<br>
+If the length of line is more then read length, the rest of line is ignored.<br>
+The lines starting with the character '#' are ignored.<br>
+The second and all the following encoding lines are also ignored.
+
+```--rd-map-ql <int>```<br>
+Read mapping quality for ```SAM``` and ```BED``` output (in the last case it is called 'score').<br>
+Default: 255 (maximum)
 
 ```-f|--format <FQ,BED,SAM>```<br>
 Output files formats. 
