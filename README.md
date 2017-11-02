@@ -218,7 +218,7 @@ As such it simulates the smoothing of enriched regions.<br>
 Default: 0
 
 ```--let-N```<br>
-As a rule, the first tens or hundreds of kilobases in the reference chromosomes (and sometimes the last) are meaningless. 
+As a rule, the first (and sometimes the last) tens or hundreds of kilobases in the reference chromosomes are meaningless. 
 i.e. filled with ambiguous reference characters 'N'. 
 By default **isChIP** excludes these initial and final regions from the generation.<br>
 This option forces to scan the entire chromosome. It makes no difference in data after alignment, 
