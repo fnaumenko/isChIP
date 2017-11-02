@@ -635,7 +635,7 @@ bool BedF::AddPos(const Region& rgn, TabFile& file)
 // Gets chromosome's treated length:
 // a double length for numeric chromosomes or a single for named.
 //	@it: chromosome's iterator
-//	@multiplier: 1 for numerics, 0 for letters
+//	@multiplier: 1 for numerics, 0 for nameds
 //	@fLen: average fragment length on which each feature will be expanded in puprose of calculation
 //	(float to minimize rounding error)
 ULONG BedF::FeaturesTreatLength(cIter it, BYTE multiplier, float fLen) const
@@ -929,8 +929,8 @@ ChromFiles::ChromFiles(const string& gName, bool extractAll)
 	}
 	// fill attributes
 	Reserve(cnt);
-	for(chrid i=0; i<cnt; i++)
-		AddVal(Chrom::ID(listFiles[i]), listFiles[i]);
+	for(vector<string>::const_iterator it = listFiles.begin(); it != listFiles.end(); it++)
+		AddChrom(*it);
 }
 
 // Returns length of common prefix before abbr chrom name of all file names
@@ -971,7 +971,7 @@ chrid ChromFiles::SetTreated(const Bed* const bed)
 				FS::UncomressSize(fname.c_str()) :
 				FS::Size(fname.c_str());
 			if( sz < 0 )	Err(Err::F_OPEN, fname.c_str()).Throw();
-			it->second.FileLen = chrlen(sz); 
+			it->second._fileLen = chrlen(sz); 
 		}
 	return cnt;
 }
@@ -1006,8 +1006,10 @@ void ChromFiles::Print() const
 	cout << "chrom\tNumeric\tFileLen\n";
 	for(cIter it=cBegin(); it!=cEnd(); it++)
 		cout << Chrom::AbbrName(CID(it)) << TAB
-			 << int(it->second.Numeric) << TAB
-			 << it->second.FileLen << EOL;
+#ifdef _ISCHIP
+		<< int(it->second.Numeric()) << TAB
+#endif
+		<< it->second._fileLen << EOL;
 }
 #endif	// DEBUG
 /************************  end of class ChromFiles ************************/
@@ -1019,7 +1021,7 @@ const string ChromSizes::Ext = ".sizes";
 //	@fName: name of file.sizes
 void ChromSizes::Init (const string& fName)
 {
-	TabFile file(fName, TxtFile::READ, 2, 2, Chrom::Abbr);
+	TabFile file(fName, TxtFile::READ, 2, 2, '\0', Chrom::Abbr);
 	chrid cID;
 	ULONG cntLines;
 	// no needs to check since aborting invalid file is set
@@ -1207,7 +1209,7 @@ FileList::FileList(char* files[], short cntFiles) : _files(NULL), _memRelease(tr
 
 FileList::FileList(const char* fName) : _files(NULL), _memRelease(true)
 {
-	TabFile file(fName, TxtFile::READ, 1, 1, NULL, TabFile::Comment);
+	TabFile file(fName);
 	ULONG cntLines;
 	char *dstStr;
 	const char *srcStr;

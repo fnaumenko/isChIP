@@ -8,7 +8,7 @@ const char* bmodes[] = { "rb", "wb" };
 void TxtFile::SetError(Err::eCode errCode) const
 {
 	_errCode = errCode;
-	if( IsFlagSet(ABORTING) )
+	if( IsFlag(ABORTING) )
 		Err(errCode, FileNameToExcept().c_str()).Throw();
 }
 
@@ -26,17 +26,15 @@ bool TxtFile::SetBasic(const string& fName, eAction mode, void* file)
 	_fName = fName;
 	_currRecPos = _recLen = _cntRecords = _readingLen = 0;
 #ifdef _NO_ZLIB
-	if( IsZipped() ) { SetError(Err::FZ_BUILD); return false; }
+	if(IsZipped()) { SetError(Err::FZ_BUILD); return false; }
 #endif
 	// set file stream
-	if( file )	_stream = file;
+	if(file)	_stream = file;
 	else {
 #ifndef _NO_ZLIB
 		if(IsZipped())
-			if( mode == ALL )	
-				SetError(Err::FZ_OPEN);
-			else				
-				_stream = gzopen(fName.c_str(), bmodes[mode]);
+			if(mode == ALL)	SetError(Err::FZ_OPEN);
+			else	_stream = gzopen(fName.c_str(), bmodes[mode]);
 		else
 #endif
 			_stream = fopen(fName.c_str(), modes[mode]);
@@ -119,23 +117,23 @@ TxtFile::TxtFile (const string& fName, eAction mode, BYTE cntRecLines, bool abor
 }
 
 #ifdef _MULTITHREAD
-// Creates new instance with basic buffer belonges to aggregated file: constructor for concatenating.
+// Creates new instance with read buffer belonges to aggregated file: constructor for concatenating.
 //	For reading only.
 //	@fName: valid full name of file
 //	@file: file that is aggregated
-TxtFile::TxtFile(const string & fName, const TxtFile& file) :
-	_flag(file._flag),
-	_cntRecLines(file._cntRecLines),
-	_buffLineLen(0)
-{
-	if( !SetBasic(fName, READ, NULL) )	return;
-	_buffLen = file._buffLen;
-	_buff = file._buff;
-	RaiseFlag(CONSTIT);	
-}
+//TxtFile::TxtFile(const string & fName, const TxtFile& file) :
+//	_flag(file._flag),
+//	_cntRecLines(file._cntRecLines),
+//	_buffLineLen(0)
+//{
+//	if( !SetBasic(fName, READ, NULL) )	return;
+//	_buffLen = file._buffLen;
+//	_buff = file._buff;
+//	RaiseFlag(CONSTIT);	
+//}
 
 // Creates a clone of existing instance.
-// Clone is a copy of opened file with its own buffer for writing only.
+// Clone is a copy of opened file with its own separate write basic and write line buffers.
 //	Used for multithreading file recording
 //	@file: opened file which is cloned
 //	@threadNumb: number of thread
@@ -149,8 +147,10 @@ TxtFile::TxtFile(const TxtFile& file, threadnumb threadNumb) :
 	if( !SetBasic("Clone " + file._fName, WRITE, file._stream) )	return;
 	// block size is slightly increased by increasing thread number
 	// for mistiming block's writing to file as possible
-	_buffLen = BASE_BLK_SIZE * (threadNumb + NUMB_BLK);
+	_buffLen = BASE_BLK_SIZE * ((threadNumb<<2) + NUMB_BLK);
 	RaiseFlag(CLONE);
+	RaiseFlag(MTHREAD);
+	file.RaiseFlag(MTHREAD);
 	CreateBuffer(BUFF_BASIC);
 	CreateBuffer(BUFF_LINE);
 }
@@ -159,7 +159,7 @@ TxtFile::TxtFile(const TxtFile& file, threadnumb threadNumb) :
 TxtFile::~TxtFile()
 {
 	if( _linesLen )						delete [] _linesLen;
-	if( _buff && !IsFlagSet(CONSTIT) )	delete [] _buff;
+	if( _buff && !IsFlag(CONSTIT) )	delete [] _buff;
 	if( _buffLine )	{
 		//cout << "delete _buffLine\n";
 		delete [] _buffLine;
@@ -260,9 +260,9 @@ char* TxtFile::GetRecord(chrlen* const counterN, short* const posTab, BYTE cntTa
 					currLinePos++; cntEmpty++;	// skip empty line
 					continue;
 				}
-				if( !IsFlagSet(EOLSZSET) ) {
-					SetFlag(EOLSZ, _buff[i-1]==CR);
-					RaiseFlag(EOLSZSET);
+				if( !IsFlag(CRCHECKED) ) {
+					SetFlag(CRSET, _buff[i-1]==CR);
+					RaiseFlag(CRCHECKED);
 				}
 A:				_recLen += (_linesLen[r] = UINT(i-currLinePos) + 1);
 				currLinePos = i+1;
@@ -308,7 +308,7 @@ void TxtFile::LineAddCharsBack(const char* src, size_t num)
 	memcpy(_buffLine + _buffLineOffset, src, num);
 }
 
-// Initializes line write buffer.
+// Creates line write buffer.
 //	@len: length of buffer
 //	@delim: delimiter between line fields
 void TxtFile::SetWriteBuffer(rowlen len, char delim)
@@ -318,13 +318,14 @@ void TxtFile::SetWriteBuffer(rowlen len, char delim)
 	CreateBuffer(BUFF_LINE);
 }
 
-// Sets some bytes in the line write buffer to the specified value.
-//	@offset: shift of buffer start position of filling bytes
-//	@val: value to be set
-//	@len: number of bytes to be set to the value, or the rest of buffer by default
-void TxtFile::LineFill(rowlen offset, char val, rowlen len)
+// Creates line write buffer and copies its content from mate file
+//	@file: file from which the buffer sould be copied
+//	@createLineBuff: true if line write buffer should be created (for mates), otherwise false (for clones)
+void TxtFile::CopyWriteBuffer(const TxtFile& file, bool createLineBuff)
 {
-	memset(_buffLine + offset, val, len ? len : (_buffLineLen-offset));
+	if(createLineBuff)
+		SetWriteBuffer(file._buffLineLen, file._delim);
+	memcpy(_buffLine, file._buffLine, _buffLineLen);
 }
 
 // Adds byte to the current position in the line write buffer,
@@ -375,41 +376,34 @@ void TxtFile::LineToBuffer(rowlen offset, bool closeLine)
 //	@src: record
 //	@len: length of record
 //	@closeLine: if true then close line by EOL
-//	@mate: first, second file-mate or single file
-void TxtFile::AddRecord(const char *src, UINT len, bool closeLine, eMate mate)
+void TxtFile::AddRecord(const char *src, UINT len, bool closeLine)
 {
 	if( _currRecPos + len + 1 > _buffLen )	// write buffer to file if it's full
-		Write(mate);
-	memcpy( _buff+_currRecPos, src, len );
+		Write();
+	memcpy(_buff + _currRecPos, src, len );
 	_currRecPos += len;
 	if( closeLine )	_buff[_currRecPos++] = EOL;
 	_cntRecords++;
 }
 
-// Writes current block to file.
-//	@mate: SINGLE for single file or MATE_FIRST | MATE_SECOND for pair of files.
-// Set up mutex for writing to synchronous files while multithreading.
-void TxtFile::Write(eMate mate) const
+// Writes thread-safely current block to file.
+void TxtFile::Write() const
 {
-	int res;
 #ifdef _MULTITHREAD
-	//if( mate != MATE_SECOND )	// rouse mutex for first mate and always by single file
-	if( mate != MATE_SINGLE )	// rouse mutex for first mate and always by single file
-		Mutex::Lock(Mutex::WR_FILE);
+	if(IsFlag(MTHREAD))	Mutex::Lock(Mutex::WR_FILE);
 #endif
-	res = 
+	//cout << "Write " << _fName << "\tsize = " << _currRecPos << endl;
+	int res = 
 #ifndef _NO_ZLIB
 		IsZipped() ?
 		gzwrite((gzFile)_stream, _buff, _currRecPos) :
 #endif
 		fwrite(_buff, 1, _currRecPos, (FILE*)_stream);
 #ifdef _MULTITHREAD
-	//if( mate != MATE_FIRST )	// drop mutex by second mate and always by single file
-	if( mate != MATE_SINGLE )	// drop mutex by second mate and always by single file
-		Mutex::Unlock(Mutex::WR_FILE);
+	if(IsFlag(MTHREAD))	Mutex::Unlock(Mutex::WR_FILE);
 #endif
-	if( res != _currRecPos )	SetError(Err::F_WRITE);
-	else						_currRecPos = 0;
+	if(res != _currRecPos)	SetError(Err::F_WRITE);
+	else					_currRecPos = 0;
 }
 
 //bool	TxtFile::AddFile(const string fName)
@@ -606,7 +600,6 @@ void Regions::Print () const
 #endif	// _WIGREG
 
 /************************ class TabFile ************************/
-const char TabFile::Comment = '#';
 
 // Checks if field valid and throws exception if not.
 //	@ind: field index
@@ -810,14 +803,14 @@ rowlen FqFile::ReadStartPos = 0;	// Read field constant start position
 readlen FqFile::ReadLength() const
 {
 	CheckGettingRecord();
-	return LineLength(READ) - EOLSize(); 
+	return LineLengthByInd(READ) - EOLSize(); 
 }
 
 // Gets checked Read from readed Sequence.
-char* FqFile::GetCurrRead() const
+const char* FqFile::GetCurrRead() const
 { 
 	CheckGettingRecord();
-	return NextRecord() - RecordLength() + LineLength(HEADER1); 
+	return NextRecord() - RecordLength() + LineLengthByInd(HEADER1); 
 }
 
 // Returns checked Sequence
@@ -827,7 +820,7 @@ char* FqFile::GetSequence()
 	if(record != NULL) {
 		if(*record != AT)
 			Err(Err::FQ_HEADER, LineNumbToStr(0).c_str()).Throw();
-		if( *(record + LineLength(HEADER1) + LineLength(READ)) != PLUS )
+		if( *(record + LineLengthByInd(HEADER1) + LineLengthByInd(READ)) != PLUS )
 			Err(_errCode = Err::FQ_HEADER2, LineNumbToStr(2).c_str()).Throw();
 	}
 	return record;
@@ -837,30 +830,37 @@ char* FqFile::GetSequence()
 
 #ifdef _FILE_WRITE
 
+//const char*	FqFile::QualPattern = NULL;
+
 // Presets line write buffer
-void FqFile::InitBuffer()
+//	@rQualPatt: Read quality pattern, or NULL
+void FqFile::InitBuffer(const char* rQualPatt)
 {
-	LineSetOffset(ReadStartPos + Read::Len + 1);
+	rowlen startPos = ReadStartPos + Read::Len + 1;
+	LineSetOffset(startPos);
 	LineAddChar(PLUS, true);
-	LineFill(ReadStartPos + Read::Len + 3, Read::SeqQuality, Read::Len);	// quality line
+	startPos += 2;
+	// Read quality line
+	if(rQualPatt)	LineFill(startPos, rQualPatt, Read::Len);
+	else			LineFill(startPos, Read::SeqQuality, Read::Len);	
 }
 
-// Initializes line write buffer
-void FqFile::InitToWrite()
+// Creates and initializes line write buffer.
+//	@rQualPatt: Read quality pattern, or NULL
+void FqFile::InitToWrite(const char* rQualPatt)
 {
 	if(!ReadStartPos)
 		ReadStartPos = Read::OutNameLength + 2;		// Read name + AT + EOL
 	
 	SetWriteBuffer(ReadStartPos + 2*Read::Len + 3, EOL);
-	InitBuffer();
+	InitBuffer(rQualPatt);
 }
 
 // Forms Read from fragment and adds it to the file.
 //	@rName: Read's name
 //	@read: valid read
 //	@reverse: if true then complement added read 
-//	@mate: SINGLE for one-side sequensing, or MATE_FIRST | MATE_SECOND for paired-end
-void FqFile::AddRead(const string& rName, const char* read, bool reverse, eMate mate)
+void FqFile::AddRead(const string& rName, const char* read, bool reverse)
 {
 	// save Read
 	LineSetOffset(ReadStartPos);
@@ -871,9 +871,13 @@ void FqFile::AddRead(const string& rName, const char* read, bool reverse, eMate 
 	LineAddStrBack(rName);			// Read name
 	LineAddCharBack(AT);
 	LineBackToBuffer();
-
-	//if( IsBadReadPtr(_record + SeqHeaderLen, Read::Len) )	cout << "BAD PTR\n";
 }
+
+// Gets Read qualuty pattern
+//const string FqFile::QualPatt()
+//{
+//	return string("");
+//}
 
 #endif	// _FILE_WRITE
 

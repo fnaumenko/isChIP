@@ -35,22 +35,18 @@ public:
 		WRITE,	// creates file if it not exist and writes to it; file is cleared before
 		ALL		// creates file if it not exist and reads it
 	};
-	enum eMate {		// mode of thread-safe synchronous writing to pair of files
-		MATE_SINGLE,	// write to single file
-		MATE_FIRST,		// write to first file in a pair
-		MATE_SECOND		// write to second file in a pair
-	};
 
 private:
 	enum eFlag {			// signs of file
-		CLONE	= 0x001,	// file is a clone
-		CONSTIT	= 0x002,	// file is a constituent of an aggregate file
-		ZIPPED	= 0x004,	// file is zipped
-		ABORTING= 0x008,	// if file is invalid it should completed by throwing exception; for Reading mode only
-		EOLSZSET= 0x010,	// EOL size is defined; for Reading mode only
-		EOLSZ	= 0x020,	// EOL size - 1: 0 for Linux, 1 for Windows; for Reading mode only
-		ENDREAD	= 0x040,	// last call of GetRecord() has returned NULL; for Reading mode only
-		PRNAME	= 0x080		// print file name in exception's message; for Reading mode only
+		CLONE		= 0x001,	// file is a clone
+		CONSTIT		= 0x002,	// file is a constituent of an aggregate file
+		ZIPPED		= 0x004,	// file is zipped
+		ABORTING	= 0x008,	// invalid file should be completed by throwing exception; for Reading mode
+		CRSET		= 0x010,	// CR symbol is present in the file; for Reading mode
+		CRCHECKED	= 0x020,	// the presence of a symbol CR is checked; for Reading mode
+		ENDREAD		= 0x040,	// last call of GetRecord() has returned NULL; for Reading mode
+		PRNAME		= 0x080,	// print file name in exception's message; for Reading mode
+		MTHREAD		= 0x100		// file in multithread mode: needs to be locked while writing
 	};
 	enum eBuff {		// signs of buffer; used in CreateBuffer() only
 		BUFF_BASIC,		// basic (block) read|write buffer
@@ -61,7 +57,7 @@ private:
 	LLONG	_fSize;			// the length of uncompressed file; for zipped file more than
 							// 4'294'967'295 its unzipped length is unpredictable
 	void *	_stream;		// FILE* (for unzipped file) or gzFile (for zipped file)
-	short	_flag;			// bitwise storage for signs included in eFlag
+	mutable short _flag;	// bitwise storage for signs included in eFlag
 	// === basic read|write buffer
 	char *	_buff;			// basic accumulative read/write buffer
 	UINT *	_linesLen;		// for Reading mode only: array of lengths of lines in a record
@@ -81,10 +77,10 @@ protected:
 	char	_delim;
 
 private:
-	inline void RaiseFlag	(eFlag flag)		{ _flag |= flag; }
+	inline void RaiseFlag	(eFlag flag) const	{ _flag |= flag; }
 	inline void SetFlag	(eFlag flag, bool val)	{ val ? _flag |= flag : _flag &= ~flag; }
-	inline bool IsFlagSet(eFlag flag)	const	{ return (_flag & flag) != 0; }	// != 0 to avoid warning C4800
-	inline bool IsZipped()				const	{ return IsFlagSet(ZIPPED); }
+	inline bool IsFlag(eFlag flag)	const	{ return (_flag & flag) != 0; }	// != 0 to avoid warning C4800
+	inline bool IsZipped()				const	{ return IsFlag(ZIPPED); }
 
 	// Raises ENDREAD sign an return NULL
 	inline char* ReadingEnded()		  { RaiseFlag(ENDREAD); return NULL; }
@@ -106,21 +102,18 @@ private:
 	bool CreateBuffer(eBuff buffType);
 
 	// Returns file name or empty string depends on if name is printing
-	const string& FileNameToExcept() const { return IsFlagSet(PRNAME) ? _fName : strEmpty; }
+	const string& FileNameToExcept() const { return IsFlag(PRNAME) ? _fName : strEmpty; }
 
 	// Gets string containing file name and current record number.
 	//inline const string RecordNumbToStr() const
 	//{ return LineNumbToStr(0); }
 
-protected:
-	// Gets string containing file name and current current record number.
-	//	@recInd: index in record; if 0, then current line
-	const string LineNumbToStr(BYTE recInd = 0) const {
-		return (IsFlagSet(PRNAME) ? (_fName + SepSCl) : SepSCl)
-			+ "line " + NSTR(LineNumber(recInd));
-	}
+	// Gets number of line.
+	//	@lineInd: index of line in a record
+	inline ULONG LineNumber	(BYTE lineInd) const
+	{ return (_cntRecords-1)*_cntRecLines + lineInd + 1; }
 
-//protected:
+protected:
 	mutable Err::eCode	_errCode;
 	
 	// General constructor, always is called first.
@@ -128,18 +121,18 @@ protected:
 	//	@mode: opening mode
 	//	@cntRecLines: number of lines in a record
 	//	@abortInvalid: true if invalid instance shold be completed by throwing exception
-	//	@rintName: true if file name should be printed in exception's message
+	//	@rintName: true if file name should be printed in the exception's message
 	TxtFile(const string& fName, eAction mode, BYTE cntRecLines, bool abortInvalid=true, bool printName=true);
 
 #ifdef _MULTITHREAD
-	// Creates new instance with buffer belonges to aggregated file: constructor for concatenating.
+	// Creates new instance with read buffer belonges to aggregated file: constructor for concatenating.
 	//	For reading only.
 	//	@fName: valid full name of file
 	//  aggrFile: file that is aggregated
-	TxtFile	(const string& fName, const TxtFile& aggrFile);
+	//TxtFile	(const string& fName, const TxtFile& aggrFile);
 	
 	// Creates a clone of existing instance.
-	// Clone is a copy of opened file with its own buffer for writing only.
+	// Clone is a copy of opened file with its own separate write basic and write line buffers.
 	// Used for multithreading file recording
 	//	@file: opened file which is cloned
 	//	@threadNumb: number of thread
@@ -149,31 +142,39 @@ protected:
 	
 	~TxtFile();
 
+	// Gets the amount of characters corresponded to EOL
+	// In file created in Window EOL matches '\r\n', in file created in Linux EOL matches '\n',
+	//	return: in Windows always 1, in Linux: 2 for file created in Windows, 1 for file created in Linux
+	inline BYTE EOLSize() const	{ return (BYTE)IsFlag(CRSET) + 1; }
+
+	// Returns true if instance is a clone.
+	inline bool IsClone() const { return IsFlag(CLONE); }	// return _isClone;
+
 	// Sets error code and throws exception if it is allowed.
 	void SetError(Err::eCode errCode) const;
 
-	// Reads next record from file stream to read/write buffer.
-	inline char* NextRecord() const	{ return _buff + _currRecPos; }
+
+	// Gets length of current reading record including EOL marker.
+	inline UINT	RecordLength() const	{ return _recLen; }
 	
-	// Gets length of line in record including EOL.
-	inline UINT	LineLength	(BYTE lineInd) const { return _linesLen[lineInd]; }
+	// Gets length of line without EOL marker.
+	//	@lineInd: index of line in a record
+	//inline UINT	LineLengthByInd	(BYTE lineInd) const { return _linesLen[lineInd] - EOLSize(); }
 	
-	// Gets number of line in file by index in record.
-	inline ULONG LineNumber	(BYTE indInRecord) const {
-		return (_cntRecords-1)*_cntRecLines + indInRecord + 1;
-	}
-	// Gets current record.
-	inline const char* Record() const {
-		return IsFlagSet(ENDREAD) ? NULL : _buff + _currRecPos - _recLen;
+	// Gets string containing file name and current line number.
+	//	@lineInd: index of line in a record; if 0, then first line
+	const string LineNumbToStr(BYTE lineInd = 0) const {
+		return (IsFlag(PRNAME) ? (_fName + SepSCl) : SepSCl)
+			+ "line " + NSTR(LineNumber(lineInd));
 	}
 
-#ifdef _FQSTATN
-	// Throw exception if no record is readed.
-	void CheckGettingRecord() const { 
-		if( !IsFlagSet(EOLSZSET) )
-			Err("attempt to get record's info without reading record", _fName.c_str()).Throw();
-	}
-#endif
+	// Gets current record.
+	inline const char* Record() const
+	{ return IsFlag(ENDREAD) ? NULL : _buff + _currRecPos - _recLen; }
+
+	// Gets next record.
+	//	return: point to the next record in a buffer.
+	inline const char* NextRecord() const	{ return _buff + _currRecPos; }
 
 	// Sets _currLinePos to the beginning of next non-empty line inread/write buffer.
 	//	@counterN: if not NULL, adds to counterN the number of 'N' in a record. Used in Fa() only.
@@ -182,14 +183,13 @@ protected:
 	//	return: point to line or NULL if no more lines
 	char*	GetRecord(chrlen* const counterN=NULL, short* const posTab=NULL, BYTE cntTabs=0);
 	
-	// Gets length of current reading record with EOL marker.
-	inline UINT	RecordLength() const	{ return _recLen; }
-	
-	// Gets the amount of EOL characters: 1 for Linux, 2 for Windows
-	inline BYTE	EOLSize() const	{ return (_flag & EOLSZ) + 1; }	// return _EOLSize;
-
-	// Returns true if instance is a clone.
-	inline bool IsClone() const { return IsFlagSet(CLONE); }	// return _isClone;
+#ifdef _FQSTATN
+	// Throw exception if no record is readed.
+	void CheckGettingRecord() const { 
+		if( !IsFlag(CRCHECKED) )
+			Err("attempt to get record's info without reading record", _fName.c_str()).Throw();
+	}
+#endif
 
 #ifdef _FILE_WRITE
 
@@ -215,19 +215,37 @@ protected:
 	// Returns a pointer to the line write buffer at current position.
 	inline char* LineCurrPosBuf() const	{ return _buffLine + _buffLineOffset;	}
 
-	// Initializes line write buffer.
+	// Returns a pointer to the line write buffer at given position.
+	//	@shift: given relative pointer position 
+	inline char* LineCurrPosBuf(rowlen shift) const	{ return _buffLine + shift;	}
+
+	// Creates line write buffer.
 	//	@len: length of buffer
 	//	@delim: delimiter between line fields
 	void SetWriteBuffer(rowlen len, char delim);
 
+	// Creates line write buffer and copies its content from mate file
+	//	@file: file from which the buffer sould be copied
+	//	@createLineBuff: true if line write buffer should be created (for mates), otherwise false (for clones)
+	void CopyWriteBuffer(const TxtFile& file, bool createLineBuff);
+
 	// Sets current position of the line write buffer.
 	inline void LineSetOffset(rowlen offset)	{ _buffLineOffset = offset; }
 
-	// Sets some bytes in the line write buffer to the specified value.
+	// Sets the same bytes in the line write buffer to the specified value.
 	//	@offset: shift of buffer start position of filling bytes
 	//	@val: value to be set
 	//	@len: number of bytes to be set to the value, or the rest of buffer by default
-	void LineFill(rowlen offset, char val, rowlen len=0);
+	inline void LineFill(rowlen offset, char val, rowlen len=0)
+	{ memset(_buffLine + offset, val, len ? len : (_buffLineLen-offset)); }
+
+	// Sets some bytes in the line write buffer to the specified value.
+	//	@offset: shift of buffer start position of filling bytes
+	//	@src: bytes to be set
+	//	@len: number of bytes to be set to the value, or the rest of buffer by default
+	inline void LineFill(rowlen offset, const char* src, rowlen len)
+	{ memcpy(_buffLine + offset, src, len); }
+
 
 	// Moves current position of the line write buffer by shift.
 	//inline void SlipOffset(int shift)	{ _buffLineOffset += shift; }
@@ -298,17 +316,15 @@ protected:
 
 	// Adds last part of the line write buffer (from current position to the end)
 	//	to the file write buffer.
-	inline void LineBackToBuffer() {
-		AddRecord(_buffLine + _buffLineOffset, _buffLineLen - _buffLineOffset);
-	}
+	inline void LineBackToBuffer()
+	{ AddRecord(_buffLine + _buffLineOffset, _buffLineLen - _buffLineOffset); }
 
 	// Adds record to the file write buffer.
 	// Generates exception if writing is fall.
 	//	@src: record
 	//	@len: length of record
 	//	@closeLine: if true then close line by EOL
-	//	@mate: first, second file-mate or single file
-	void AddRecord	(const char *src, UINT len, bool closeLine=true, eMate mate=MATE_SINGLE);
+	void AddRecord	(const char *src, UINT len, bool closeLine=true);
 
 #endif	//  _FILE_WRITE
 
@@ -347,6 +363,7 @@ public:
 		Err(msg, LineNumbToStr().c_str()).Warning(warnMsg);
 	}
 
+	
 	// Gets size of uncompressed file,
 	// or size of compressed file if its uncompressed length is more than UINT_MAX.
 	// So it can be used for estimatation only.
@@ -358,19 +375,17 @@ public:
 	// Gets number of readed/writed records.
 	inline ULONG RecordCount() const	{ return _cntRecords; }
 
+	// Gets length of current line without EOL marker: only for single record!
+	inline chrlen LineLength()	const { return RecordLength() - EOLSize(); }
+	//inline UINT LineLength() const { return LineLengthByInd(0); }
+
 	// Returns true if invalid instance should completed by throwing exception.
-	inline bool IsAborting() const	{ return IsFlagSet(ABORTING); }
+	inline bool IsAborting() const	{ return IsFlag(ABORTING); }
 
 #ifdef _FILE_WRITE
 	
-	// Writes current block to file.
-	//	@mate: SINGLE for single file or MATE_FIRST | MATE_SECOND for pair of files.
-	// Set up mutex for writing to synchronous files while multithreading.
-	void Write(eMate mate) const;
-	
-	// Writes current block to a single file.
-	//	return: true if successful
-	inline void	Write() const { Write(MATE_SINGLE); }
+	// Writes thread-safely current block to file.
+	void Write() const;
 	
 	// Adds content of another file (concatenates)
 	//	return: true if successful
@@ -381,10 +396,8 @@ public:
 
 #ifdef _FILE_WRITE
 
+// 'LineFile' provides methods for writing text files by lines.
 class LineFile : public TxtFile
-/*
- * 'LineFile' is a class for writing text files by lines.
- */
 {
 public:
 	// Creates an instance by file name
@@ -584,8 +597,6 @@ private:
 	void Init(eAction mode);
 
 public:
-	static const char Comment;
-
 	// Creates new instance.
 	//	@fName: name of file
 	//	@minCntFields: obligatory number of fields separated by TAB
@@ -602,12 +613,12 @@ public:
 		eAction mode=READ,
 		BYTE minCntFields=1,
 		BYTE maxCntFields=1,
+		char comment=HASH,
 		const char* lineSpec=NULL,
-		char comment='\0',
 		bool abortInvalid=true,
 		bool printName=true,
 		bool checkFieldCnt=true
-	) : _params(minCntFields, (maxCntFields==1 ? minCntFields : maxCntFields) + 1, lineSpec, comment),
+	) : _params(minCntFields, (maxCntFields==1 ? minCntFields : maxCntFields) + 1, comment, lineSpec),
 		_checkFieldCnt(checkFieldCnt),
 		TxtFile(fName, mode, 1, abortInvalid, printName)
 	{	Init(mode); }
@@ -663,7 +674,7 @@ public:
 	// Reads next line and set it as current.
 	//	return: current line.
 	const char* GetLine();
-	
+
 	// Reads string by field's index from current line.
 	const char* StrField	(BYTE fInd)	const {
 		return IsFieldValid(fInd) ? SField(fInd) : NULL;
@@ -742,9 +753,6 @@ public:
 	FaFile	(const string & fName, const char *chrName);
 #endif
 
-	// Gets length of current line without EOL marker.
-	inline chrlen LineLength()	const { return RecordLength() - EOLSize(); }
-
 	// Gets current readed line.
 	inline const char* Line()	const { return Record(); }
 	
@@ -783,7 +791,7 @@ public:
 	readlen ReadLength() const;
 	
 	// Gets checked Read from readed Sequence.
-	char* GetCurrRead() const;
+	const char* GetCurrRead() const;
 
 	// Returns checked Sequence.
 	char*	GetSequence	();
@@ -796,40 +804,43 @@ public:
 
 private:
 	static rowlen ReadStartPos;		// constant Read field start position
+	//static const char*	QualPattern;	// Read quality pattern
 
 	// Presets line write buffer
-	void InitBuffer();
+	//	@rQualPatt: Read quality pattern, or NULL
+	void InitBuffer(const char* rQualPatt);
 
 public:
 	// Creates new instance for writing
 	//	@fName: file name without extention
 	//	@zipExt: zip extention if file should be zipped; otherwise empty string
-	inline FqFile(const string& fName, bool isZip)
-		: TxtFile(fName + FT::RealExt(FT::FQ, isZip), TxtFile::WRITE, 4) {}
-
-	// Creates new instance - mate - with predefined file's name and extention
-	//	@fName: file name without extention
-	//	@zipExt: zip extention if file should be zipped; otherwise empty string
-	//	@mateNumb: mate number: 1 or 2
-	inline FqFile(const string& fName, bool isZip, BYTE mateNumb)
-		: TxtFile(fName + USCORE + BSTR(mateNumb) + FT::RealExt(FT::FQ, isZip), TxtFile::WRITE, 4) {}
+	//	@mateNumb: mate number: 1 or 2, nothing by default
+	inline FqFile(const string& fName, bool isZip, BYTE mateNumb = 0)
+		: TxtFile(fName + (mateNumb ? (USCORE + BSTR(mateNumb)) : strEmpty) + FT::RealExt(FT::FQ, isZip),
+			TxtFile::WRITE, 4) {}
 
 #ifdef _MULTITHREAD
-	// Creates a clone of existed @file for writing only.
-	//	@threadNumb: used for forming buffer with differ sizes for anisochronous writing
+	// Creates a clone of existed file for writing only.
+	//	@threadNumb: used for forming write buffer with differ sizes for anisochronous writing
 	inline FqFile(const FqFile& file, threadnumb threadNumb) : TxtFile(file, threadNumb)
-	{ InitBuffer(); }
+	{ CopyWriteBuffer(file, false); }
 #endif
 
-	// Initializes line write buffer
-	void InitToWrite ();
+	// Creates and initializes line write buffer.
+	//	@rQualPatt: Read quality pattern, or NULL
+	void InitToWrite (const char* rQualPatt);
+
+	// Initializes line write buffer from mate file
+	void inline InitToWrite (const FqFile& file) { CopyWriteBuffer(file, true); }
 
 	// Forms Read from fragment and adds it to the file.
 	//	@rName: Read's name
 	//	@read: valid read
 	//	@reverse: if true then complement added read 
-	//	@mate: SINGLE for one-side sequensing, or MATE_FIRST | MATE_SECOND for paired-end
-	void AddRead	(const string& rName, const char* read, bool reverse, eMate mate);
+	void AddRead	(const string& rName, const char* read, bool reverse);
+
+	// Gets Read qualuty pattern
+	const inline string QualPatt() const { return string(LineCurrPosBuf(ReadStartPos), Read::Len); }
 
 #endif	// _FILE_WRITE
 };

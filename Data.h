@@ -17,41 +17,13 @@ using namespace std::tr1;
 
 typedef pair<chrlen, chrlen> dchrlen;	// double chrlen
 
-// Sets common chromosomes as 'Treated' in both given objects.
-// Objects can be a different type, but both of them have to have secona field as Treated
-//	@o1: first compared object
-//	@o2: second compared object
-//	@printAmbig: if true print ambiguity - uncommon chromosomes
-//	return: count of common chromosomes
-template <typename I, typename J>
-chrid	SetCommonChroms(I& o1, J& o2, bool printAmbig)
-{
-	typename I::Iter it;
-	chrid commCnt = 0;
-
-	// set sign treated chroms in first object
-	for(it = o1.Begin(); it != o1.End(); it++)
-		if( TREATED(it) = o2.FindChrom(CID(it)) )
-			commCnt++;
-		else if( printAmbig )
-			Err(Chrom::Absent(CID(it), "second file"), strEmpty).Warning();
-	// set false treated chroms in second object
-	for(it = o2.Begin(); it != o2.End(); it++)
-		if( !o1.FindChrom(CID(it)) ) {
-			TREATED(it) = false;
-			if( printAmbig )
-				Err(Chrom::Absent(CID(it), "first file"), strEmpty).Warning();
-		}
-	return commCnt;
-}
-
 class ChromSizes;
 
 // Basic class for objects keeping in Tab File
 class Obj
 {
 public:
-	enum eInfo {		// defines types of outputted info
+	enum eInfo {	// defines types of outputted info
 		iNONE,	// nothing printed: it is never pointed in command line
 		iLAC,	// laconic:		print file name if needs
 		iNM,	// name:		print file name
@@ -259,10 +231,8 @@ public:
 
 static const string range_out_msg = "Chroms[]: invalid chrom ID ";
 
+// Basic class for all chromosomes collection,
 template <typename T> class Chroms
-/*
- * Basic class for all chromosomes collection,
- */
 {
 protected:
 #ifdef _NO_UNODMAP
@@ -442,6 +412,34 @@ public:
 	#else
 		return _chroms.count(cID) > 0;
 	#endif	// _NO_UNODMAP
+	}
+
+	// Sets common chromosomes as 'Treated' in both of this instance and given Chroms.
+	// Objects in both collections have to have second field as Treated.
+	//	@obj: compared Chroms object
+	//	@printWarn: if true print warning - uncommon chromosomes
+	//	@throwExcept: if true then throw exception if no common chroms finded, otherwise print warning
+	//	return: count of common chromosomes
+	chrid	SetCommonChroms(Chroms<T>& obj, bool printWarn, bool throwExcept)
+	{
+		Iter it;
+		chrid commCnt = 0;
+
+		// set treated chroms in this instance
+		for(it = Begin(); it != End(); it++)
+			if( TREATED(it) = obj.FindChrom(CID(it)) )
+				commCnt++;
+			else if( printWarn )
+				Err(Chrom::Absent(CID(it), "second file")).Warning();
+		// set false treated chroms in a compared object
+		for(it = obj.Begin(); it != obj.End(); it++)
+			if( !FindChrom(CID(it)) ) {
+				TREATED(it) = false;
+				if( printWarn )
+					Err(Chrom::Absent(CID(it), "first file")).Warning();
+			}
+		if( !commCnt )	Err("no common chromosomes").Throw(throwExcept);
+		return commCnt;
 	}
 };
 
@@ -924,7 +922,7 @@ public:
 	// Gets chromosome's treated length:
 	// a double length for numeric chromosomes or a single for named.
 	//	@cID: chromosome's ID
-	//	@multiplier: 1 for numerics, 0 for letters
+	//	@multiplier: 1 for numerics, 0 for nameds
 	//	@fLen: average fragment length on which each feature will be expanded in puprose of calculation
 	//	(float to minimize rounding error)
 	inline ULONG FeaturesTreatLength(chrid cID, BYTE multiplier, float fLen) const {
@@ -984,10 +982,8 @@ public:
 };
 #endif
 
+// 'Nts' represented chromosome as array of nucleotides from fa-file
 class Nts
-/*
- * 'Nts' represented chromosome as array of nucleotides from fa-file
- */
 {
 private:
 	char*	_nts;			// the nucleotides buffer
@@ -1070,33 +1066,47 @@ public:
 #endif
 };
 
+// 'ChrFileLen' represented chromosome's file attributes for class 'ChromFiles'
 struct ChrFileLen
-/*
- * 'ChrFileLen' represented chromosome's file attributes for class 'ChromFiles'
- */
 {
 private:
-	chrlen	FileLen;	// length of uncompessed file; 0 if chrom is not treated
+	chrlen	_fileLen;	// length of uncompressed file or 0 if chrom is not treated
+#ifdef _ISCHIP
+	BYTE	_numeric;	// 1 for numeric chomosomes, 0 for named; used as bit shift
+#endif
+
+	inline ChrFileLen(const string& cName) : _fileLen(0)
+#ifdef _ISCHIP
+		, _numeric(isdigit(cName[0]) ? 1 : 0)	// isdigit() returns 0 or some integer
+#endif
+	{}
 
 public:
-	BYTE	Numeric;	// 1 for numeric chomosomes, 0 for named; used as bit shift
-
-	inline ChrFileLen() :	FileLen(0), Numeric(1) {}
+	inline ChrFileLen() : _fileLen(0)
+#ifdef _ISCHIP
+		, _numeric(1)
+#endif
+	{}
 
 	// true if this chromosome should be treated
-	inline bool Treated() const { return FileLen > 0; }
+	inline bool Treated() const { return _fileLen > 0; }
+
+#ifdef _ISCHIP
+	// Returns 1 if chrom name is numeric, otherwise 0
+	inline BYTE Numeric() const { return _numeric; }
 
 private:
-	inline ChrFileLen(const string & cName) : FileLen(0),
-		Numeric( isdigit(cName[0]) ? 1 : 0 )	// isdigit() returns 0 or some integer
-	{}
+	// Gets chromosome's treated length: a double length for numeric chromosomes, a single for named.
+	//	@sizeFactor: ratio lenth_of_nts / size_of_file
+	inline chrlen TreatLength(float sizeFactor) const
+	{ return chrlen(_fileLen * sizeFactor) << _numeric; }
+#endif
+
 	friend class ChromFiles;	// to acces to private members
 };
 
+// 'ChromFiles' represented list of chromosomes with their file's attributes
 class ChromFiles : public Chroms<ChrFileLen>
-/*
- * Class 'ChromFiles' represented list of chromosomes with their file's attributes
- */
 {
 private:
 	string	_path;			// files path
@@ -1108,7 +1118,7 @@ private:
 	//	@fName: full file name
 	//	@extLen: length of file name's extention
 	//	return: length of common prefix or -1 if there is no abbreviation chrom name in fName
-	static int	CommonPrefixLength(const string & fName, BYTE extLen);
+	static int	CommonPrefixLength(const string& fName, BYTE extLen);
 
 	// Fills external vector by chrom IDs relevant to file's names found in given directory.
 	//	@files: empty external vector of file's names
@@ -1119,6 +1129,10 @@ private:
 	//	If there are not .fa files or there are not .fa file for given cID,
 	//	then searches among .fa.gz files
 	BYTE GetChromIDs(vector<string>& files, const string & gName, chrid cID);
+
+	// Adds chrom by name
+	//	@cName: short chrom name
+	inline void	AddChrom(const string& cName)	{ AddVal(Chrom::ID(cName), cName); }
 
 public:
 	// Creates and initializes an instance.
@@ -1142,7 +1156,7 @@ public:
 #ifdef _ISCHIP
 
 	// Gets uncompressed length of file
-	inline chrlen FirstFileLength () const { return cBegin()->second.FileLen; }
+	inline chrlen FirstFileLength () const { return cBegin()->second._fileLen; }
 
 	// Sets actually treated chromosomes indexes and sizes according bed.
 	//	@bed: template bed. If NULL, set all chromosomes
@@ -1155,25 +1169,22 @@ public:
 	// Returns true if chromosome by iterator should be treated
 	inline bool	IsTreated(cIter it) const { return _extractAll || it->second.Treated(); }
 	
-	// Gets chromosome's treated length: a double length for numeric chromosomes
-	// or a single for named.
+	// Gets chromosome's treated length: a double length for numeric chromosomes, a single for named.
 	//	@it: ChromFiles iterator
 	//	@sizeFactor: ratio lenth_of_nts / size_of_file
-	inline ULONG ChromTreatLength(cIter it, float sizeFactor) const {
-		return UINT(it->second.FileLen * sizeFactor) << it->second.Numeric;
-	}
+	inline chrlen ChromTreatLength(cIter it, float sizeFactor) const
+	{ return it->second.TreatLength(sizeFactor); }
 
 	inline const ChrFileLen& operator[] (chrid cID) const { return At(cID);	}
+
 #endif
 #ifdef DEBUG
 	void Print() const;
 #endif
 };
 
+// 'ChromSizes' represents a storage of chromosomes sizes.
 class ChromSizes : public Chroms<chrlen>
-/*
- * 'ChromSizes' represents a storage of chromosomes sizes.
- */
 {
 private:
 	mutable genlen _gsize;		// size of whole genome
@@ -1234,10 +1245,11 @@ public:
 
 
 #if defined _DENPRO || defined _BIOCC
+// 'FileList' represents file's names incoming from argument list or from input list-file.
 class FileList
 /*
- * Class 'FileList' represents file's names incoming from argument list or from input list-file.
- * Under Windows should be translated with Character Set as not Unicode (only 'Use Multi-Byte Character Set' or 'Not Set').
+ * Under Windows should be translated with Character Set as not Unicode
+ * (only 'Use Multi-Byte Character Set' or 'Not Set').
  */
 {
 private:
@@ -1261,10 +1273,8 @@ public:
 #endif
 };
 
+// 'ChromRegions' represents chromosome's defined regions saved on file.
 class ChromRegions : public Regions
-/*
- * 'ChromRegions' represents chromosome's defined regions saved on file.
- */
 {
 private:
 	static const string _FileExt;	// extention of files keeping chrom regions
@@ -1279,12 +1289,10 @@ public:
 	ChromRegions(const string& commName, chrlen cID, short minGapLen);
 };
 
+// 'GenomeRegions' represents defined regions for each chromosome,
+// initialized from ChromSizes (statically, at once)
+// or from .fa files (dynamically, by request).
 class GenomeRegions : public Chroms<Regions>
-/*
- * 'GenomeRegions' represents defined regions for each chromosome,
- * initialized from ChromSizes (statically, at once)
- * or from .fa files (dynamically, by request).
- */
 {
 private:
 	string _commonName;		// common part of chrom's file name (except chrom's number)

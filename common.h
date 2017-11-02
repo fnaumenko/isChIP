@@ -85,7 +85,7 @@
 // specific types
 typedef char threadnumb;	// type number of thread
 typedef BYTE chrid;			// type number of chromosome
-typedef BYTE readlen;		// type length of Read
+typedef USHORT readlen;		// type length of Read
 typedef UINT chrlen;		// type length of chromosome
 typedef ULONG genlen;		// type length of genome
 typedef float readscr;		// type score of Read
@@ -97,7 +97,6 @@ typedef float readscr;		// type score of Read
 #define	CHRLEN_UNDEF	UINT_MAX	// undefined length of chromosome
 #define retThreadValFalse	0
 
-#define TAB	'\t'
 #define cN	'N'
 #define HPH	'-'
 #define USCORE	'_'
@@ -109,11 +108,11 @@ typedef float readscr;		// type score of Read
 #define PERS	'%'
 #define AT		'@'
 #define PLUS	'+'
+#define HASH	'#'
+#define TAB		'\t'
+#define EOL		'\n'	// LF, 10
+#define CR		'\r'	// 13
 //#define sBACK	"\b"
-//#define HASH	'#'
-
-#define EOL '\n'		// 10
-#define CR	'\r'		// 13
 
 using namespace std;
 
@@ -121,6 +120,7 @@ using namespace std;
 #define SepCl		": "	// colon separator
 #define SepSCl		"; "	// semicolon separator
 #define SepClTab	":\t"	// colon + tab separator
+#define Equel		" = "
 
 static const string ZipFileExt = ".gz";
 static const string strEmpty = "";
@@ -135,7 +135,6 @@ static const char* Version = "version";
 #if !defined _WIGREG && !defined _FQSTATN
 static const char* Template = "template";
 #endif
-
 
 /*** COMMON MACROS & FUNCTION ***/
 
@@ -219,6 +218,29 @@ chrlen AlignPos(chrlen pos, BYTE res, BYTE relative);
 //#endif
 
 /*** end of COMMON FUNCTION ***/
+
+#ifdef _ISCHIP
+	#define dout	cout
+#elif defined _WIGREG
+	#define dout	cerr
+#else	// _DENPRO || _BIOCC || _FQSTATN
+// 'dostream' duplicates outstream to stdout & file
+class dostream
+{
+    std::ostream &first, &second;
+public:
+    dostream(std::ostream &f, std::ostream &s) : first(f), second(s) {}
+	template <typename T> dostream& operator<< (T val) {
+		first << val;
+		second << val;
+		return *this;
+	}
+};
+
+extern ofstream outfile;	// file ostream duplicated stdout; inizialised by file in code
+extern dostream dout;		// stream's duplicator
+
+#endif	// _DENPRO || _BIOCC || _FQSTATN
 
 // 'Product' keeps Product info
 static struct Product
@@ -352,6 +374,11 @@ private:
 		//	otherwise signature only
 		void Print(bool descr);
 
+		void PrintCharDefValue();
+
+		void (*PrintExtDefValue)();
+
+
 	private:
 		// Checks limits and set numerical value
 		//	@val: numerical value
@@ -389,8 +416,10 @@ private:
 		// Prints Usage params
 		void Print(Option* opts) const;
 	};
-
+//public:
+//	static const char*	TypeExt;
 	static const char*	_TypeNames [];	// names of option value types in help
+private:
 	static const char*	_OptGroups [];	// names of option groups in help
 	static	Option		_Options[];		// options. Option 'help' always shuld be the last one,
 										// option 'version' - before last.
@@ -437,12 +466,11 @@ private:
 	static int PrintAmbigOpt(bool isWord, const char* opt, const char* headMsg, const char* tailMsg);
 
 } options;
+
 #define ErrWARNING	Err::NONE
 
+// 'Error' implements error's (warning's) messages and treatment.
 class Err
-/*
- * Class 'Error' implements error's (warning's) messages and treatment.
- */
 {
 public:
 	enum eCode {
@@ -674,7 +702,7 @@ public:
 	//	@name: pointer to the file name
 	//	return: pointer to the checked file name
 	static const char* CheckedFileName	(const char* name) {
-		if( !IsFileExist(name) )	Err(Err::F_NONE, name).Throw();
+		if( name && !IsFileExist(name) )	Err(Err::F_NONE, name).Throw();
 		return name;
 	}
 
@@ -745,14 +773,15 @@ public:
 
 } fs;
 
+// 'TabFilePar' keeps basic parameters for TabFile
 struct TabFilePar {
 	const BYTE	MinFieldCnt;	// minimum number of feilds in file line
 	const BYTE	MaxFieldCnt;	// maximum used number of feilds in data line
-	const char* LineSpec;		// substring on which each data line is beginning
 	const char Comment;			// char indicates that line is comment
+	const char* LineSpec;		// substring on which each data line is beginning
 
-	inline TabFilePar(BYTE	minTabCnt, BYTE maxTabCnt, const char* lSpec, char comm)
-		: MinFieldCnt(minTabCnt), MaxFieldCnt(maxTabCnt), LineSpec(lSpec), Comment(comm) {}
+	inline TabFilePar(BYTE	minTabCnt, BYTE maxTabCnt, char comm, const char* lSpec)
+		: MinFieldCnt(minTabCnt), MaxFieldCnt(maxTabCnt), Comment(comm), LineSpec(lSpec) {}
 };
 
 // 'File Type' implements bioinformatics file type routines 
@@ -869,31 +898,6 @@ public:
 	inline bool IsEnabled() const { return _enabled; }
 };
 
-#ifdef _ISCHIP
-	#define dout	cout
-#elif defined _WIGREG
-	#define dout	cerr
-#else
-class dostream
-/*
- * 'dostream' duplicates outstream to stdout & file
- */
-{
-    std::ostream &first, &second;
-public:
-    dostream(std::ostream &f, std::ostream &s) : first(f), second(s) {}
-	template <typename T> dostream& operator<< (T val) {
-		first << val;
-		second << val;
-		return *this;
-	}
-};
-
-extern ofstream outfile;	// file ostream duplicated stdout; inizialised by file in code
-extern dostream dout;		// stream's duplicator
-
-#endif	// _DENPRO || _BIOCC || _FQSTATN
-
 #ifdef _MULTITHREAD
 static class Mutex
 {
@@ -964,156 +968,14 @@ public:
 };
 #endif	// _MULTITHREAD
 
-#ifdef _BIOCC
-
-static struct CCkey	// Represents correlation coeficient constants and methods
-{
-private:
-	static const int Undef = 666;	// undefined coefficient
-
-public:
-	enum eCC {	// defines types of CC
-		ccP = 0x1,	// Pearson correlation coefficient: first bit
-		ccS = 0x2,	// signal correlation coefficient: second bit
-	};
-
-	// Returns true if parameter is signal coefficient
-	inline static bool IsS(eCC ecc)		{ return (ecc&ccS) != 0; }
-	// Returns true if parameter is Pearson coefficient
-	inline static bool IsP(eCC ecc)		{ return static_cast<bool>(ecc&ccP); }
-	// Returns true if parameter is both coefficients
-	inline static bool IsBoth(eCC ecc)	{ return static_cast<bool>(ecc&ccS && ecc&ccP); }
-	// Returns correlation coefficient
-	inline static double CalcR(double v1, double v2, double cov) {
-		return  !v1 && !v2 ? Undef : cov/(sqrt(v1) * sqrt(v2));	// not sqrt(v1*v2) 
-	}
-	inline static void Print(double val) {
-		if( val==Undef || isnan(val) )	dout << "UNDEFINED";
-		else	dout << val;
-	}
-} cc;
-
-typedef pair<double, double> pairDbl;
-
-struct CC : pairDbl
-/*
- * 'CC' represents a pair of correlation coeficients: Pearson(first) and signal(second),
- * and provides theirs output.
- */
-{
-private:
-	static const int Empty = -2;	// uninitialised coefficient
-
-public:
-	inline CC() { first = second = Empty; }
-
-	inline CC(double p, double s) { first = p; second = s; }
-
-	inline bool operator < (const CC & ccres) const { 
-		return first != Empty ? first < ccres.first : second < ccres.second; 
-	}
-
-	// Sets Pearson coefficient
-	inline void SetP(double val)	{ first = val;	}
-	// Sets signal coefficient; undefined value by default
-	inline void SetS(double val=0)	{ second = val;	}
-
-	// Returns true if even one value in pair is setting
-	inline bool NotEmpty() const { return( first != Empty || second != Empty ); }
-
-	// returns single value
-	inline double GetSingleVal() const { return first != Empty ? first : second; }
-
-	// set single negative value to absolute value
-	void SetSingleAbsVal() { 
-		if( first != Empty )	first = fabs(first);
-		else					second = fabs(second);
-	}
-
-	void Print() const { 
-		if( first != Empty )	{
-			CCkey::Print(first);
-			dout << TAB;
-			if( SCNT(first) < 8 )	dout << TAB;
-		}
-		if( second != Empty )
-			CCkey::Print(second);
-		dout << EOL; 
-	}
-};
-
-struct CCaggr
-/*
- * CCaggregate represents accumulative values needed for calculation CC for a set of arrays
- */
-{
-private:
-	static const UINT Undef = -1;	// uninitialised coefficient
-	ULLONG check;					// needs for check-up only
-	ULLONG VarS[3];								// Signal variances
-	double VarP1, VarP2, CovP, Mean1, Mean2;	// Pearson variances
-
-	// Increases S value with check-up for exceeding
-	//	@i: index of value on VarS
-	//	@val: value to increase
-	//	@cID: chrom's ID, needed for exception only
-	//	@return: false if all right 
-	bool IncreaseSVar(BYTE i, ULLONG val, chrid cID);
-
-public:
-	CCaggr() {
-		VarP1 = VarP2 = CovP = Mean1 = Mean2 = 0;
-		//VarS[0] = VarS[1] = VarS[2] = 0;
-		memset(VarS, 0, 3*sizeof(ULLONG));
-	}
-	// Sets predefined means
-	inline void SetMeans(const pairDbl& means) {
-		Mean1 = means.first;
-		Mean2 = means.second;
-	}
-
-	// Increases P values in consideration of means
-	//	@x: first value to increase
-	//	@y: second value to increase
-	void IncreasePVars(double x, double y);
-
-	// Increases S values with check-up for exceeding
-	//	@x: first value to increase
-	//	@y: second value to increase
-	//	@cID: chrom's ID, needed for exception only
-	//	@return: false if all right 
-	bool IncreaseSVars(ULLONG x, ULLONG y, chrid cID);
-
-	// True if Signal coefficient is undefined (exceeding digital limit)
-	inline bool IsUndefS() { return static_cast<bool>(VarS[0] == Undef); }
-
-	// Calculates coefficients
-	CC GetR() const {
-		CC cc;
-		if( VarP1 || VarP2 )	cc.SetP(CCkey::CalcR(VarP1, VarP2, CovP));
-		if( VarS[0] == Undef )	cc.SetS(CCkey::CalcR(0, 0, 0));
-		else if( VarS[0] || VarS[1] )	
-			cc.SetS(CCkey::CalcR(double(VarS[0]), double(VarS[1]), double(VarS[2])));
-		return cc;
-	}
-};
-
-//static const string sOutOfRange = " is out of range ";	// used in Array only
-
-#endif	// _BIOCC
-
 template <typename T> class Array
 {
-private:
-	ULONG	_len;
-#ifdef _BIOCC
-	mutable double _mean;
-#endif
-
 protected:
 	T*	_data;
 
 private:
+	ULONG	_len;
+
 	//void Dump() { if(_len) { delete [] _data; _len = 0; } }
 
 	// Prepaires memory array to initialization or copying
@@ -1126,17 +988,7 @@ public:
 	// Creates an instance with capacity, initialized by 0.
 	//	@len: capacity
 	Array(ULONG len=0) : _len(0), _data(NULL)	// inline is forbidden because of T& Chroms::AddEmptyClass()
-#ifdef _BIOCC
-		, _mean(0)
-#endif
 	{ Reserve(len); }
-
-	// Creates an empty instance (default constructor)
-//	inline Array() : _len(0), _data(NULL)	// inline is forbidden because of T& Chroms::AddEmptyClass()
-//#ifdef _BIOCC
-//		, _mean(0)
-//#endif
-//	{}
 
 	//inline Array(const Array& arr) { Copy(arr); }
 
@@ -1192,143 +1044,6 @@ public:
 			_data[i] = val;
 	}
 #endif	// _DENPRO, _BIOCC
-#ifdef _BIOCC
-	// Gets mean
-	//double Mean() const {
-	//	//if( !_mean ) {
-	//	//	ULONG sum = 0;
-	//	//	for (long i=0; i<_len; i++)
-	//	//		sum += _data[i];
-	//	//	_mean = double(sum) /_len;
-	//	//	cout << "mean: " << _mean << EOL;
-	//	//}
-	//	if( !_mean )	cout << "empty mean!\n";
-	//	return _mean; 
-	//}
-private:
-	// Gets a pair of means of subarrays for this instance and given array
-	pairDbl GetMeans(bool notGotThis, const Array & arr, long begin, long end) const
-	{
-		ULONG sum1=0, sum2=0;
-		for (long i=begin; i<end; i++) {
-			if(notGotThis)	sum1 += _data[i];
-			sum2 += arr._data[i];
-		}
-		return pairDbl( notGotThis ? 
-			double(sum1) / (end-begin) : 0,
-			double(sum2) / (end-begin) );
-	}
-
-public:
-	// Gets a pair of means of subarrays for this instance and given array,
-	// and set _mean for each array in case of whole arrays
-	pairDbl SetMeans(const Array& arr, long begin=0, long end=0) const
-	{
-		pairDbl means;
-
-		if( end )		// get means for subarrays	
-			means = GetMeans(true, arr, begin, end);
-		else			// the whole arrays
-			if(!arr._mean) {	// is arr._mean not setting?
-				means = GetMeans(!_mean, arr, 0, _len);
-				// initialize _mean for each array
-				if(!_mean)		_mean = means.first;
-				arr._mean = means.second;
-			}
-			else {				// both _means are setting: initialize return pair
-				means.first = _mean;
-				means.second = arr._mean;
-			}
-
-		return means;
-	}
-
-	// Returns maximal value in region
-	T GetMaxVal(long begin=0, long end=0) const {
-		T res = 0, val;
-		if( !end )	end = _len;
-		for (long i=begin; i<end; i++)
-			if( (val=_data[i]) > res )		res = val;
-		return res;
-	}
-
-	// Multiplys value in region to ratio
-	void MultiplyVal(float ratio, long begin=0, long end=0) {
-		if( ratio == 1 )		return;
-		if( !end )	end = _len;
-		for (long i=begin; i<end; i++)
-			_data[i] = T(ratio * _data[i]);
-	}
-
-	// Multiplys all values in region to ratio synchronously for pair of arrays
-	//static void SynchMultiplyVal(Array<T>& arr1, Array<T>& arr2, 
-	//	float ratio1, float ratio2, long begin=0, long end=0)
-	//{
-	//	if( ratio1 == ratio2 == 1 )		return;
-	//	if( !end )	end = arr1._len;	// both arrays have the same length
-	//	//else if( begin >= end )
-	//	//	Err("begin " + NSTR(begin) + " is more or equal end " + NSTR(end),
-	//	//		"Array.MultiplyVal").Throw();
-	//	for (long i=begin; i<end; i++) {
-	//		if( ratio1 != 1 )	arr1._data[i] = T(ratio1 * arr1._data[i]);
-	//		if( ratio2 != 1 )	arr2._data[i] = T(ratio2 * arr2._data[i]);
-	//	}
-	//}
-
-	// Calculates correlation coefficients
-	//	@cID: chrom's ID. Needed for exception only
-	//	@ecc: identifier what coefficient to calculate
-	//	@arr: second array to compare
-	//	@begin: low boundary of calculated range
-	//	@end: high boundary of calculated range
-	//	@return: pair of coefficients
-	CC const GetR (chrid cID, CCkey::eCC ecc, const Array & arr, long begin=0, long end=0) 
-	{
-		CCaggr ccaggr;
-		if( CCkey::IsP(ecc) )
-			ccaggr.SetMeans( SetMeans(arr, begin, end) );
-		AccumVars(cID, ecc, ccaggr, arr, begin, end);
-		return ccaggr.GetR();
-	}
-	
-	// Accumulates variances and covariances for calculating CC
-	//	@cID: chrom's ID. Needed for exception only
-	//	@ecc: identifier what coefficient to calculate
-	//	@ccaggr: accumulative aggregate
-	//	@arr: second array to compare
-	//	@begin: low boundary of calculated range
-	//	@end: high boundary of calculated range
-	void AccumVars (chrid cID, CCkey::eCC ecc, CCaggr & ccaggr, const Array & arr, long begin=0, long end=0) const
-	{
-		if( !end )	end = _len;
-		else if( begin >= end )
-			Err("begin " + NSTR(begin) + " is equal or more than the end " + NSTR(end),
-				"Array.GetR").Throw();
-		long i;
-		if( CCkey::IsS(ecc) )	// signal
-			for (i=begin; i<end; i++)
-				if( ccaggr.IncreaseSVars(_data[i], arr._data[i], cID) )
-					break;				// if exceeded
-		if( CCkey::IsP(ecc) )	// Pearson
-			for (i=begin; i<end; i++)
-				ccaggr.IncreasePVars(_data[i], arr._data[i]);
-	}
-
-	// Returns mean value in a range
-	//double GetMean(long begin=0, long end=0) const {
-	//	ULONG sum = 0;
-	//	for (long i=begin; i<end; i++)	sum += _data[i];
-	//	return double(sum) / (end - begin);
-	//}
-
-	//// Returns sum of values in a range
-	//ULONG GetSum(long begin=0, long end=0) const {
-	//	ULONG sum = 0;
-	//	if( !end )	end = _len;
-	//	for (long i=begin; i<end; i++)	sum += _data[i];
-	//	return sum;
-	//}
-#endif	// _BIOCC
 #ifdef DEBUG
 	void Print(long begin=0, long end=0) const {
 		if( !end )	end = _len;
@@ -1337,13 +1052,6 @@ public:
 	}
 #endif	// _DEBUG
 };
-
-#if defined _DENPRO || defined _BIOCC
-typedef Array<chrlen> arrchrlen;
-#endif	// _DENPRO || _BIOCC
-#ifdef _BIOCC
-typedef Array<BYTE> arrbmapval;
-#endif	// _BIOCC
 
 // 'Chrom' establishes correspondence between chromosome's ID and it's name.
 static class Chrom
@@ -1464,12 +1172,7 @@ public:
 #endif	// _FQSTATN
 } chrom;
 
-#if defined _DENPRO || defined _BIOCC
-static const char* sNoCommonChroms = "no common chromosomes";
-#endif	// _DENPRO || _BIOCC
-
 #if !defined _WIGREG && !defined _FQSTATN
-
 // 'Read' represents Read (with name and score in case of _BEDR_EXT) as item
 struct Read
 {
@@ -1481,7 +1184,6 @@ struct Read
 	};
 
 	static char	SeqQuality;						// the quality values for the sequence (ASCII)
-	static BYTE	MapQuality;						// the mapping quality
 	static const char	NmPosDelimiter;			// delimiter between two positions in pair
 	static const char*	NmNumbDelimiter;		// delimiter between chrom name and number
 	static const BYTE	NmDelimiterShift = 2;	// shift to pass ':N' for nmPos type
@@ -1497,7 +1199,7 @@ struct Read
 private:
 	static short	LimitN;				// maximal permitted number of 'N' in Read or vUNDEF if all
 	static ULONG	Count;				// counter of total writed Reads
-	static rNameType	NameType;			// type of name of Read in output files
+	static rNameType	NameType;		// type of name of Read in output files
 	static const char ToUp;				// shift beween lowercase and uppercase characters
 	static const char Complements[];	// template for complementing Read
 
@@ -1505,7 +1207,9 @@ public:
 	static ULONG	MaxCount;	// up limit of writes Reads
 	static const char*	NmDelimiter;	// delimiter between chrom name & value: ":N" or ":"
 
-	static void Init(readlen rLen, rNameType name, char seqQual, BYTE mapQual, short limN, ULONG maxCnt);
+	static void Init(readlen rLen, rNameType name, char seqQual, 
+		//BYTE mapQual, 
+		short limN, ULONG maxCnt);
 
 	// Gets true if start position is stated as name
 	//static inline bool IsPositionName () { return NameType == nmPos; }
@@ -1560,5 +1264,4 @@ public:
 	}
 #endif
 };
-
 #endif

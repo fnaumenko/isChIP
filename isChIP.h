@@ -37,6 +37,7 @@ enum optValue {
 	oREAD_LIMIT_N,
 	oREAD_LIMIT,
 	oFQ_QUAL,
+	oFQ_QUAL_PATT,
 	oMAP_QUAL,
 	oSZ_SEL,
 	oSZ_SEL_SIGMA,

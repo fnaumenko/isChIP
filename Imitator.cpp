@@ -648,7 +648,7 @@ void Imitator::ChromCutter::Execute(bool singleThread)
 			timer.Start();
 			cID = *it;
 			OutputChromName(cID, singleThread);			// print before cutting
-			cnt = CellsCnt << _chrFiles[cID].Numeric;	// multiply twice for digits
+			cnt = CellsCnt << _chrFiles[cID].Numeric();	// multiply twice for digits
 			cntFtrs = ( Bed && (cit=Bed->GetIter(cID)) != Bed->cEnd() ) ?
 				Bed->FeaturesCount(cit) : 0;
 			Nts nts(_chrFiles.FileName(cID), LetN);
@@ -977,7 +977,7 @@ void Imitator::SetSample()
 		if( _chrFiles.IsTreated(it) ) {
 			//cout << TAB << Chrom::AbbrName(CID(it)) << TAB;
 			if( Bed && Bed->FindChrom(CID(it)) ) {
-				FtrsLen = Bed->FeaturesTreatLength(CID(it), it->second.Numeric, commonAvrg);
+				FtrsLen = Bed->FeaturesTreatLength(CID(it), it->second.Numeric(), commonAvrg);
 				// count of foreground Reads
 				cnt = (ULONG)(Samples[0] * FtrsLen * countFactor);
 				SetMaxDigitCnt(FG, cnt/3);	// 3 just to reduce digits number to 1

@@ -1,5 +1,5 @@
 #pragma once
-#include "bioTxtFile.h"
+#include "OutTxtFile.h"
 
 //#define RAND_STD			// rand() (Windows) or rand_r(int *seed) (Linux)
 //#ifdef OS_Windows

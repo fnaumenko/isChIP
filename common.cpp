@@ -100,6 +100,7 @@ chrlen AlignPos(chrlen pos, BYTE res, BYTE relative)
 /************************ end of common Functions ************************/
 
 /************************ class Options ************************/
+#define ENUM_REPLACE '?'	// symbol in description that is replaced by enum value
 
 // prints value in parentheses
 #define PRINT_IN_PRTHS(v)	cout<<" ["<<(v)<<']'
@@ -113,15 +114,13 @@ const char*	Missing = "missing ";
 
 const char* Options::Booleans [] = {"OFF", "ON"};
 
-const char* Options::_TypeNames [] = {
-	strEmpty.c_str(), "<name>", "<chars>", "<int>", "<float>", "<long>",
-	strEmpty.c_str(), strEmpty.c_str(), strEmpty.c_str(), strEmpty.c_str()
+ const char* Options::_TypeNames [] = {
+	//NULL, "<name>", "<chars>", "<int>", "<float>", "<long>", NULL, NULL, Options::TypeExt, NULL, NULL
+	NULL, "<name>", "<char>", "<int>", "<float>", "<long>", NULL, NULL, NULL, NULL
 };
 
-const char Options::Option::EnumDelims [] = {'|', ','};
 
-#define DESCR_SHIFT	3		// number of TABs before decsription field
-#define ENUM_REPLACE '?'	// symbol in description that is replaced by enum value
+const char Options::Option::EnumDelims [] = {'|', ','};
 
 const string sValue = "value";
 //const string sWrongValue = "wrong " + sValue;
@@ -179,7 +178,7 @@ void PrintSubLine(char* buff, const char* str, const char* subStr, const char** 
 		buff[strLen] = 0;
 		PrintTransformDescr(buff, vals, cnt);	// output enum values
 		cout << EOL;
-		for(BYTE t=0; t<DESCR_SHIFT; t++)	cout << TAB;
+		for(BYTE t=0; t<OPT_DESCF_TSHIFT; t++)	cout << TAB;
 		str = subStr + 1;		// skip EOL
 		subStr = strchr(str, EOL);
 		PrintSubLine(buff, str, subStr, vals, cnt);
@@ -213,9 +212,10 @@ int Options::Option::SetVal(bool isWord, char* opt, char* val, bool isNextOpt)
 		case tCOMB:	return SetComb(val) ? 0 : PrintWrongOpt(isWord, opt, val);
 		case tCHAR:	
 			if(NVal != vUNDEF)
-				return SetTriedDigit(*val, isWord);	// value is treated as int
-													// and tCHAR where value is treated as string
-		case tNAME: SVal = val;			return 0;
+				return strlen(val) > 1 ? 
+					PrintWrongOpt(isWord, opt, val) :
+					SetTriedDigit(*val, isWord);	// value is treated as int,
+		case tNAME: SVal = val;			return 0;	// otherwise it is treated as string
 		case tHELP:	return PrintUsage(true);
 		case tVERS:	return PrintVersion();
 		default:
@@ -301,6 +301,11 @@ bool Options::Option::SetComb(char* vals)
 	return ret;
 }
 
+void Options::Option::PrintCharDefValue() {
+	PRINT_IN_PRTHS(char(NVal));
+}
+
+
 // Prints option in full or short way.
 //	@descr: if true, prints in full way: signature, description (marks as Required if needed), default value,
 //	otherwise signature only
@@ -308,6 +313,7 @@ void Options::Option::Print(bool descr)
 {
 	USHORT	len = 0;		// first len is used as counter of printed chars
 	bool	fixValType = ValType==tENUM || ValType==tCOMB;
+	char*	buffer;
 
 	if(descr)	{ cout << BLANK;	len++;	}	// full way: double blank first
 	// ** signature
@@ -318,16 +324,14 @@ void Options::Option::Print(bool descr)
 		len += strlen(Str);
 	}
 	// ** option values
-	if(fixValType)
-		len += PrintEnumVals();
-	else {
-		const char* tname = _TypeNames[ValType];
-		cout << BLANK << tname;
-		len += 1 + strlen(tname);
+	if(fixValType)		len += PrintEnumVals();		// print enum values
+	else if((buffer = const_cast<char*>(_TypeNames[ValType])) != NULL) {	// print value type
+		cout << BLANK << buffer;
+		len += 1 + strlen(buffer);
 	}
 	// ** description
 	if(!descr)	return;
-	short cnt = DESCR_SHIFT - len / 8;	// 3*8: right boundary of descriptions
+	short cnt = OPT_DESCF_TSHIFT - len / 8;	// 3*8: right boundary of descriptions
 	// align description 
 	if(!cnt || (cnt<0 && !(len % 8)))	cnt = 1;
 	for(BYTE i=0; i<cnt; i++)	cout << TAB;
@@ -335,7 +339,7 @@ void Options::Option::Print(bool descr)
 	// print description
 	cnt = 0;	// use as external enum counter
 	len = strlen(Descr);	// from now len is used as length of description string
-	char* buffer = new char[len+1];
+	buffer = new char[len+1];
 	PrintSubLine(
 		buffer,
 		Descr,
@@ -868,13 +872,13 @@ bool FS::GetFiles	(vector<string>& files, const string& dirName,
 /************************ class FileFormat ************************/
 
 const FT::fType FT::Types[] = {
-	{ "", strEmpty, strEmpty,			TabFilePar( 0, 0, NULL, '\0') },
-	{ "bed", "read",	"reads",		TabFilePar( 6, 6, Chrom::Abbr, '#') },
-	{ "bed", "feature", "features",		TabFilePar( 3, 6, Chrom::Abbr, '#') },
-	{ "wig", "interval", "intervals",	TabFilePar( 2, 2, NULL, '#') },
-	{ "sam", strEmpty, strEmpty,		TabFilePar( 0, 0, NULL, '#') },
-	{ "fq", strEmpty, strEmpty,			TabFilePar( 0, 0, NULL, '\0') },
-	{ "fa", strEmpty, strEmpty,			TabFilePar( 0, 0, NULL, '\0') }
+	{ "", strEmpty, strEmpty,			TabFilePar( 0, 0, '\0', NULL) },
+	{ "bed", "read",	"reads",		TabFilePar( 6, 6, HASH, Chrom::Abbr) },
+	{ "bed", "feature", "features",		TabFilePar( 3, 6, HASH, Chrom::Abbr) },
+	{ "wig", "interval", "intervals",	TabFilePar( 2, 2, HASH, NULL) },
+	{ "sam", strEmpty, strEmpty,		TabFilePar( 0, 0, HASH, NULL) },
+	{ "fq", strEmpty, strEmpty,			TabFilePar( 0, 0, '\0', NULL) },
+	{ "fa", strEmpty, strEmpty,			TabFilePar( 0, 0, '\0', NULL) }
 };
 
 // Returns file format
@@ -1015,6 +1019,7 @@ void Mutex::Unlock(const eType type) {
 /************************  end of class Mutex ************************/
 
 /************************  class Thread ************************/
+
 Thread::Thread(retThreadValType(
 	#ifdef OS_Windows
 	__stdcall 
@@ -1034,55 +1039,9 @@ Thread::Thread(retThreadValType(
 	//}
 #endif
 }
+
 /********************  end of class Thread *********************/
 #endif	// _MULTITHREAD
-
-#ifdef _BIOCC
-/********************  class CCaggr *********************/
-// Increases P values in consideration of means
-//	@x: first value to increase
-//	@y: second value to increase
-void CCaggr::IncreasePVars(double x, double y) {
-	x -= Mean1;
-	y -= Mean2;
-	VarP1 += x * x;
-	VarP2 += y * y;
-	CovP += x * y;
-}
-
-// Increases S value with check-up for exceeding
-//	@i: index of value on VarS
-//	@val: value to increase
-//	@cID: chrom's ID, needed for exception only
-//	@return: false if all right 
-bool CCaggr::IncreaseSVar(BYTE i, ULLONG val, chrid cID)
-{
-	if(val) {
-		check = VarS[i];
-		if((VarS[i] += val) <= check) {
-			Err(Err::SUM_EXCEED, Chrom::AbbrName(cID).c_str()).Warning();
-			VarS[0] = Undef;
-			return true;
-		}
-	}
-	return false;
-}
-
-// Increases S values with check-up for exceeding
-//	@x: first value to increase
-//	@y: second value to increase
-//	@cID: chrom's ID, needed for exception only
-//	@return: false if all right 
-bool CCaggr::IncreaseSVars(ULLONG x, ULLONG y, chrid cID)
-{
-	if( IncreaseSVar(0, x*x, cID) )		return true;
-	if( IncreaseSVar(1, y*y, cID) )		return true;
-	if( IncreaseSVar(2, x*y, cID) )		return true;
-	return false;
-}
-/********************  end of class CCaggr *********************/
-#endif	// _BIOCC
-
 
 /************************ class Chrom ************************/
 
@@ -1130,7 +1089,8 @@ chrid Chrom::ID(const char* cName, size_t prefixLen)
 	cName += prefixLen;									// skip prefix
 	//if(*cName == M || strchr(cName, USCORE))	return UnID;
 	if( strchr(cName, USCORE))	return UnID;			// exclude chroms with '_'
-	if(*cName <= '9')			return atoi(cName);		// numeric chromosome
+	if(isdigit(*cName))			return atoi(cName);		// numeric chromosome
+	//if(*cName <= '9')			return atoi(cName);		// numeric chromosome
 	return islower(*cName) ? toupper(*cName) : *cName;	// letter's chromosome
 }
 
@@ -1190,8 +1150,7 @@ BYTE	Read::OutNameLength = 0;
 #ifdef _ISCHIP
 
 char	Read::SeqQuality;		// the quality values for the sequence (ASCII)
-BYTE	Read::MapQuality = 1;	// the mapping quality
-Read::rNameType	Read::NameType;		// type of name of Read in output files
+Read::rNameType	Read::NameType;	// type of name of Read in output files
 short	Read::LimitN = vUNDEF;	// maximal permitted number of 'N' in Read or vUNDEF if all
 ULONG	Read::MaxCount;			// up limit of writed Reads
 ULONG	Read::Count = 0;		// counter of total writed Reads
@@ -1199,7 +1158,10 @@ const char*	Read::NmDelimiter = NULL;
 const char Read::ToUp	= 'a' - 'A';
 const char Read::Complements[] = {'T',0,'G',0,0,0,'C',0,0,0,0,0,0,'N',0,0,0,0,0,'A'};
 
-void Read::Init(readlen rLen, rNameType nmType, char seqQual, BYTE mapQual, short limN, ULONG maxCnt)
+void Read::Init(readlen rLen, rNameType nmType, 
+	char seqQual, 
+	//BYTE mapQual, 
+	short limN, ULONG maxCnt)
 {
 	OutNameLength = 
 		Read::Name().length() + 1 +		// + 1 delimiter
@@ -1209,7 +1171,7 @@ void Read::Init(readlen rLen, rNameType nmType, char seqQual, BYTE mapQual, shor
 	Len = rLen;
 	NameType = nmType;
 	SeqQuality = seqQual;
-	MapQuality = mapQual;
+	//MapQuality = mapQual;
 	if(limN < rLen)		LimitN = limN;
 	MaxCount = maxCnt;
 	if( nmType == nmPos )		NmDelimiter = NmNumbDelimiter + NmDelimiterShift;
@@ -1245,13 +1207,11 @@ int Read::CheckNLimit(const char* read)
 void Read::Print()
 {
 	cout << "Read: length = " << int(Len)
-		 << SepSCl << "name includes a " << (NameType==nmPos ? "position" : "number")
-		 << SepSCl << "FQ quality = " << SeqQuality
-		 << SepSCl << "map quality = " << int(MapQuality)
-		 << SepSCl << "N-limit = ";
+		 << SepSCl << "name includes a " << (NameType==nmPos ? "position" : "number");
+	cout << SepSCl << "N-limit = ";
 	if( LimitN == vUNDEF )	cout << Options::GetBoolean(false);
 	else					cout << LimitN;
-	cout << SepSCl << "limit = " << MaxCount;
+	cout << EOL;
 }
 
 #endif

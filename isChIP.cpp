@@ -48,10 +48,17 @@ const char* Options::_OptGroups [] = {
 	"Input", "Processing", "Fragment", "Fragment's size distribution", "Reads", "Output", "Other"
 };
 
+//const char*	Options::TypeExt = "<char|name>";
+//Options::Option::PrintExtDefValue = Options::Option::PrintCharDefValue();
+
 // --smode option
 const char* smodes	[] = { "SE", "PE" };		// corresponds to OutFile::eMode
 // -read-name option: types of Read name notations
 const char* rnames	[] = { "NMB", "POS" };		// corresponds to Read::rNameType; nmUndef is hidden
+
+// --fq_qual option: fq-qual values notations
+//const char* fqquals	[] = { "<char>", "<name>" };// corresponds to OutFile::eFormat	
+
 // --format option: format notations
 const char* formats	[] = { "FQ", "BED", "SAM" };// corresponds to OutFile::eFormat	
 // --verbose option: verbose notations
@@ -71,7 +78,7 @@ Options::Option Options::_Options [] = {
 	{ 'n', "cells",		0,	tLONG,	oTREAT, 1, 1, 1e7, NULL, "number of cells", NULL },
 	{ 'g', "gen",		1,	tNAME,	oINPUT, vUNDEF, 0, 0, NULL,
 	"reference genome library or single nucleotide sequence.", NULL },
-	{ 'c', Chrom::Abbr,	0,	tCHAR,	oTREAT, vUNDEF, 0, 0, NULL,
+	{ 'c', Chrom::Abbr,	0,	tNAME ,	oTREAT, vUNDEF, 0, 0, NULL,
 	"generate output for the specified chromosome only", NULL },
 	{ HPH, "frag-len",	0,	tINT,	oFRAG, 200, 50, 400, NULL, "average size of selected fragments", NULL },
 	{ HPH, "frag-dev",	0,	tINT,	oFRAG, 20, 0, 200, NULL, "deviation of selected fragments", NULL },
@@ -89,17 +96,19 @@ Options::Option Options::_Options [] = {
 	"power summand in lognormal distribution", NULL },
 	{ HPH, "let-N",		0,	tENUM,	oTREAT, FALSE, vUNDEF, 2, NULL,
 	"include the ambiguous reference characters (N) on the beginning\nand on the end of chromosome", NULL },
-	{ 'r', "read-len",	0,	tINT,	oREAD, 50, 20, 200, NULL, "length of output read", NULL },
-	{ HPH, "read-name",	0,	tENUM,	oREAD, Read::nmPos, Read::nmNumb, Read::nmPos, (char*)rnames,
+	{ 'r', "rd-len",	0,	tINT,	oREAD, 50, 20, 200, NULL, "length of output read", NULL },
+	{ HPH, "rd-name",	0,	tENUM,	oREAD, Read::nmPos, Read::nmNumb, Read::nmPos, (char*)rnames,
 	"name of read in output files includes:\n? - read`s unique number within chromosome\n? - read`s true start position", NULL },
-	{ HPH,"read-Nlimit",0,	tINT,	oREAD, vUNDEF, 0, 100, NULL,
+	{ HPH,"rd-Nlimit",0,	tINT,	oREAD, vUNDEF, 0, 100, NULL,
 	"maximum permitted number of ambiguous characters (N) in read [--read-len]", NULL },
-	{ HPH,"reads-limit",0,	tLONG,	oREAD, 2e8, 1e5, (float)ULONG_MAX, NULL,
+	{ HPH,"rds-limit",0,	tLONG,	oREAD, 2e8, 1e5, (float)ULONG_MAX, NULL,
 	"maximum permitted number of total written reads", NULL },
-	{ HPH, "fq-qual",	0,	tCHAR,	oREAD, '~', '!', '~', NULL,
-	"the quality values for the read in FQ output", NULL },
-	{ HPH, "map-qual",	0,	tINT,	oREAD, 42, 0, 42, NULL,
-	"the mapping quality for the read in SAM output", NULL },
+	{ HPH, "rd-ql",		0,	tCHAR,	oREAD, '~', '!', '~', NULL,
+	"uniform quality value for the sequence", NULL },
+	{ HPH, "rd-ql-patt",0,	tNAME,	oREAD, vUNDEF, 0, 0, NULL,
+	"quality values pattern for the sequence ", NULL },
+	{ HPH, "rd-map-ql",	0,	tINT,	oREAD, 255, 0, 255, NULL,
+	"read mapping quality for SAM and BED output", NULL },
 	{ HPH, "sz-sel",	0,	tENUM,	oFRAG, TRUE, 0, 2, (char*)Options::Booleans,
 	"turn on/off fragment's size selection", NULL },
 	{ HPH,"sz-sel-sigma",0,	tINT,	oFRAG, 20, 1, 100, NULL,
@@ -109,21 +118,21 @@ Options::Option Options::_Options [] = {
 	"sequencing mode: ? - single end, ? - paired end", NULL },
 	{ HPH,"strand-admix",0, tENUM, oTREAT, FALSE, 0, 2, (char*)Options::Booleans,
 	"turn on/off opposite strand admixture at the bound\nof binding site.", ForTest },
-	{ HPH,"ts-uni",	0,	tENUM,	oTREAT, FALSE, vUNDEF, 2, NULL, "uniform template score.", ForTest },
-	{ 'p',"threads",0,	tINT,	oTREAT, 1, 1, 50, NULL, "number of threads", NULL },
-	{ HPH,"fix",	0,	tENUM,	oTREAT, FALSE, vUNDEF, 2, NULL,
+	{ HPH, "ts-uni",	0,	tENUM,	oTREAT, FALSE, vUNDEF, 2, NULL, "uniform template score.", ForTest },
+	{ 'p', "threads",	0,	tINT,	oTREAT, 1, 1, 50, NULL, "number of threads", NULL },
+	{ HPH, "fix",		0,	tENUM,	oTREAT, FALSE, vUNDEF, 2, NULL,
 	"fix random emission to get repetitive results", NULL },
-	{ 'R',"regular",0,	tINT,	oTREAT, vUNDEF, 1, 400, NULL,
+	{ 'R', "regular",	0,	tINT,	oTREAT, vUNDEF, 1, 400, NULL,
 	"regular mode: write each read on starting position\nincreased by stated shift", NULL },
-	{ 'f',"format",	0,	tCOMB,	oOUTPUT, OutFile::ofFQ, OutFile::ofFQ, 3, (char*)formats,
+	{ 'f', "format",	0,	tCOMB,	oOUTPUT, OutFile::ofFQ, OutFile::ofFQ, 3, (char*)formats,
 	"format of output sequences/alignment, in any combination", NULL },
-	{ 'o',"out",	0,	tNAME,	oOUTPUT, vUNDEF, 0, 0, NULL, OutFileTip.c_str()	},
+	{ 'o', "out",	0,	tNAME,	oOUTPUT, vUNDEF, 0, 0, NULL, OutFileTip.c_str()	},
 #ifndef _NO_ZLIB
 	{ 'z',"gzip",	0,	tENUM,	oOUTPUT, FALSE, vUNDEF, 2, NULL, "compress output files with gzip", NULL},
 #endif
 	{ 't', "time",	0,	tENUM,	oOTHER,	FALSE,	vUNDEF, 2, NULL, "print run time", NULL },
 	{ 'V',"verbose",0,	tENUM,	oOTHER, vRT, vCRIT, vDEBUG+1, (char*)verbs,
-	"\tset verbose level:\n? -\tshow critical messages only (silent mode)\n? -\tshow result summary\n?  -\tshow run-time information\n? -\tshow parameters\n? -\tshow debug messages", NULL },
+	"\tset verbose level:\n? -\tshow critical messages only (silent mode)\n? -\tshow result summary\n?  -\tshow run-time information\n? -\tshow actual parameters\n? -\tshow debug messages", NULL },
 	{ 'v', Version,	0,	tVERS,	oOTHER,	vUNDEF, vUNDEF, 0, NULL, "print program's version", NULL },
 	{ 'h', "help",	0,	tHELP,	oOTHER,	vUNDEF, vUNDEF, 0, NULL, "print usage information", NULL }
 };
@@ -137,7 +146,7 @@ const Options::Usage Options::_Usages[] = {	// content of 'Usage' variants in he
 // Returns common name of output files
 string GetOutFileName();
 void PrintImitParams(const ChromFiles& cFiles, const char* templName, OutFile& oFile);
-void PrintReadInfo();
+void PrintReadInfo(const OutFile& oFile);
 
 /*****************************************/
 int main(int argc, char* argv[])
@@ -156,7 +165,6 @@ int main(int argc, char* argv[])
 		Options::GetIVal(oREAD_LEN),
 		Read::rNameType(Options::GetIVal(oREAD_NAME)),
 		char(Options::GetIVal(oFQ_QUAL)),
-		Options::GetIVal(oMAP_QUAL),
 		Options::GetIVal(oREAD_LIMIT_N),
 		// reduce limit because of thread's independent limit control
 		(ULONG(Options::GetDVal(oREAD_LIMIT)) - (THREADS_CNT() >> 1))
@@ -195,11 +203,13 @@ int main(int argc, char* argv[])
 	Timer::StartCPU();
 	Timer timer;
 	try {
-		if(fBedName)	fBedName = FS::CheckedFileName(fBedName);
+		FS::CheckedFileName(fBedName);
 		ChromFiles cFiles(FS::CheckedFileDirName(oGFILE), Imitator::All);
 		OutFile oFile(outFileName,
 			OutFile::eFormat(Options::GetIVal(oFORMAT)),
 			OutFile::eMode(Options::GetIVal(oSMODE)),
+			FS::CheckedFileName(oFQ_QUAL_PATT),
+			Options::GetIVal(oMAP_QUAL),
 #ifdef _NO_ZLIB
 			false
 #else
@@ -239,15 +249,14 @@ int main(int argc, char* argv[])
 	return ret;
 }
 
-void PrintReadInfo()
+void PrintReadInfo(const OutFile& oFile)
 {
 	cout << SignPar;
 	Read::Print();
-	cout<< EOL << SignPar << "Include N along the edges" 
-		<< SepCl << Options::GetBoolean(oLET_N) << endl;
+	oFile.PrintReadQual(SignPar);
+	cout << SignPar << "Reads: include N along the edges" << Equel << Options::GetBoolean(oLET_N);
+	cout << SepSCl << "limit = " << Read::MaxCount << EOL;
 }
-
-const char* Equel = " = ";
 
 void PrintImitParams(const ChromFiles& cFiles, const char* templName, OutFile& oFile)
 {
@@ -262,17 +271,17 @@ void PrintImitParams(const ChromFiles& cFiles, const char* templName, OutFile& o
 	cout << EOL;
 	if(templName)
 		cout << SignPar << "Template" << SepCl << templName << EOL;
-	oFile.Print(SignPar);
+	oFile.PrintFormat(SignPar);	// output format, sequencing mode
 	if( RegularMode ) {
 		cout << SignPar << "Shift" << SepCl << RGL_SHIFT() << EOL << EOL;
-		PrintReadInfo();
+		PrintReadInfo(oFile);
 	}
 	else {
 		cout << SignPar << "Count of cells" << SepCl << ULONG(Options::GetDVal(oNUMB_CELLS)) << EOL;
 		cout << SignPar << "Amplification" << SepCl;
 		if(NoAmplification)	cout << Options::GetBoolean(false) << EOL;
 		else				cout << Amplification::Coefficient << EOL;
-		PrintReadInfo();
+		PrintReadInfo(oFile);
 		if( TestMode ) {
 			cout << SignPar << "Background for all chromosomes" << SepCl;
 			if(bool(SAMPLE_BG()))	cout << Options::GetBoolean(oBG_ALL) << EOL;
@@ -299,7 +308,7 @@ void PrintImitParams(const ChromFiles& cFiles, const char* templName, OutFile& o
 		else
 			cout << Options::GetBoolean(false) << EOL;
 		if(THREADS_CNT() > 1)
-			cout << SignPar << int(THREADS_CNT()) << " threads\n";
+			cout << SignPar << "possibly " << int(THREADS_CNT()) << " threads\n";
 	}
 	cout << endl;
 }
