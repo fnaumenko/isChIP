@@ -38,15 +38,20 @@ public:
 
 private:
 	enum eFlag {			// signs of file
-		CLONE		= 0x001,	// file is a clone
-		CONSTIT		= 0x002,	// file is a constituent of an aggregate file
-		ZIPPED		= 0x004,	// file is zipped
-		ABORTING	= 0x008,	// invalid file should be completed by throwing exception; for Reading mode
-		CRSET		= 0x010,	// CR symbol is present in the file; for Reading mode
-		CRCHECKED	= 0x020,	// the presence of a symbol CR is checked; for Reading mode
+		// The first two right bits are reserved for storing the length of the EOL marker: 1 or 2 
+		// The first bit is set to 1 in the constructor.
+		// If CR symbol is found at the end of line,
+		//	the second bit is raised to 1, the first turn down to 0
+		EOLSZ		= 0x003,	// mask for the 2 first bits
+		CRSET		= 0x002,	// CR symbol is present in the file; for Reading mode
+		CRCHECKED	= 0x004,	// the presence of a symbol CR is checked; for Reading mode
+		CLONE		= 0x008,	// file is a clone
+		ZIPPED		= 0x010,	// file is zipped
+		ABORTING	= 0x020,	// invalid file should be completed by throwing exception; for Reading mode
 		ENDREAD		= 0x040,	// last call of GetRecord() has returned NULL; for Reading mode
 		PRNAME		= 0x080,	// print file name in exception's message; for Reading mode
-		MTHREAD		= 0x100		// file in multithread mode: needs to be locked while writing
+		MTHREAD		= 0x100,		// file in multithread mode: needs to be locked while writing
+		//CONSTIT		= 0x200	// file is a constituent of an aggregate file
 	};
 	enum eBuff {		// signs of buffer; used in CreateBuffer() only
 		BUFF_BASIC,		// basic (block) read|write buffer
@@ -81,6 +86,11 @@ private:
 	inline void SetFlag	(eFlag flag, bool val)	{ val ? _flag |= flag : _flag &= ~flag; }
 	inline bool IsFlag(eFlag flag)	const	{ return (_flag & flag) != 0; }	// != 0 to avoid warning C4800
 	inline bool IsZipped()				const	{ return IsFlag(ZIPPED); }
+
+	// Establishes the presence of CR symbol at the end of line.
+	//	@isCR: if true then the second bit is raised to 1, the first turn down to 0,
+	//	so the value return by EOLSZ mask is 2, otherwise stayed 1
+	inline void SetCR(bool isCR)	{ if(isCR)	_flag ^= EOLSZ; }
 
 	// Raises ENDREAD sign an return NULL
 	inline char* ReadingEnded()		  { RaiseFlag(ENDREAD); return NULL; }
@@ -136,7 +146,6 @@ protected:
 	// Used for multithreading file recording
 	//	@file: opened file which is cloned
 	//	@threadNumb: number of thread
-	//	Exception: file_error
 	TxtFile	(const TxtFile& file, threadnumb threadNumb);
 #endif
 	
@@ -145,7 +154,8 @@ protected:
 	// Gets the amount of characters corresponded to EOL
 	// In file created in Window EOL matches '\r\n', in file created in Linux EOL matches '\n',
 	//	return: in Windows always 1, in Linux: 2 for file created in Windows, 1 for file created in Linux
-	inline BYTE EOLSize() const	{ return (BYTE)IsFlag(CRSET) + 1; }
+	inline UINT EOLSize() const	{ return _flag & EOLSZ; }
+	//inline BYTE EOLSize() const	{ return (BYTE)IsFlag(CRSET) + 1; }
 
 	// Returns true if instance is a clone.
 	inline bool IsClone() const { return IsFlag(CLONE); }	// return _isClone;

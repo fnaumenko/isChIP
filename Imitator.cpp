@@ -447,7 +447,7 @@ void ChromsThreads::Print()
 {
 	vector<chrid>::iterator it1;
 	vector<ChromsThread>::iterator it = _threads.begin();
-	cout << "THREADS:  min weight " << it->sumSize << EOL;	// size of the first (minimal) thread
+	//cout << "THREADS:  min weight " << it->sumSize << EOL;	// size of the first (minimal) thread
 
 	for(; it!=_threads.end(); it++) {
 		cout << "thr " << int(it->Numb)
@@ -617,10 +617,11 @@ void Imitator::ChromCutter::OutputChromInfo (const Nts& nts, Timer& timer, bool 
 		cout << "\tN" << SepCl << sPercent(nts.CountN(), nts.Length(), 2, 4, false);
 		if( !LetN )
 			cout << ", discard " << sPercent(nts.DefLength(), nts.Length(), 3, 0, false);
-		timer.Stop("\t", false, false);
+		//timer.Stop("\t", false, false);
 		if( exceedLimit )
 			cout << " ! stopped due to exceeding of reads limit of " << Read::MaxCount;
 	}
+	timer.Stop("\t", false, false);
 	cout << endl;
 	Mutex::Unlock(Mutex::OUTPUT);
 }
@@ -869,7 +870,7 @@ void Imitator::Execute()
 	_oFile.Write();
 
 	if( Verbose(vRES) ) {
-		cout << "Total writed reads" << SepCl << (_oFile.Count() + TotalSlaveWrReadsCnt);
+		cout << "Total recorded reads" << SepCl << (_oFile.Count() + TotalSlaveWrReadsCnt);
 		if( TestMode ) {
 			OutputReadCnt(FG, ", from wich foreground");
 			OutputReadCnt(BG, ", background");

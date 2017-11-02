@@ -66,7 +66,7 @@ bool TxtFile::CreateBuffer(eBuff buffType)
 //	@abortInvalid: true if invalid instance shold be completed by throwing exception
 //	@rintName: true if file name should be printed in exception's message
 TxtFile::TxtFile (const string& fName, eAction mode, BYTE cntRecLines, bool abortInvalid, bool printName) :
-	_flag(0),
+	_flag(1),
 	_cntRecLines(cntRecLines),
 	_buffLineLen(0)
 {
@@ -159,11 +159,8 @@ TxtFile::TxtFile(const TxtFile& file, threadnumb threadNumb) :
 TxtFile::~TxtFile()
 {
 	if( _linesLen )						delete [] _linesLen;
-	if( _buff && !IsFlag(CONSTIT) )	delete [] _buff;
-	if( _buffLine )	{
-		//cout << "delete _buffLine\n";
-		delete [] _buffLine;
-	}
+	if( _buff /*&& !IsFlag(CONSTIT)*/)	delete [] _buff;
+	if( _buffLine )						delete [] _buffLine;
 	if( _stream && !IsClone() )	{
 		int res = 
 #ifndef _NO_ZLIB
@@ -261,7 +258,7 @@ char* TxtFile::GetRecord(chrlen* const counterN, short* const posTab, BYTE cntTa
 					continue;
 				}
 				if( !IsFlag(CRCHECKED) ) {
-					SetFlag(CRSET, _buff[i-1]==CR);
+					SetCR(_buff[i-1]==CR);
 					RaiseFlag(CRCHECKED);
 				}
 A:				_recLen += (_linesLen[r] = UINT(i-currLinePos) + 1);
