@@ -38,30 +38,27 @@ In that case you can compile the program without the ability to work with .gz fi
 open *makefile* in any text editor, uncomment last macro in the second line, comment third line, save *makefile*, and try ```make``` again.<br>
 To be sure about **zlib** on your system, type ```whereis zlib```.
 
-## Prepare reference genome
+### Prepare reference genome
 Download the required reference genome from UCSC: ftp://hgdownload.soe.ucsc.edu/goldenPath/.<br>
-For example, to download **mm9** go to the desired directory and...<br>
+For example, to download mouse library **mm9** go to the desired directory and...<br>
 
 **Linux**<br>
 type commands:<br>
 ```mkdir mm9```<br>
 ```cd mm9```<br>
-```rsync -a -P rsync://hgdownload.soe.ucsc.edu/goldenPath/mm9/chromosomes/ ./```
-
-Alternative way:<br>
+```rsync -a -P rsync://hgdownload.soe.ucsc.edu/goldenPath/mm9/chromosomes/ ./```<br>
+The alternative way:<br>
 ```wget -r ftp://hgdownload.soe.ucsc.edu/goldenPath/mm9/chromosomes/```<br>
 ```mv hgdownload.soe.ucsc.edu/goldenPath/mm9/chromosomes mm9```<br>
 ```rm -r hgdownload.soe.ucsc.edu```<br>
-
-If you do not want to keep unused modifications, type
+If you do not want to keep unused modifications, type<br>
 ```rm mm9/*_random*```
 
 **Windows**<br>
 Copy and paste the string ftp://hgdownload.soe.ucsc.edu/goldenPath/mm9/chromosomes/ into Windows browser address bar, 
-then copy *.fa.gz files in usual way.
-
-Alternative way:<br>
-Use FTP client, f.e. [FileZilla](https://filezilla-project.org/).
+then copy *.fa.gz files to your local directory.<br>
+The alternative way:<br>
+use FTP client, f.e. [FileZilla](https://filezilla-project.org/).
 
 ## Synopsis
 ```isChIP -g ref_genome –n 5```<br>
