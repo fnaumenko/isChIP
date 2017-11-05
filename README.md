@@ -393,7 +393,7 @@ Size selection filter is managed by 3 options:
 ```--sz-sel-sigma``` and ```--frag-len``` response to standard deviation and mean in standard normal distribution, 
 and ```--frag-dev``` is half-width on which the standard distribution is 'expanded' (**d** on the ![figure](https://github.com/fnaumenko/isChIP/tree/master/pict/sizeSelFilter.png)).
 
-To visualize the lognormal distribution for different values of these parameters, 
+To visualize and fit the lognormal distribution for different values of these parameters, 
 use the [RandomTest](https://github.com/fnaumenko/RandomTest-Win) application (so far only under Windows).
 
 ##
