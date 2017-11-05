@@ -226,7 +226,7 @@ char* TxtFile::GetRecord(chrlen* const counterN, short* const posTab, BYTE cntTa
 				if( _readingLen != _buffLen )	// final block
 					if( i == _buffLen			// current line is not ended by EOL
 					|| _buff[i-1] == EOL		// current line which is ended by EOL
-					|| _buff[i-1] == '\0'	)	// EOL in the current line has been replaced by 0 in previous call TabFile::GetLine()
+					|| _buff[i-1] == '\0'	)	// EOL has been replaced by previous call TabFile::GetLine()
 						return ReadingEnded();	// normal completion
 					else {						// current line is not ended by EOL
 						if(i<_buffLen)
@@ -257,12 +257,9 @@ char* TxtFile::GetRecord(chrlen* const counterN, short* const posTab, BYTE cntTa
 					currLinePos++; cntEmpty++;	// skip empty line
 					continue;
 				}
-				if( !IsFlag(CRCHECKED) ) {
-					SetCR(_buff[i-1]==CR);
-					RaiseFlag(CRCHECKED);
-				}
+				if( !IsFlag(CRCHECKED) )	SetCR(_buff[i-1]==CR);	// define EOL size
 A:				_recLen += (_linesLen[r] = UINT(i-currLinePos) + 1);
-				currLinePos = i+1;
+				currLinePos = i + 1;
 				break;
 			}
 		}

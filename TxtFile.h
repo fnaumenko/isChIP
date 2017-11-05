@@ -84,13 +84,13 @@ protected:
 private:
 	inline void RaiseFlag	(eFlag flag) const	{ _flag |= flag; }
 	inline void SetFlag	(eFlag flag, bool val)	{ val ? _flag |= flag : _flag &= ~flag; }
-	inline bool IsFlag(eFlag flag)	const	{ return (_flag & flag) != 0; }	// != 0 to avoid warning C4800
+	inline bool IsFlag(eFlag flag)		const	{ return (_flag & flag) != 0; }	// != 0 to avoid warning C4800
 	inline bool IsZipped()				const	{ return IsFlag(ZIPPED); }
 
 	// Establishes the presence of CR symbol at the end of line.
 	//	@isCR: if true then the second bit is raised to 1, the first turn down to 0,
 	//	so the value return by EOLSZ mask is 2, otherwise stayed 1
-	inline void SetCR(bool isCR)	{ if(isCR)	_flag ^= EOLSZ; }
+	void SetCR(bool isCR)	{ if(isCR)	_flag ^= EOLSZ;	RaiseFlag(CRCHECKED); }
 
 	// Raises ENDREAD sign an return NULL
 	inline char* ReadingEnded()		  { RaiseFlag(ENDREAD); return NULL; }
