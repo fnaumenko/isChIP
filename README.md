@@ -394,7 +394,7 @@ Size selection filter is managed by 3 options:
 and ```--frag-dev``` is half-width on which the standard distribution is 'expanded' (**d** on the ![figure](https://github.com/fnaumenko/isChIP/tree/master/pict/sizeSelFilter.png)).
 
 To visualize and fit the lognormal distribution for different values of these parameters, 
-use the [RandomTest](https://github.com/fnaumenko/RandomTest-Win) application (so far only under Windows).
+use the [**RandomTest**](https://github.com/fnaumenko/RandomTest-Win) application (so far only under Windows).
 
 ##
 If you face to bugs, incorrect English, or have commentary/suggestions, please do not hesitate to write me on fedor.naumenko@gmail.com
