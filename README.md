@@ -382,7 +382,7 @@ According to some publications, in reality size selection has normal distributed
 But the strong implementation of this idea leads to great loss of fragments, and as a consequence, an increase in run time without any sense in output. 
 For this reason, **isChIP** implemented an 'expanded' pseudo-normal distribution of size selection, 
 when reads are filtered only at the offset edges of the distribution, 
-as it is shown in the ![figure](isChIP/tree/master/pict/sizeSelFilter.png). 
+as it is shown in the ![figure](https://github.com/fnaumenko/isChIP/tree/master/pict/sizeSelFilter.png). 
 By using default distribution parameters, in dark blue – distribution of generated fragments, 
 in light blue – hypothetical real size selection, in green – pseudo size selection.<br>
 Lognormal distribution is implemented as X=e^(Y*factor+term), 
