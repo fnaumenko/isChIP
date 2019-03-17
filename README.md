@@ -62,7 +62,7 @@ Generates 'input' sequences in FastQ with read length of 50 and average read den
 comparable with what is experimentally observed.
 
 ```isChIP -g mm9_dir –tz –n 300 –r 36 –f fq,sam templ.bed```<br>
-Generates test sequences in zipped FastQ and direct alignment in SAM, with read length of 36 and average foreground/background read density 
+Generates test sequences in zipped FastQ and direct alignment in SAM, with read length of 36, timing, and average foreground/background read density 
 comparable with what is experimentally observed in [Series GSE56098](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE56098).
 
 ## Usage
@@ -192,7 +192,7 @@ To do this, it is enough to select a model output with a peak density correspond
 Then the overall loss is calculated by the formula (1-n/N)*100%, where n is the number of conditional cells, N is the number of real cells in the experiment.
 
 Besides the number of cells, the program’s output heavily depends on parameters of fragment distribution and size selection 
-(see [Fragment distribution and size selection](#fragment-distribution)). 
+(see [Fragments distribution and size selection](#fragments-distribution-and-size-selection)). 
 In general, by default distribution, a number of conditional cells from 3 to 10 provides an output read’s mean density comparable with real ‘inputs’, 
 and a value from 80 to 400 leads to data comparable with real tests in term of density.<br>
 Range: 1-2e6<br>
@@ -228,7 +228,7 @@ Mapping one chromosome to the whole reference genome leads to the appearance of 
 ‘gaps’, corresponding to low mappability regions. This is true for all aligners. 
 Generation background for all chromosomes eliminates this issue.<br>
 Note that this process is time consuming, and is justified only in case of using subsequent alignment, 
-for example, for comparison with experimental ```FastQ```, or to validate aligners. 
+for example, for comparison with experimental FastQ, or to validate aligners. 
 When validating peak detectors on one or some chromosomes, it is more advantageous to use a direct SAM output format (see ```-f|--format```).<br>
 The established option ```-c|--chr``` makes this option negligible.<br>
 In *control* mode is ignored.<br>
@@ -239,7 +239,7 @@ Generate output for the specified chromosome only.
 ```name``` means chromosome identifier, i.e. number or  character, for instance ```10```, ```X```. 
 This creates the same effect as referencing to the chromosome file instead of directory.<br>
 This is a strong option, which forces to ignore all other chromosomes from reference genome and *template*, 
-and abolishes the impact of option ```-bg-all```.
+and abolishes the impact of option ```--bg-all```.
 
 ```-N|--let-N```<br>
 Forces the scanning process to include region consisting of ambiguous characters 'N' at the beginning and at the end of a reference chromosome. 
@@ -277,13 +277,13 @@ Default: 5.46
 
 ```--fr-sd <float>```<br>
 Standard deviation of fragment’s lognormal distribution. 
-See [Fragments distribution and size selection](#fragments-distribution).<br>
+See [Fragments distribution and size selection](#fragments-distribution-and-size-selection).<br>
 Range: 0.1-1.0<br>
 Default: 0.4
 
 ```--ss-mean <int>```<br>
 Mean of size selection normal distribution. 
-See [Fragments distribution and size selection](#fragments-distribution).<br>
+See [Fragments distribution and size selection](#fragments-distribution-and-size-selection).<br>
 By default this value is calculated as the mode of the fragment’s lognormal distribution. 
 In other words, option's value is equal to the most frequent value of the lognormal distribution, which for given defaults is 200.
 Range: 50-1000<br>
@@ -291,7 +291,7 @@ Default: ```auto```
 
 ```--ss-sd <int>```<br>
 Standard deviation of fragment's size selection normal distribution. 
-See [Fragments distribution and size selection](#fragments-distribution).<br>
+See [Fragments distribution and size selection](#fragments-distribution-and-size-selection).<br>
 Range: 1-200<br>
 Default: 30
 
@@ -324,7 +324,7 @@ while simulated reads are fully defined by reference library.
 Consequently the ambiguous characters in the library are translated into reads. 
 Different aligners considered undefined characters in references differently: 
 some of them as invalid, and some of them as an overlapping case.<br>
-Range: 0 - <```-r|--rd-len``` value>
+Range: 0 - <```-r|--rd-len``` value><br>
 Default: ```-r|--rd-len``` value (what is the same as no checkup)
 
 ```--rd-lim <long>```<br>
@@ -335,11 +335,11 @@ Default: 2e8.
 
 ```--rd-ql <char>```<br>
 Uniform quality value for the sequence (read) in ```FQ``` and ```SAM``` output.<br>
-Range: '!'-'~'<br>
-Default: '~' (decimal 126)
+Range: '!'-'\~'<br>
+Default: '\~' (decimal 126)
 
 ```--rd-ql-patt <name>```<br>
-Quality values pattern for the sequence (read) in ```FQ``` and ```SAM``` output. 
+Quality values pattern for the sequence (read) in FQ and SAM output. 
 ```name``` is a plain text file containing at least one line encodes the quality values for the sequence 
 as described in [FastQ](https://en.wikipedia.org/wiki/FASTQ_format) specification.<br>
 If the length of line is less then read length, the rest of pattern is filed by value defined by ```--rd-ql``` option.<br>
@@ -348,7 +348,7 @@ The lines starting with the character '#' are ignored.<br>
 The second and all the following encoding lines are ignored as well.
 
 ```-rd-map-ql <int>```<br>
-Read mapping quality in ```SAM``` and ```BED``` output (in the last case it is called 'score').<br>
+Read mapping quality in SAM and BED output (in the last case it is called 'score').<br>
 Range: 0-255<br>
 Default: 255
 
@@ -364,10 +364,11 @@ In contrast to the utilities that restore the coverage by extending the read to 
 (such as [bedtools genomecov](https://bedtools.readthedocs.io/en/latest/content/tools/genomecov.html), 
 [deepTools bamCoverage](https://deeptools.readthedocs.io/en/develop/content/tools/bamCoverage.html), 
 [peakranger wigpe](http://ranger.sourceforge.net/manual1.18.html)), **isChIP** produces an actual coverage. 
-It is also possible to generate one wig file per strand (```-S|--strand``` option).<br>
+It is also possible to generate one wig file per strand (```-S|--strand``` option). 
+You can see the difference in the ![figure](isChIP/pict/formal-actual_coverage_label.png).<br>
 ```FREQ``` is a conditional format to control the output fragment frequency distribution de facto. 
 This is a plain text file with an extension .freq (.freq.txt in Windows), 
-representing the obtained distribution as a set of pairs <fragment length>-<number of repetitions>. 
+representing the obtained distribution as a list of pairs \<fragment length\>\<number of repetitions\>. 
 Such a presentation can be visualized as a graph, for example, in Excel.<br>
 Any formats can be set following in any order.<br>
 Default: ```FQ```
@@ -444,7 +445,7 @@ The basic cycle consists of the next phases:
 *template* sample (defined as *template* features score) and automatically adjusted scaling sample (```--bg-all``` and ```--rd-lim``` options);
 * **'amplification'** the selected fragments if required:<br>
 copying each fragment 2^N times, where N denotes a given number of PCR cycles;
-* **'size selection'**: selection of fragments fitted to desirable size. See [Fragments distribution and size selection](#fragments-distribution);
+* **'size selection'**: selection of fragments fitted to desirable size. See [Fragments distribution and size selection](#fragments-distribution-and-size-selection);
 * **'sequencing'**: cutting the 5’end of the fragment of desirable length, or the 3’end (by random choice) in SE mode, 
 or both ends in PE mode, and complementary reversing the 3’end read;
 * recording reads in an appropriate formats.
