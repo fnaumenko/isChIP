@@ -480,6 +480,5 @@ It visualizes the initial lognormal as well as the final distribution of fragmen
 and allows you to quickly fit the parameters for the desired distribution.
 
 
-
 ##
 If you face to bugs, incorrect English, or have commentary/suggestions, please do not hesitate to write me on fedor.naumenko@gmail.com
