@@ -459,7 +459,7 @@ In practice, the distribution parameters can vary widely (see ![Real Distributio
 By default, the values of the lognormal *sigma* and *mean* are selected in **isChIP** so 
 as to provide the most frequently observed distribution with mode of 200 (see ![Model Distribution](https://github.com/fnaumenko/isChIP/tree/master/pict/isChIP_fragDistr_label.png)).<br>
 Fragment size selection can be performed in different techniques, e.g. by using magnetic beads or by manual cutting of the gel strip. 
-Nevertheless, it is safe to assume the general normal character of size selection (see ![Size Selection](isChIP/pict/Mag-Bind_label.png)). 
+Nevertheless, it is safe to assume the general normal character of size selection (see ![Size Selection](https://github.com/fnaumenko/isChIP/tree/master/pict/Mag-Bind_label.png)). 
 This is also confirmed by the real fragment frequency distributions in ![Real Distributions](https://github.com/fnaumenko/isChIP/tree/master/pict/fragDistr_ChIP-seq_label.png). 
 In particular, experiments SRR408580 (in green) and SRR965509 (in yellow) were clearly carried out using some size selection technique.<br>
 On this basis, the size selection in **isChIP** is carried out according to the normal distribution. 
