@@ -457,7 +457,7 @@ The model was developed by [Dr. Tatiana Subkhankulova](https://www.linkedin.com/
 ## Fragments distribution and size selection
 The lognormal distribution of fragments by shearing chromatin based on sonication confirmed by many researches.<br>
 In practice, the distribution parameters can vary widely:<br>
-![Real Distributions](https://github.com/fnaumenko/isChIP/blob/master/pict/fragDistr_ChIP-seq_label_.png) 
+![Real Distributions](https://github.com/fnaumenko/isChIP/blob/master/pict/fragDistr_ChIP-seq_label_small.png) 
 
 By default, the values of the lognormal *sigma* and *mean* are selected in **isChIP** so 
 as to provide the most frequently observed distribution with mode of 200:<br>
