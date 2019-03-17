@@ -431,8 +431,9 @@ average length is about 13 kbp.
 
 ### Performance
 On 2.5 GHz RAID HPC by default values of ground samples, treating one chromosome in one thread, within 1 minute **isCIP** records:<br>
-- in *test* mode about 1,000,000 reads (16,500 read/sec);<br>
-- in *control* mode about 60,000,000 reads (1,000,000 read/sec).<br>
+in *test* mode about 1,000,000 reads (16,500 read/sec);<br>
+in *control* mode about 60,000,000 reads (1,000,000 read/sec).
+
 The required memory is linearly proportional to the number of threads. For one thread, it does not exceed 300 Mb.
 
 ## Model: brief description
