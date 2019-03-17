@@ -364,7 +364,7 @@ In contrast to the utilities that restore the coverage by extending the read to 
 [deepTools bamCoverage](https://deeptools.readthedocs.io/en/develop/content/tools/bamCoverage.html), 
 [peakranger wigpe](http://ranger.sourceforge.net/manual1.18.html)), **isChIP** produces an actual coverage. 
 It is also possible to generate one wig file per strand (```-S|--strand``` option). 
-You can see the difference in the ![figure](isChIP/tree/master/pict/formal-actual_coverage_label.png).<br>
+You can see the difference in the ![figure](https://github.com/fnaumenko/isChIP/tree/master/pict/formal-actual_coverage_label.png).<br>
 ```FREQ``` is a conditional format to control the output fragment frequency distribution de facto. 
 This is a plain text file with an extension .freq (.freq.txt in Windows), 
 representing the obtained distribution as a list of pairs \<fragment length\>\<number of repetitions\>. 
@@ -455,18 +455,18 @@ The model was developed by [Dr. Tatiana Subkhankulova](https://www.linkedin.com/
 
 ## Fragments distribution and size selection
 The lognormal distribution of fragments by shearing chromatin based on sonication confirmed by many researches.<br>
-In practice, the distribution parameters can vary widely (see ![Real Distributions](isChIP/tree/master/pict/fragDistr_ChIP-seq_label.png)). 
+In practice, the distribution parameters can vary widely (see ![Real Distributions](https://github.com/fnaumenko/isChIP/tree/master/pict/fragDistr_ChIP-seq_label.png)). 
 By default, the values of the lognormal *sigma* and *mean* are selected in **isChIP** so 
-as to provide the most frequently observed distribution with mode of 200 (see ![Model Distribution](isChIP/tree/master/pict/isChIP_fragDistr_label.png)).<br>
+as to provide the most frequently observed distribution with mode of 200 (see ![Model Distribution](https://github.com/fnaumenko/isChIP/tree/master/pict/isChIP_fragDistr_label.png)).<br>
 Fragment size selection can be performed in different techniques, e.g. by using magnetic beads or by manual cutting of the gel strip. 
 Nevertheless, it is safe to assume the general normal character of size selection (see ![Size Selection](isChIP/pict/Mag-Bind_label.png)). 
-This is also confirmed by the real fragment frequency distributions in ![Real Distributions](isChIP/tree/master/pict/fragDistr_ChIP-seq_label.png). 
+This is also confirmed by the real fragment frequency distributions in ![Real Distributions](https://github.com/fnaumenko/isChIP/tree/master/pict/fragDistr_ChIP-seq_label.png). 
 In particular, experiments SRR408580 (in green) and SRR965509 (in yellow) were clearly carried out using some size selection technique.<br>
 On this basis, the size selection in **isChIP** is carried out according to the normal distribution. 
 By default, its mean is automatically adjusted so that its mode coincides with the mode of an initial lognormal distribution. 
 This provides the least computational loss. Of course the size selection mean can be set by the user. 
 But in this case, one should bear in mind the decrease in output, the more, the further the size selection mode is from the lognormal mode 
-(yellow graph in ![Model Distribution](isChIP/tree/master/pict/isChIP_fragDistr_label.png)).
+(yellow graph in ![Model Distribution](https://github.com/fnaumenko/isChIP/tree/master/pict/isChIP_fragDistr_label.png)).
 
 To facilitate the adjustment of distribution parameters use a specialized Windows utility [**RandomTest**](https://github.com/fnaumenko/RandomTest-Win). 
 It visualizes the initial lognormal as well as the final distribution of fragments after size selection, 
