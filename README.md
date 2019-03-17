@@ -53,8 +53,7 @@ If you do not want to keep unused modifications, type<br>
 **Windows**<br>
 Copy and paste the string ftp://hgdownload.soe.ucsc.edu/goldenPath/mm9/chromosomes/ into Windows browser address bar, 
 then copy *.fa.gz files to your local directory.<br>
-The alternative way:<br>
-use FTP client, f.e. [FileZilla](https://filezilla-project.org/).
+The alternative way: use FTP client, f.e. [FileZilla](https://filezilla-project.org/).
 
 ## Synopsis
 ```isChIP -g ref_genome –n 5```<br>
@@ -334,7 +333,7 @@ Range: 1e5-1e19<br>
 Default: 2e8.
 
 ```--rd-ql <char>```<br>
-Uniform quality value for the sequence (read) in ```FQ``` and ```SAM``` output.<br>
+Uniform quality value for the sequence (read) in FQ and SAM output.<br>
 Range: '!'-'\~'<br>
 Default: '\~' (decimal 126)
 
@@ -403,13 +402,13 @@ Default: ```RT```
 The next information is displaying for each chromosome and total (field values are given as an example):
 
 ```
-  chrom      reads sample  MDAc   r/kbp        reads   sample  MDAc   r/kbp     N   N_excl  mm:ss
-─────────────────────────────────────────────────────────────────────────────────────────────────
-t chr 1:  FG: 1334  100%    8.5      55   BG: 350155      1%    2.3    3.57   5.2%  4.9%    00:01
-c chr 1:                                      356366            2.3    3.58   5.2%  4.9%    00:00
+  chrom      reads sample  r/kbp        reads   sample  r/kbp     N   N_excl  mm:ss
+───────────────────────────────────────────────────────────────────────────────────
+t chr 1:  FG: 1334  100%      55   BG: 350155      1%    3.57   5.2%  4.9%    00:01
+c chr 1:                               356366            3.58   5.2%  4.9%    00:00
 ...
-─────────────────────────────────────────────────────────────────────────────────────────────────
-t total:  FG: 93156 100%    8.5      55   BG: 944801      1%    2.3    3.54
+───────────────────────────────────────────────────────────────────────────────────
+t total:  FG: 93156 100%      55   BG: 944801      1%    3.54
 total recorded reads:: test: 474931, control: 993378
 ```
 
@@ -419,8 +418,6 @@ total recorded reads:: test: 474931, control: 993378
 * ```sample``` – actual sample: the number of recorded reads relative to the number of selected ones, in percent. Selected means the reads derived from fragments passed through the size selection filter. 
 The actual sample may be reduced because of the next reasons: user-defined and/or scalable sample, different template feature’s score (for the foreground reads), exceeding the maximum number of ambiguous reference characters ‘N’ in read. 
 Amplified reads are not included in the sample statistics;
-* ```MDAc``` – actual MDA coefficient: a ratio of numbers of fragments after/before MDA amplification (only if MDA amplification is set).
-For PCR amplification the coefficient is always 2^N and therefore is not printed;
 * ```r/kbp``` – actual read density, in read per 1000 base pair;
 * ```N``` – total fraction of ambiguous reference characters 'N' in chromosome (only in ```PAR``` and ```DBG``` verbose mode);
 * ```N_excl``` – fraction of excluded from treatment ambiguous reference characters 'N' in chromosome (only in ```PAR``` and ```DBG``` verbose mode);
@@ -450,24 +447,25 @@ copying each fragment 2^N times, where N denotes a given number of PCR cycles;
 or both ends in PE mode, and complementary reversing the 3’end read;
 * recording reads in an appropriate formats.
 
-The input parameters of simulation process (except number of conditional cells)  
+The input parameters of simulation process (except number of conditional cells) 
 are adjusted correspondingly to those in real ChIP-Seq experiment.
 
 The model was developed by [Dr. Tatiana Subkhankulova](https://www.linkedin.com/in/tatiana-subkhankulova-0876a240), University of Cambridge.
 
 ## Fragments distribution and size selection
 The lognormal distribution of fragments by shearing chromatin based on sonication confirmed by many researches.<br>
-In practice, the distribution parameters can vary widely (![Fig.1](isChIP/pict/fragDistr_ChIP-seq_label.png)). 
+In practice, the distribution parameters can vary widely (![Real Distributions](isChIP/pict/fragDistr_ChIP-seq_label.png)). 
 By default, the values of the lognormal *sigma* and *mean* are selected in **isChIP** so 
-as to provide the most frequently observed distribution with mode of 200 (![Fig.2](isChIP/pict/isChIP_fragDistr_label.png)).<br>
+as to provide the most frequently observed distribution with mode of 200 (![Model Distribution](isChIP/pict/isChIP_fragDistr_label.png)).<br>
 Fragment size selection can be performed in different techniques, e.g. by using magnetic beads or by manual cutting of the gel strip. 
-Nevertheless, it is safe to assume the general normal character of size selection (![Fig.3](isChIP/pict/Mag-Bind_label.png)). 
-This is also confirmed by the real fragment frequency distributions in [Fig.1](isChIP/pict/fragDistr_ChIP-seq_label.png). 
+Nevertheless, it is safe to assume the general normal character of size selection (![Size Selection](isChIP/pict/Mag-Bind_label.png)). 
+This is also confirmed by the real fragment frequency distributions in [Real Distributions](isChIP/pict/fragDistr_ChIP-seq_label.png). 
 In particular, experiments SRR408580 (in green) and SRR965509 (in yellow) were clearly carried out using some size selection technique.<br>
-On this basis, the size selection in *isChIP* is carried out according to the normal distribution. 
+On this basis, the size selection in **isChIP** is carried out according to the normal distribution. 
 By default, its mean is automatically adjusted so that its mode coincides with the mode of an initial lognormal distribution. 
 This provides the least computational loss. Of course the size selection mean can be set by the user. 
-But in this case, one should bear in mind the decrease in output, the more, the further the size selection mode is from the lognormal mode (yellow graph in ![Fig.2](isChIP/pict/isChIP_fragDistr_label.png)).
+But in this case, one should bear in mind the decrease in output, the more, the further the size selection mode is from the lognormal mode 
+(yellow graph in ![Model Distribution](isChIP/pict/isChIP_fragDistr_label.png)).
 
 To facilitate the adjustment of distribution parameters use a specialized Windows utility [**RandomTest**](https://github.com/fnaumenko/RandomTest-Win). 
 It visualizes the initial lognormal as well as the final distribution of fragments after size selection, 
