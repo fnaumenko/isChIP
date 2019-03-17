@@ -431,16 +431,15 @@ average length is about 13 kbp.
 
 ### Performance
 On 2.5 GHz RAID HPC by default values of ground samples, in one-thread mode, within 1 minute **isChIP** records:<br>
-in *test* mode about 1,000,000 reads (16,500 read/sec);<br>
-in *control* mode about 60,000,000 reads (1,000,000 read/sec).
-
+- in *test* mode about 1,000,000 reads (16,500 read/sec);<br>
+- in *control* mode about 60,000,000 reads (1,000,000 read/sec).<br>
 The required memory is linearly proportional to the number of threads. For one thread, it does not exceed 300 Mb.
 
 ## Model: brief description
 The real protocol of ChIP-seq is simulated by repeating the basic cycle, performed for each treated chromosome (twice for autosomes). 
 The basic cycle consists of the next phases:
 * **'shearing of DNA'**: cutting the reference genome in fragments with size distribution fitted to lognormal distribution with given *mean* and *sigma*;
-* **'ChIP' (in *test* mode)**: extraction of the fragments overlapping with the *template* binding events;
+* **'ChIP'** (in *test* mode): extraction of the fragments overlapping with the *template* binding events;
 * **'loss fragments in ‘Library construction’'**: sampling of selected fragments according to user-defined sample (```--fg``` and ```-b|--bg``` options), 
 *template* sample (defined as *template* features score) and automatically adjusted scaling sample (```--bg-all``` and ```--rd-lim``` options);
 * **'amplification'** the selected fragments if required:<br>
@@ -458,18 +457,23 @@ The model was developed by [Dr. Tatiana Subkhankulova](https://www.linkedin.com/
 ## Fragments distribution and size selection
 The lognormal distribution of fragments by shearing chromatin based on sonication confirmed by many researches.<br>
 In practice, the distribution parameters can vary widely:<br>
-![Real Distributions](https://github.com/fnaumenko/isChIP/blob/master/pict/fragDistr_ChIP-seq_label_.png)<br>
+![Real Distributions](https://github.com/fnaumenko/isChIP/blob/master/pict/fragDistr_ChIP-seq_label_.png) 
+
 By default, the values of the lognormal *sigma* and *mean* are selected in **isChIP** so 
-as to provide the most frequently observed distribution with mode of 200 (see ![Model Distribution](https://github.com/fnaumenko/isChIP/tree/master/pict/isChIP_fragDistr_label.png)).<br>
+as to provide the most frequently observed distribution with mode of 200:<br>
+![Model Distribution](https://github.com/fnaumenko/isChIP/blob/master/pict/isChIP_fragDistr_label_.png))
+
 Fragment size selection can be performed in different techniques, e.g. by using magnetic beads or by manual cutting of the gel strip. 
-Nevertheless, it is safe to assume the general normal character of size selection (see ![Size Selection](https://github.com/fnaumenko/isChIP/tree/master/pict/Mag-Bind_label.png)). 
-This is also confirmed by the real fragment frequency distributions in ![Real Distributions](https://github.com/fnaumenko/isChIP/tree/master/pict/fragDistr_ChIP-seq_label.png). 
+Nevertheless, it is safe to assume the general normal character of size selection:<br>
+![Size Selection](https://github.com/fnaumenko/isChIP/blob/master/pict/Mag-Bind_label.png)
+
+This is also confirmed by the real fragment frequency distributions in the figure above. 
 In particular, experiments SRR408580 (in green) and SRR965509 (in yellow) were clearly carried out using some size selection technique.<br>
 On this basis, the size selection in **isChIP** is carried out according to the normal distribution. 
 By default, its mean is automatically adjusted so that its mode coincides with the mode of an initial lognormal distribution. 
 This provides the least computational loss. Of course the size selection mean can be set by the user. 
 But in this case, one should bear in mind the decrease in output, the more, the further the size selection mode is from the lognormal mode 
-(yellow graph in ![Model Distribution](https://github.com/fnaumenko/isChIP/tree/master/pict/isChIP_fragDistr_label.png)).
+(yellow graph in the figure of model distribution).
 
 To facilitate the adjustment of distribution parameters use a specialized Windows utility [**RandomTest**](https://github.com/fnaumenko/RandomTest-Win). 
 It visualizes the initial lognormal as well as the final distribution of fragments after size selection, 
