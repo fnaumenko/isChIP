@@ -66,8 +66,10 @@ Generates test sequences in zipped FastQ and direct alignment in SAM, with read 
 comparable with what is experimentally observed in [Series GSE56098](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE56098).
 
 ## Usage
-```isChIP [options] -g|--gen <name> [<template>]
-	<template> - bed file whose features specify binding sites (BS)```
+```
+isChIP [options] -g|--gen <name> [<template>]
+	<template> - bed file whose features specify binding sites (BS)
+```
 
 ### Help
 ```
