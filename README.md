@@ -284,7 +284,7 @@ Default: 0.4
 Mean of size selection normal distribution. 
 See [Fragments distribution and size selection](#fragments-distribution-and-size-selection).<br>
 By default this value is calculated as the mode of the fragment’s lognormal distribution. 
-In other words, option's value is equal to the most frequent value of the lognormal distribution, which for given defaults is 200.
+In other words, option's value is equal to the most frequent value of the lognormal distribution, which for given defaults is 200.<br>
 Range: 50-1000<br>
 Default: ```auto```
 
@@ -454,12 +454,12 @@ The model was developed by [Dr. Tatiana Subkhankulova](https://www.linkedin.com/
 
 ## Fragments distribution and size selection
 The lognormal distribution of fragments by shearing chromatin based on sonication confirmed by many researches.<br>
-In practice, the distribution parameters can vary widely (![Real Distributions](isChIP/pict/fragDistr_ChIP-seq_label.png)). 
+In practice, the distribution parameters can vary widely (see ![Real Distributions](isChIP/pict/fragDistr_ChIP-seq_label.png)). 
 By default, the values of the lognormal *sigma* and *mean* are selected in **isChIP** so 
-as to provide the most frequently observed distribution with mode of 200 (![Model Distribution](isChIP/pict/isChIP_fragDistr_label.png)).<br>
+as to provide the most frequently observed distribution with mode of 200 (see ![Model Distribution](isChIP/pict/isChIP_fragDistr_label.png)).<br>
 Fragment size selection can be performed in different techniques, e.g. by using magnetic beads or by manual cutting of the gel strip. 
-Nevertheless, it is safe to assume the general normal character of size selection (![Size Selection](isChIP/pict/Mag-Bind_label.png)). 
-This is also confirmed by the real fragment frequency distributions in [Real Distributions](isChIP/pict/fragDistr_ChIP-seq_label.png). 
+Nevertheless, it is safe to assume the general normal character of size selection (see ![Size Selection](isChIP/pict/Mag-Bind_label.png)). 
+This is also confirmed by the real fragment frequency distributions in ![Real Distributions](isChIP/pict/fragDistr_ChIP-seq_label.png). 
 In particular, experiments SRR408580 (in green) and SRR965509 (in yellow) were clearly carried out using some size selection technique.<br>
 On this basis, the size selection in **isChIP** is carried out according to the normal distribution. 
 By default, its mean is automatically adjusted so that its mode coincides with the mode of an initial lognormal distribution. 
