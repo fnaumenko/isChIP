@@ -5,6 +5,19 @@ The modelling of the chromatin immunoprecipitaion followed by next generation se
 However, the **isChIP**’s options can be adjusted to the other techniques such as  Ion Torrent, etc.<br>
 For more information about model see [Model: brief description](#model-brief-description).
 
+### Performance
+On 2.5 GHz RAID HPC by default values of ground samples, in one-thread mode, within 1 minute **isChIP** records:<br>
+in *test* mode up to 1,000,000 reads (16,500 read/sec);<br>
+in *control* mode up to 60,000,000 reads (1,000,000 read/sec).<br>
+The required memory is linearly proportional to the number of threads. For one thread, it does not exceed 300 Mb.
+
+### Navigation:
+1. [Installation](#installation)<br>
+2. [Usage](#usage)<br>
+3. [Details](#details)<br>
+4. [Model: brief description](#model-brief-description)<br>
+5. [Fragments distribution and size selection](#fragments-distribution-and-size-selection)
+
 ## Installation
 ### Executable file
 
@@ -35,8 +48,8 @@ open *makefile* in any text editor, uncomment last macro in the second line, com
 To be sure about **zlib** on your system, type ```whereis zlib```.
 
 ### Prepare reference genome
-Download the required reference genome from UCSC: ftp://hgdownload.soe.ucsc.edu/goldenPath/.<br>
-For example, to download mouse library **mm9** go to the desired directory and...<br>
+Download the required reference genome from UCSC: ftp://hgdownload.soe.ucsc.edu/goldenPath/<br>
+For example, to download mouse library **mm9** go to the desired directory and:
 
 **Linux**<br>
 type commands:<br>
@@ -55,7 +68,13 @@ Copy and paste the string ftp://hgdownload.soe.ucsc.edu/goldenPath/mm9/chromosom
 then copy *.fa.gz files to your local directory.<br>
 The alternative way: use FTP client, f.e. [FileZilla](https://filezilla-project.org/).
 
-## Synopsis
+## Usage
+```
+isChIP [options] -g|--gen <name> [<template>]
+	<template> - bed file whose features specify binding sites (BS)
+```
+
+### Synopsis
 ```isChIP -g ref_genome –n 5```<br>
 Generates 'input' sequences in FastQ with read length of 50 and average read density of about 9 read/kbs, 
 comparable with what is experimentally observed.
@@ -63,12 +82,6 @@ comparable with what is experimentally observed.
 ```isChIP -g mm9_dir –tz –n 300 –r 36 –f fq,sam templ.bed```<br>
 Generates test sequences in zipped FastQ and direct alignment in SAM, with read length of 36, timing, and average foreground/background read density 
 comparable with what is experimentally observed in [Series GSE56098](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE56098).
-
-## Usage
-```
-isChIP [options] -g|--gen <name> [<template>]
-	<template> - bed file whose features specify binding sites (BS)
-```
 
 ### Help
 ```
@@ -429,12 +442,6 @@ The total number of chromosomes is restricted by 255.<br>
 By permitted maximum values of lognormal mean = 9 and sd = 1.0 the maximum generated fragment length is about 1200 kb, 
 average length is about 13 kbp.
 
-### Performance
-On 2.5 GHz RAID HPC by default values of ground samples, in one-thread mode, within 1 minute **isChIP** records:<br>
-- in *test* mode about 1,000,000 reads (16,500 read/sec);<br>
-- in *control* mode about 60,000,000 reads (1,000,000 read/sec).<br>
-The required memory is linearly proportional to the number of threads. For one thread, it does not exceed 300 Mb.
-
 ## Model: brief description
 The real protocol of ChIP-seq is simulated by repeating the basic cycle, performed for each treated chromosome (twice for autosomes). 
 The basic cycle consists of the next phases:
@@ -473,11 +480,12 @@ On this basis, the size selection in **isChIP** is carried out according to the 
 By default, its mean is automatically adjusted so that its mode coincides with the mode of an initial lognormal distribution. 
 This provides the least computational loss. Of course the size selection mean can be set by the user. 
 But in this case, one should bear in mind the decrease in output, the more, the further the size selection mode is from the lognormal mode 
-(yellow graph in the figure of model distribution).
+(yellow graph in the figure of model distributions).
 
 To facilitate the adjustment of distribution parameters use a specialized Windows utility [**RandomTest**](https://github.com/fnaumenko/RandomTest-Win). 
 It visualizes the initial lognormal as well as the final distribution of fragments after size selection, 
 and allows you to quickly fit the parameters for the desired distribution.
+
 
 
 ##
