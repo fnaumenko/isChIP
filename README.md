@@ -430,7 +430,7 @@ By permitted maximum values of lognormal mean = 9 and sd = 1.0 the maximum gener
 average length is about 13 kbp.
 
 ### Performance
-On 2.5 GHz RAID HPC by default values of ground samples, in one-thread mode, within 1 minute **isCIP** records:<br>
+On 2.5 GHz RAID HPC by default values of ground samples, in one-thread mode, within 1 minute **isChIP** records:<br>
 in *test* mode about 1,000,000 reads (16,500 read/sec);<br>
 in *control* mode about 60,000,000 reads (1,000,000 read/sec).
 
