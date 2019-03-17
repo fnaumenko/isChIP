@@ -461,7 +461,7 @@ In practice, the distribution parameters can vary widely:<br>
 
 By default, the values of the lognormal *sigma* and *mean* are selected in **isChIP** so 
 as to provide the most frequently observed distribution with mode of 200:<br>
-![Model Distribution](https://github.com/fnaumenko/isChIP/blob/master/pict/isChIP_fragDistr_label_.png))
+![Model Distribution](https://github.com/fnaumenko/isChIP/blob/master/pict/isChIP_fragDistr_label_.png)
 
 Fragment size selection can be performed in different techniques, e.g. by using magnetic beads or by manual cutting of the gel strip. 
 Nevertheless, it is safe to assume the general normal character of size selection:<br>
