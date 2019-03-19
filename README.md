@@ -35,7 +35,7 @@ g++<br>
 pthread<br>
 zlib (optionally)
 
-Go to the desired directory and type:<br>
+Type in the desired directory:<br>
 ```wget -O isChIP.zip https://github.com/fnaumenko/isChIP/archive/1.0.zip```<br>
 ```unzip isChIP.zip```<br>
 ```cd isChIP-1.0```<br>
@@ -47,10 +47,9 @@ For this open *makefile* in any text editor, uncomment last macro in the second 
 To be sure about **zlib** on your system, type ```whereis zlib```.
 
 ### Prepare reference genome
-Download the required reference genome from [UCSC](ftp://hgdownload.soe.ucsc.edu/goldenPath/)/<br>
-For example, to download mouse library **mm9**:
-
-**Linux**<br>
+Download the required reference genome from UCSC: *ftp://hgdownload.soe.ucsc.edu/goldenPath/*<br>
+For example, to download mouse library **mm9**:<br>
+**in Linux**<br>
 type commands:<br>
 ```mkdir mm9```<br>
 ```cd mm9```<br>
@@ -60,9 +59,8 @@ The alternative way:<br>
 ```mv hgdownload.soe.ucsc.edu/goldenPath/mm9/chromosomes mm9```<br>
 ```rm -r hgdownload.soe.ucsc.edu```<br>
 If you do not want to keep unused modifications, type<br>
-```rm mm9/*_random*```
-
-**Windows**<br>
+```rm mm9/*_random*```<br>
+**in Windows**<br>
 copy and paste the string *ftp://hgdownload.soe.ucsc.edu/goldenPath/mm9/chromosomes/* into Windows browser address bar, 
 then copy *.fa.gz files to your local directory.<br>
 Alternatively use FTP client, e.g. [FileZilla](https://filezilla-project.org/).
@@ -165,7 +163,7 @@ The simplest way to ensure this is to pre-sort the file.
 
 *Note:*<br>
 Enumerable option values are case insensitive.<br>
-Compressed input files in gzip format (.gz) are acceptable.
+Compressed input files (.gz) are acceptable.
 
 ```-g|--gen <name>```<br>
 Reference genome library, or single nucleotide sequence.<br>
@@ -457,7 +455,7 @@ are adjusted correspondingly to those in real ChIP-Seq experiment.
 The model was developed by [Dr. Tatiana Subkhankulova](https://www.linkedin.com/in/tatiana-subkhankulova-0876a240), University of Cambridge.
 
 ## Fragments distribution and size selection
-The lognormal distribution of fragments by shearing chromatin based on sonication confirmed by many researches.<br>
+The lognormal distribution of fragments by shearing chromatin based on sonication is confirmed by many researches.<br>
 In practice, the distribution parameters can vary widely:<br>
 ![Real Distributions](https://github.com/fnaumenko/isChIP/blob/master/pict/fragDistr_ChIP-seq_label_small.png) 
 
@@ -471,8 +469,9 @@ On this basis, the default values of the lognormal *sigma* and *mean* are select
 as to provide the most frequently observed distribution with mode of 200.<br>
 The size selection in **isChIP** is carried out according to the normal distribution. 
 By default, its *mean* is automatically adjusted so that it coincides with the mode of an initial lognormal distribution. 
-This provides the least computational loss. Of course the size selection mean can be set by the user. 
-But in this case, one should bear in mind the decrease in output, the more, the further the size selection mean is from the lognormal mode (yellow graph):<br>
+This provides the least computational loss. Of course the size selection mean can be set by user. 
+But in this case, one should bear in mind the decrease in output, the more, the further the size selection mean is from the lognormal mode 
+(yellow graph):<br>
 ![Model Distribution](https://github.com/fnaumenko/isChIP/blob/master/pict/isChIP_fragDistr_label_.png)
 
 To facilitate the adjustment of distribution parameters use a specialized Windows utility [**RandomTest**](https://github.com/fnaumenko/RandomTest-Win). 
