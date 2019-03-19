@@ -12,23 +12,22 @@ in *control* mode up to 60,000,000 reads (1,000,000 read/sec).<br>
 The required memory is linearly proportional to the number of threads. For one thread, it does not exceed 300 Mb.
 
 ### Navigation:
-1. [Installation](#installation)<br>
-2. [Usage](#usage)<br>
-3. [Details](#details)<br>
-4. [Model: brief description](#model-brief-description)<br>
-5. [Fragments distribution and size selection](#fragments-distribution-and-size-selection)
+  [Installation](#installation)<br>
+  [Usage](#usage)<br>
+  [Details](#details)<br>
+  [Model: brief description](#model-brief-description)<br>
+  [Fragments distribution and size selection](#fragments-distribution-and-size-selection)
 
 ## Installation
 ### Executable file
 
-**Linux**<br>
-Go to the desire directory and type commands:<br>
+[Download Linux version](https://github.com/fnaumenko/isChIP/releases/download/1.0/isChIP-Linux-x64.gz)<br>
+[Download Windows version](https://github.com/fnaumenko/isChIP/releases/download/1.0/isChIP-Windows-x64.zip)
+
+Alterative for Linux: type in the desired directory:<br>
 ```wget -O isChIP.gz https://github.com/fnaumenko/isChIP/releases/download/1.0/isChIP-Linux-x64.gz```<br>
 ```gzip -d isChIP.gz```<br>
 ```chmod +x isChIP```
-
-**Windows**<br>
-Download archive from [here](https://github.com/fnaumenko/isChIP/releases/download/1.0/isChIP-Windows-x64.zip) and unzip by any archiver, for instance [WinRar](https://www.win-rar.com/download.html?&L=0).
 
 ### Compiling in Linux
 Required libraries:<br>
@@ -36,20 +35,20 @@ g++<br>
 pthread<br>
 zlib (optionally)
 
-Go to the desired directory and type commands:<br>
+Go to the desired directory and type:<br>
 ```wget -O isChIP.zip https://github.com/fnaumenko/isChIP/archive/1.0.zip```<br>
 ```unzip isChIP.zip```<br>
 ```cd isChIP-1.0```<br>
 ```make```
 
-If **zlib** is not installed on your system, a linker message will be displayed.<br>
-In that case you can compile the program without the ability to work with .gz files: 
-open *makefile* in any text editor, uncomment last macro in the second line, comment third line, save *makefile*, and try ```make``` again.<br>
+If **zlib** is not installed on your system, the linker will display a message.<br>
+In that case you can compile the program without the ability to work with .gz files. 
+For this open *makefile* in any text editor, uncomment last macro in the second line, comment third line, save *makefile*, and try ```make``` again.<br>
 To be sure about **zlib** on your system, type ```whereis zlib```.
 
 ### Prepare reference genome
-Download the required reference genome from UCSC: ftp://hgdownload.soe.ucsc.edu/goldenPath/<br>
-For example, to download mouse library **mm9** go to the desired directory and:
+Download the required reference genome from UCSC: *ftp://hgdownload.soe.ucsc.edu/goldenPath/*<br>
+For example, to download mouse library **mm9**:
 
 **Linux**<br>
 type commands:<br>
@@ -64,9 +63,9 @@ If you do not want to keep unused modifications, type<br>
 ```rm mm9/*_random*```
 
 **Windows**<br>
-Copy and paste the string ftp://hgdownload.soe.ucsc.edu/goldenPath/mm9/chromosomes/ into Windows browser address bar, 
+copy and paste the string *ftp://hgdownload.soe.ucsc.edu/goldenPath/mm9/chromosomes/* into Windows browser address bar, 
 then copy *.fa.gz files to your local directory.<br>
-The alternative way: use FTP client, f.e. [FileZilla](https://filezilla-project.org/).
+Alternatively use FTP client, e.g. [FileZilla](https://filezilla-project.org/).
 
 ## Usage
 ```
@@ -114,7 +113,7 @@ Reads:
                         NONE - nothing
                         NUMB - read`s unique number across genome
                         POS  - read`s actual start position [NONE]
-  --rd-Nlim <int>       maximum permitted number of ambiguous characters 'N' in read [-read-len]
+  --rd-Nlim <int>       maximum permitted number of ambiguous characters 'N' in read [OFF]
   --rd-lim <long>       maximum permitted number of total recorded reads [2e+08]
   --rd-ql <char>        uniform quality value for the sequence  [~]
   --rd-ql-patt <name>   quality values pattern for the sequence 
@@ -143,7 +142,7 @@ Other:
 
 ### Mode
 
-**isChIP** generates output in one of three modes:<br>
+**isChIP** generates output in one of two modes:<br>
 *test* – simulation of site of interest sequencing; the output is test sequences/alignment<br>
 *control* – simulation of control production; the output is 'input' sequences/alignment.<br>
 They are distinguished only by involvement or elimination of sites of interest in a process. 
@@ -187,7 +186,7 @@ See also ```--bg-all``` and ```–c|--chr ``` options.
 **isChIP** omits  'random' contigs and haplotype sequences.
 One can obtain a genome library in  UCSC: ftp://hgdownload.soe.ucsc.edu/goldenPath/ or in Ensemble: ftp://ftp.ensembl.org/pub/release-73/fasta storage. 
 In the second case please copy genomic sequences with the same masked type only, 
-f.e. unmasked (‘dna'), since program does not recognise mask’s types.<br>
+e.g. unmasked (‘dna'), since program does not recognise mask’s types.<br>
 This option is required.
 
 ```-n|--cells <int>```<br>
