@@ -468,13 +468,13 @@ This is also confirmed by the real fragment frequency distributions in the first
 In particular, experiments SRR408580 (in green) and SRR965509 (in yellow) were clearly carried out using some size selection technique.<br>
 
 On this basis, the default values of the lognormal *sigma* and *mean* are selected in **isChIP** so 
-as to provide the most frequently observed distribution with mode of 200:<br>
-![Model Distribution](https://github.com/fnaumenko/isChIP/blob/master/pict/isChIP_fragDistr_label_.png)<br>
+as to provide the most frequently observed distribution with mode of 200.<br>
 The size selection in **isChIP** is carried out according to the normal distribution. 
 By default, its *mean* is automatically adjusted so that its mode coincides with the mode of an initial lognormal distribution. 
 This provides the least computational loss. Of course the size selection mean can be set by the user. 
 But in this case, one should bear in mind the decrease in output, the more, the further the size selection mode is from the lognormal mode 
-(yellow graph in the figure of model distributions).
+(yellow graph):<br>
+![Model Distribution](https://github.com/fnaumenko/isChIP/blob/master/pict/isChIP_fragDistr_label_.png)
 
 To facilitate the adjustment of distribution parameters use a specialized Windows utility [**RandomTest**](https://github.com/fnaumenko/RandomTest-Win). 
 It visualizes the initial lognormal as well as the final distribution of fragments after size selection, 
