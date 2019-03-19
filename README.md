@@ -472,8 +472,7 @@ as to provide the most frequently observed distribution with mode of 200.<br>
 The size selection in **isChIP** is carried out according to the normal distribution. 
 By default, its *mean* is automatically adjusted so that its mode coincides with the mode of an initial lognormal distribution. 
 This provides the least computational loss. Of course the size selection mean can be set by the user. 
-But in this case, one should bear in mind the decrease in output, the more, the further the size selection mode is from the lognormal mode 
-(yellow graph):<br>
+But in this case, one should bear in mind the decrease in output, the more, the further the size selection mean is from the lognormal mode (yellow graph):<br>
 ![Model Distribution](https://github.com/fnaumenko/isChIP/blob/master/pict/isChIP_fragDistr_label_.png)
 
 To facilitate the adjustment of distribution parameters use a specialized Windows utility [**RandomTest**](https://github.com/fnaumenko/RandomTest-Win). 
