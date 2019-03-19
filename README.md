@@ -47,7 +47,7 @@ For this open *makefile* in any text editor, uncomment last macro in the second 
 To be sure about **zlib** on your system, type ```whereis zlib```.
 
 ### Prepare reference genome
-Download the required reference genome from UCSC: *ftp://hgdownload.soe.ucsc.edu/goldenPath/*<br>
+Download the required reference genome from [UCSC](https://hgdownload.soe.ucsc.edu/goldenPath)/<br>
 For example, to download mouse library **mm9**:
 
 **Linux**<br>
