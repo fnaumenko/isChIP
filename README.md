@@ -464,7 +464,7 @@ In practice, the distribution parameters can vary widely:<br>
 Fragment size selection can be performed in different techniques, e.g. by using magnetic beads or by manual cutting of the gel strip. 
 Nevertheless, it is safe to assume the general normal character of size selection:<br>
 ![Size Selection](https://github.com/fnaumenko/isChIP/blob/master/pict/Mag-Bind_label.png)<br>
-This is also confirmed by the real fragment frequency distributions in the figure above. 
+This is also confirmed by the real fragment frequency distributions in the first figure. 
 In particular, experiments SRR408580 (in green) and SRR965509 (in yellow) were clearly carried out using some size selection technique.<br>
 
 On this basis, the default values of the lognormal *sigma* and *mean* are selected in **isChIP** so 
