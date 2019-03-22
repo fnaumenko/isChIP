@@ -1,3 +1,10 @@
+/**********************************************************
+TxtFile.cpp (c) 2014 Fedor Naumenko (fedor.naumenko@gmail.com)
+All rights reserved.
+Last modified: 21.03.2019
+Provides read|write text file functionality
+***********************************************************/
+
 #include "TxtFile.h"
 #ifndef _FILE_WRITE
 #include <fstream>

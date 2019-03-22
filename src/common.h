@@ -1,3 +1,10 @@
+/**********************************************************
+common.h (c) 2014 Fedor Naumenko (fedor.naumenko@gmail.com)
+All rights reserved.
+Last modified: 21.03.2019
+Provides common functionality
+***********************************************************/
+
 #pragma once
 #include "def.h"
 #include <string>
@@ -1016,6 +1023,8 @@ public:
 
 #endif	// _MULTITHREAD
 
+#ifndef _ISCHIP
+
 template <typename T> class Array
 {
 protected:
@@ -1100,6 +1109,8 @@ public:
 	}
 #endif	// _DEBUG
 };
+
+#endif	// _ISCHIP
 
 // 'Chrom' establishes correspondence between chromosome's ID and it's name.
 static class Chrom
@@ -1313,7 +1324,7 @@ public:
 	//	@strand: strand
 	//	@score: score
 	Read(chrlen pos, chrid cid, chrlen num, char strand, readscr score)
-		: Pos(pos), InitCID(cid), Num(num), PosStrand(strand), Score(score) {}
+		: _pos(pos), InitCID(cid), Num(num), PosStrand(strand), Score(score) {}
 #elif defined _FRAGPRO
 	chrlen	Numb;				// read number keeped in name
 	bool	Strand;			// true if strand is positive
