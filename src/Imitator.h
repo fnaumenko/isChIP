@@ -1,3 +1,9 @@
+/**********************************************************
+Imitator.h (c) 2014 Fedor Naumenko (fedor.naumenko@gmail.com)
+All rights reserved.
+Last modified: 21.03.2019
+Provides chip-seq imitation functionality
+***********************************************************/
 #pragma once
 #include "OutTxtFile.h"
 #include "effPartition.h"

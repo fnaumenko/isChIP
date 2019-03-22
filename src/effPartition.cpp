@@ -1,10 +1,12 @@
-/*
- * Effective Partition Problem (optimization version) solution
- * by Fedor Naumenko (fedor.naumenko@gmail.com), 2018
- * 
- * Effectively distributes a set of input positive integers into k subsets,
- * such that the difference between the subset sums is minimized.
-*/
+/**********************************************************
+effPartition.cpp (c) 2014 Fedor Naumenko (fedor.naumenko@gmail.com)
+All rights reserved.
+Last modified: 21.03.2019
+
+Effective Partition Problem (optimization version) solution
+Effectively distributes a set of input positive integers into k subsets,
+such that the difference between the subset sums is minimized.
+***********************************************************/
 
 #include "effPartition.h"
 #include <iostream>

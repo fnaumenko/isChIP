@@ -1,3 +1,9 @@
+/**********************************************************
+OutTxtFile.h (c) 2014 Fedor Naumenko (fedor.naumenko@gmail.com)
+All rights reserved.
+Last modified: 21.03.2019
+Provides output text files functionality
+***********************************************************/
 #pragma once
 #include <fstream>		// Frag freguency ofstream
 #include "Data.h"
@@ -547,7 +553,7 @@ public:
 
 // 'Coverages' represets 3 chrom's fragment coìerage data pointers,
 //	keeping indepentently in WigOutFiles duplicates
-struct Coverages
+class Coverages
 {
 private:
 	static const BYTE Count = 3;
@@ -568,7 +574,7 @@ public:
 	// Adds PE fragment to coverage
 	//	@pos: frag's position
 	//	@len: frag's length
-	inline void AddFrag(chrlen pos, fraglen len) {	_covers[Count-1]->AddFrag(pos, len); }
+	inline void AddFrag(chrlen pos, fraglen len) { _covers[Count-1]->AddFrag(pos, len); }
 };
 
 // 'WigOutFiles' implements methods for writing 1 or 3 WIG files
@@ -684,28 +690,26 @@ private:
 		static tpAddRead	pAddRead;
 		// pointer to the 'Adds additional info to the Read name' method
 		static tpAddRInfo	pAddReadInfo;	
-
-		static float StrandErrProb;		// the probability of strand error
+		// total Read counter within instance; only for Read's name included number
+		static ULLONG	rCnt;
+		static float	StrandErrProb;		// the probability of strand error
 
 		FqOutFile	* _fqFile1;	// mate1 or single output FQ
 		FqOutFile	* _fqFile2;	// mate2 output FQ
 		BedROutFile	* _bedFile;	// output BED
 		SamOutFile	* _samFile;	// output SAM
 		WigOutFiles	* _wigFile;	// output WIG
-		Coverages	_covers;	// Coverage pointers for WIG; each own for each duplicate
+		Coverages	_covers;	// Coverage pointers for WIG; each own for each clone
 		ReadName	_rName;		// Read's name; local for clone independence
-		Random	_rng;	// random number generator; local for clone independence
-		ULLONG	_rCnt;	// total Read counter within instance; only for Read's name included number
-		ULLONG*	_prCnt;	// pointer to total Read counter within instance; used if instance is a clone
-		bool	_primer;// true if file is primer (not clone); only for WigOutFile
-		//Array<int>	_freq;	// accumulative frequency of stranf=d error cases
+		Random	_rng;			// random number generator; local for clone independence
+		bool	_primer;		// true if file is primer (not clone); only for WigOutFile
 
 		// Methods of adding additional info to the Read name
 		inline void RNameEmpty	  (chrlen, fraglen)			{};
 		inline void RNameAddVal	  (chrlen pos, fraglen)		{ _rName.AddVal(pos); }
 		inline void RNameAddTwoPos(chrlen pos, fraglen len)	{ _rName.AddTwoPos(pos, pos + len); }
 		inline void RNameAddNumb  (chrlen, fraglen)			{ 
-			_rName.AddVal(MultiThread ? InterlockedIncrement(_prCnt) : ++_rCnt);
+			_rName.AddVal(MultiThread ? InterlockedIncrement(&rCnt) : ++rCnt);
 		}
 
 		// Adds one SE Read

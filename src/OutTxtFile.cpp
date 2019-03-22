@@ -1,5 +1,11 @@
+/**********************************************************
+OutTxtFile.cpp (c) 2014 Fedor Naumenko (fedor.naumenko@gmail.com)
+All rights reserved.
+Last modified: 21.03.2019
+Provides output text files functionality
+***********************************************************/
+
 #include "OutTxtFile.h"
-//#include "Imitator.h"
 
 /************************ class Random ************************/
 int Random::Seed;
@@ -497,7 +503,7 @@ void Coverage::AddFrag(chrlen pos, fraglen len)
 
 /************************ class Coverage: end ************************/
 
-/************************ struct Coverages ************************/
+/************************ class Coverages ************************/
 
 // Adds SE fragment to coverage
 //	@pos: frag's position
@@ -505,11 +511,11 @@ void Coverage::AddFrag(chrlen pos, fraglen len)
 //	@reverse: true if read is reversed (neg strand)
 void Coverages::AddFrag(chrlen pos, fraglen len, bool reverse)
 {
-	_covers[Count-1]->AddFrag(pos, len);
-	if(_covers[0])	_covers[reverse]->AddFrag(pos, len);
+	_covers[Count-1]->AddFrag(pos, len);					// common coverage
+	if(_covers[0])	_covers[reverse]->AddFrag(pos, len);	// strand coverage
 }
 
-/************************ struct Coverages: end ************************/
+/************************ Coverages: end ************************/
 
 /************************ class WigOutFile ************************/
 
@@ -670,7 +676,8 @@ void WigOutFiles::PrintNames() const
 OutFiles::OutFile::tpAddRead	OutFiles::OutFile::pAddRead = &OutFiles::OutFile::AddReadSE;
 OutFiles::OutFile::tpAddRInfo	OutFiles::OutFile::pAddReadInfo;
 
-float	OutFiles::OutFile::StrandErrProb;		// the probability of strand error
+ULLONG	OutFiles::OutFile::rCnt = 0;		// total Read counter within instance
+float	OutFiles::OutFile::StrandErrProb;	// the probability of strand error
 
 // Creates and initializes new instance for writing.
 //	@fName: common file name without extention
@@ -680,17 +687,12 @@ float	OutFiles::OutFile::StrandErrProb;		// the probability of strand error
 //	@commLine: command line
 OutFiles::OutFile::OutFile(const string& fName, const ChromSizes* cSizes,
 	const ChromFiles& cFiles, ReadQualPattern& rqPatt, const string& commLine) :
-	_bedFile(NULL),
-	_samFile(NULL),
-	_wigFile(NULL),
-	_rCnt(0),
-	_prCnt(&_rCnt),
-	_primer(true)
+	_bedFile(NULL), _samFile(NULL), _wigFile(NULL), _primer(true)
 {
 	_fqFile1 = _fqFile2 = NULL;
 
 	if(HasFormat(ofFQ)) {
-		_fqFile1 = new FqOutFile(fName + "_1", _rName, rqPatt);
+		_fqFile1 = new FqOutFile(Seq::IsPE() ? fName + "_1" : fName, _rName, rqPatt);
 		if(Seq::IsPE())
 			_fqFile2 = new FqOutFile(fName + "_2", _rName, rqPatt);
 	}
@@ -705,7 +707,7 @@ OutFiles::OutFile::OutFile(const string& fName, const ChromSizes* cSizes,
 // Clone constructor for multithreading
 //	@file: original instance
 //	@threadNumb: number of thread
-OutFiles::OutFile::OutFile(const OutFile& file) : _rCnt(0), _prCnt(file._prCnt), _primer(false)
+OutFiles::OutFile::OutFile(const OutFile& file) : _primer(false)
 {
 	_fqFile1 = file._fqFile1 ? (FqOutFile*)new ExtOutFile(*file._fqFile1) : NULL;	// non own members
 	_fqFile2 = file._fqFile2 ? (FqOutFile*)new ExtOutFile(*file._fqFile2) : NULL;	// non own members

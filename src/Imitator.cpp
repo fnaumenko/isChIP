@@ -1,3 +1,10 @@
+/**********************************************************
+Imitator.cpp (c) 2014 Fedor Naumenko (fedor.naumenko@gmail.com)
+All rights reserved.
+Last modified: 21.03.2019
+Provides chip-seq imitation functionality
+***********************************************************/
+
 #include "isChIP.h"
 #include "Imitator.h"
 #include <algorithm>    // std::sort
@@ -550,11 +557,11 @@ void Imitator::ChromView::Init(ULONG maxCnt, float sample, float maxDens)
 	CountW = DigitsCount(maxCnt, Options::GetBVal(oLOCALE)) + 1;	// +1 for total
 	//if(!CountW)		CountW = 1;		// if BG level is 0
 	sample *= 100;
-	if(sample <= 0.01)		SampleW = 7;		// 0.0012%
-	else if(sample <= 0.1)	SampleW = 6;		// 0.012%
-	else if(sample <= 1)	SampleW = 5;		// 0.12%
-	else if(sample < 10)	SampleW = 4;		// 1.2%
-	else if(sample < 100)	SampleW = 3;		// 12%
+	if(sample <= 0.01)		SampleW = 7;		// 0.0099%
+	else if(sample <= 0.1)	SampleW = 6;		// 0.099%
+	else if(sample <= 1.1)	SampleW = 5;		// 0.99%
+	else if(sample < 10.1)	SampleW = 4;		// 9.9%
+	else if(sample < 100)	SampleW = 3;		// 99%
 	else					SampleW = 4;		// 100%
 	DensMax = maxDens;
 	if(maxDens < 0.015)		DensW = 6, DensPr = 3;	// 0.0012
@@ -983,23 +990,23 @@ void Imitator::Execute(BedF* templ)
 // Curs genome into fragments and generate output
 void Imitator::CutGenome	()
 {
-	Array<Thread*> slaves(ThrCnt-1);
-	effPartition cSets(_cFiles, thrid(slaves.Length()+1));
+	effPartition cSets(_cFiles, thrid(ThrCnt));
+	vector<Thread*> slaves;
+	slaves.reserve(--ThrCnt);	// temporary decrement ThrCnt
 	
-	if( slaves.Length() && Verbose(vDBG))	cSets.Print();
-	
+	if( ThrCnt && Verbose(vDBG))	cSets.Print();
 	if(FlatLen < 0)		FlatLen = -FlatLen;
 	SetSample();
 	PrintHeader(true);
-	for(BYTE i=0; i<slaves.Length(); i++)	// invoke slave threads
-		slaves[i] = new Thread(StatCutChrom, &cSets[i+1]);
-	CutChrom(cSets[0], false);				// invoke main thread
-	// wait for slave threads finishing
-	for(BYTE i=0; i<slaves.Length(); i++) {
-		slaves[i]->WaitFor();
+	for(BYTE i=1; i<=ThrCnt; i++)	// invoke slave threads
+		slaves.push_back(new Thread(StatCutChrom, &cSets[i]));
+	CutChrom(cSets[0], false);		// invoke main thread
+	for(BYTE i=0; i<ThrCnt; i++) {
+		slaves[i]->WaitFor();		// wait for slave threads finishing
 		delete slaves[i];
 	}
 	PrintHeader(false);
+	//ThrCnt++;					// restore ThrCnt just in case
 }
 
 // Sets adjusted Sample and clear all counter and means.
