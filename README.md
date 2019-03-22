@@ -41,10 +41,7 @@ Type in the desired directory:<br>
 ```cd isChIP-1.0```<br>
 ```make```
 
-If **zlib** is not installed on your system, the linker will display a message.<br>
-In that case you can compile the program without the ability to work with .gz files. 
-For this open *makefile* in any text editor, uncomment last macro in the second line, comment third line, save *makefile*, and try ```make``` again.<br>
-To be sure about **zlib** on your system, type ```whereis zlib```.
+If **zlib** is not installed on your system, the program will be compiled without the ability to read/write compressed files.
 
 ### Prepare reference genome
 Download the required reference genome from UCSC: *ftp://hgdownload.soe.ucsc.edu/goldenPath/*<br>
