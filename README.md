@@ -63,7 +63,7 @@ copy and paste the string *ftp://hgdownload.soe.ucsc.edu/goldenPath/mm9/chromoso
 then copy *.fa.gz files to your local directory.<br>
 Alternatively use FTP client, e.g. [FileZilla](https://filezilla-project.org/).
 
-To download hg19 library, in the above example replace 'mm9' with 'hg19'.
+To download **hg19** library, in the above example replace '**mm9**' with '**hg19**'.
 
 ## Usage
 ```
