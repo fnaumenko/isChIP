@@ -124,7 +124,7 @@ Output:
                         [Test mode: mTest.*, Control mode: mInput.*]
   -z|--gzip             compress the output
 Other:
-  -t|--time             print run time
+  -t|--time             print runtime
   -V|--verbose <SL|RES|RT|PAR|DBG>      set verbose level:
                         SL -    silent mode (show critical messages only)
                         RES -   show result summary
@@ -167,9 +167,9 @@ Compressed input files (.gz) are acceptable.
 ```-g|--gen <name>```<br>
 Reference genome library. It is a directory contained nucleotide sequences for each chromosome in [FASTA](https://en.wikipedia.org/wiki/FASTA_format) format.<br>
 First **isChIP** searches .fa files in it. If there are not such files, 
-or the file corresponded to chromosome specified by option ```–c|--chr``` option is absent, **isChIP** searches .fa.gz files.<br>
+or the file corresponded to chromosome specified by option ```–c|--chr``` is absent, **isChIP** searches .fa.gz files.<br>
 In *test* mode the target references are determined by *template*. 
-See [Template](#template) and ```--bg-all``` and ```–c|--chr ``` options. 
+See [Template](#template) and ```--bg-all``` and ```–c|--chr ``` options.<br>
 **isChIP** omits  'random' contigs and haplotype sequences.
 One can obtain a genome library in  UCSC: ftp://hgdownload.soe.ucsc.edu/goldenPath/ or in Ensemble: ftp://ftp.ensembl.org/pub/release-73/fasta storage. 
 In the second case please copy genomic sequences with the same masked type only, 
@@ -222,12 +222,12 @@ Default: 100
 
 ```--bg-all <OFF|ON>```<br>
 In *test* mode turn off/on background generation for all chromosomes, whether or not they are presented in *template*.<br>
-Mapping one chromosome to the whole reference genome leads to the appearance of short local lacks of alignment, 
+Mapping one or several few chromosomes to the whole reference genome leads to the appearance of short local lacks of alignment, 
 ‘gaps’, corresponding to low mappability regions. This is true for all aligners. 
 Generation background for all chromosomes eliminates this issue.<br>
 Note that this process is time consuming, and is justified only in case of using subsequent alignment, 
 for example, for comparison with experimental FastQ, or to validate aligners. 
-When validating peak detectors on one or some chromosomes, it is more advantageous to use a direct SAM output format (see ```-f|--format```).<br>
+When validating peak detectors on one or some chromosomes, it is more advantageous to use a direct SAM output.<br>
 The established option ```-c|--chr``` makes this option negligible.<br>
 In *control* mode is ignored.<br>
 Default: ```ON```
@@ -242,7 +242,7 @@ If the specified chromosome is absent in *template*, the program has nothing to 
 ```-N|--full-size```<br>
 Forces to scan the entire reference chromosome, including gaps at each end (‘undefined telomeres’).<br>
 By default these gaps are excluded from processing.<br>
-This permission makes no difference in data after alignment, but slightly increases the output volume and the run time. 
+This permission makes no difference in data after alignment, but slightly increases the output volume and the runtime. 
 For instance, when simulation on the basis of mm9 genome, this option increases both values by about 2.4%. 
 For the hg19 genome the difference is about 0.1%.
 
@@ -321,7 +321,7 @@ while simulated reads are fully defined by reference library.
 Consequently the ambiguous bases in the library are translated into reads. 
 Different aligners considered these codes differently: some of them as invalid, some of them as an overlapping case.<br>
 Range: 0 - <```-r|--rd-len``` value><br>
-Default: ```-r|--rd-len``` value (what is the same as no checkup)
+Default: ```-r|--rd-len``` value (which means no checkup)
 
 ```--rd-lim <long>```<br>
 Maximum number of total written reads. The value emulates sequencer’s limit. 
@@ -377,14 +377,14 @@ The control file has the same name as the test, with the suffix '_input'.<br>
 In *control* mode is ignored.
 
 ```-S|--strand```<br>
-In addition to the WIG format forces to generate two additional wig files, each one per strand.<br> 
+In addition to the ```WIG``` format forces to generate two additional wig files, each one per strand.<br> 
 Is valid only in ```SE``` sequencing mode.
 
 ```-o|--out <file>```<br>
 Output files location. If option’s value is a file, it is used as a common file name. 
 If file has an extension, it is discarded. If value is a directory, the default file name is used.<br>
 Default: *test* mode: **mTest.\***, *control* mode: **mInput.\***
-d
+
 ```-V|--verbose <SL|RES|RT|PAR|DBG>```<br>
 Set verbose level:<br>
 ```SL```	silent mode: no output except critical messages<br>
@@ -414,11 +414,11 @@ total recorded reads:: test: 1037957, control: 993378
 * ```FG, BG``` – foreground (peak), background data (in test mode, in control mode just one background)
 * ```reads``` – number of recorded reads
 * ```sample``` – actual sample: the number of recorded reads relative to the number of selected ones, in percent. Selected means the reads derived from fragments passed through the size selection filter. 
-The actual sample may be reduced because of the next reasons: user-defined and/or scalable sample, different template feature’s score (for the foreground reads), exceeding the maximum number of ambiguous reference characters ‘N’ in read. 
+The actual sample may be reduced because of the next reasons: user-defined and/or scalable sample, different template feature’s score (for the foreground reads), exceeding the maximum number of ambiguous code N in read. 
 Amplified reads are not included in the sample statistics;
 * ```r/kbp``` – actual read density, in read per 1000 base pair;
 * ```gaps``` – total fraction of reference undefined regions (gaps); only in ```PAR``` and ```DBG``` verbose mode;
-* ```g_excl``` – fraction of reference undefined regions (gaps) excluded from treatment; only in ```PAR``` and ```DBG``` verbose mode;
+* ```g_excl``` – fraction of at each end excluded from treatment; only in ```PAR``` and ```DBG``` verbose mode;
 * ```mm:ss``` – wall time (only if ```–t|--time``` option is set)
 
 ### Limitation
