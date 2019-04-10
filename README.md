@@ -9,7 +9,7 @@ For more information about model see [Model: brief description](#model-brief-des
 On 2.5 GHz RAID HPC by default values of ground samples, in one-thread mode, within 1 minute **isChIP** records:<br>
 in *test* mode up to 2 million reads (33 Kread/sec);<br>
 in *control* mode up to 66 million reads (1.1 Mread/sec).<br>
-First run is a bit slower because of creating chromosomes sizes and region files.<br>
+The first run is a bit slower because of creating chromosomes sizes and region files.<br>
 The required memory is linearly proportional to the number of threads. For one thread, it does not exceed 300 Mb.
 
 ### Navigation:
