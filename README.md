@@ -56,7 +56,7 @@ The alternative way:<br>
 ```wget -r ftp://hgdownload.soe.ucsc.edu/goldenPath/mm9/chromosomes/```<br>
 ```mv hgdownload.soe.ucsc.edu/goldenPath/mm9/chromosomes mm9```<br>
 ```rm -r hgdownload.soe.ucsc.edu```<br>
-Unplaced (chr*_random) and unlocalized (chrUn_*) sequences are not involved in modelling, 
+Unplaced (chr\*_random) and unlocalized (chrUn_\*) sequences are not involved in modelling, 
 so you can delete them by typing<br>
 ```rm mm9/*_*```<br>
 **in Windows**<br>
