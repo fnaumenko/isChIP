@@ -1,17 +1,19 @@
 /************************************************************************************
-	isChIP (In-Silico ChIP) is a fast realistic ChIP-seq simulator.
-	The model is based on the real protocol of ChIP-seq 
-	and was developed by Dr. T.Subkhankuliva (subkhankul@hotmail.com)
+isChIP (In-Silico ChIP) is a fast realistic ChIP-seq simulator.
+The model is based on the real protocol of ChIP-seq 
 
-	Copyright (C) 2014-2019 Fedor Naumenko (fedor.naumenko@gmail.com)
+Copyright (C) 2014-2019 Fedor Naumenko (fedor.naumenko@gmail.com)
+-------------------------
+Last modified: 10.04.2019
+-------------------------
 
-	Path to UCSC reference genome: ftp://hgdownload.soe.ucsc.edu/goldenPath/
+This program is free software.
+It is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+GNU General Public License for more details.
 
-	This program is free software.
-	It is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
-	without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-	GNU General Public License for more details.
- ************************************************************************************/
+Path to UCSC reference genome: ftp://hgdownload.soe.ucsc.edu/goldenPath/
+************************************************************************************/
 
 #include "isChIP.h"
 #include "Imitator.h"
@@ -50,12 +52,11 @@ pairVal flattens = make_pair(0, 0);
 
 const char* ForTest = "For the test mode only";
 
-//	{ char,	str,	Signs,	type,	group,	defVal,	minVal,	maxVal,	strVal,	descr, addDescr }
-// field 7: vUNDEF if value is prohibited
-// field 6: vUNDEF if no default value should be printed
+// { char, str, Signs, type, group, defVal, minVal, maxVal, strVal, descr, addDescr }
+// defVal: vUNDEF if no default value should be printed
+// minVal: vUNDEF if value is prohibited
 Options::Option Options::List [] = {
-	{ 'g',"gen",	1,	tNAME,	gTREAT, vUNDEF, 0, 0, NULL,
-	"reference genome library or single nucleotide sequence.", NULL },
+	{ 'g',"gen",	1,	tNAME,	gTREAT, vUNDEF, 0, 0, NULL, "reference genome library.", NULL },
 	{ 'n',"cells",	0,	tINT,	gTREAT, 1, 1, 2e6, NULL, "number of cells", NULL },
 	{ HPH,"ampl",	2,	tENUM,	gTREAT, 1, 0, 2, (char*)ampls, "amplification technique", NULL },
 	{ 'a',"ampl-c",	0,	tINT,	gTREAT, 0, 0, 100, NULL, "number of PCR cycles", NULL },
@@ -78,8 +79,8 @@ Options::Option Options::List [] = {
 	"standard deviation of size selection normal distribution", NULL },
 	{ HPH, "ss",	0,	tENUM,	gFRAG, TRUE, 0, 2, (char*)Options::Booleans,
 	"turn on/off fragment's size selection", NULL },
-	{ 'N', "let-N",	0,	tENUM,	gTREAT, FALSE, vUNDEF, 2, NULL,
-	"include the regions filled with an ambiguous reference characters 'N'\non the beginning and on the end of chromosome", NULL },
+	{ 'N', "full-size",	0,	tENUM,	gTREAT, FALSE, vUNDEF, 2, NULL,
+	"process the entire reference chromosome (including gaps at each end)", NULL },
 	//{ HPH, "bind-len",	0,	tINT,	gTREAT, 1, 1, 100, NULL, "minimum binding length.", ForTest },
 	{ HPH, "flat-len",	2,	tPAIR,	gTREAT, 0, 0, 200, (char*)&flattens,
 	"inside, outside BS boundary flattening length.", ForTest },
@@ -87,15 +88,13 @@ Options::Option Options::List [] = {
 	{ HPH, "rd-name",	0,	tENUM,	gREAD, Read::nmNone, Read::nmNone, Read::nmPos, (char*)rnames,
 	"info added to read's name in output files:\n? - nothing\n? - read`s unique number across genome\n?  - read`s actual start position", NULL },
 	{ HPH, "rd-Nlim",	0,	tINT,	gREAD, vUNDEF, 0, 500, NULL,
-	"maximum permitted number of ambiguous characters 'N' in read [OFF]", NULL },
+	"maximum permitted number of ambiguous code N in read [OFF]", NULL },
 	{ HPH, "rd-lim",	0,	tLONG,	gREAD, 2e8, 1e5, (float)ULONG_MAX, NULL,
 	"maximum permitted number of total recorded reads", NULL },
-	{ HPH, "rd-ql",		0,	tCHAR,	gREAD, '~', '!', '~', NULL,
-	"uniform quality value for the sequence", NULL },
-	{ HPH,"rd-ql-patt",	0,	tNAME,	gREAD, vUNDEF, 0, 0, NULL,
-	"quality values pattern for the sequence ", NULL },
+	{ HPH, "rd-ql",		0,	tCHAR,	gREAD, '~', '!', '~', NULL, "uniform read quality score", NULL },
+	{ HPH,"rd-ql-patt",	0,	tNAME,	gREAD, vUNDEF, 0, 0, NULL, "read quality scores pattern", NULL },
 	{ HPH,"rd-ql-map",	0,	tINT,	gREAD, 255, 0, 255, NULL,
-	"read mapping quality for SAM and BED output", NULL },
+	"read mapping quality in SAM and BED output", NULL },
 //{ HPH, "stdout",	0, tBOOL,	FALSE, 0, 0, NULL, "Write output to the 'standard output' filehandle instead of 'standart error'" },
 	{ 'm', "smode",		0,	tENUM,	gTREAT, Seq::SE, Seq::SE, Seq::Undef, (char*)smodes,
 	"sequencing mode: ? - single end, ? - paired end", NULL },
@@ -112,7 +111,7 @@ Options::Option Options::List [] = {
 	{ 'S', "strand",0,	tENUM,	gOUTPUT, FALSE,	vUNDEF, 2, NULL,
 	"generate two additional wig files, each one per strand", NULL },
 	{ 's', "sep",	0,	tENUM,	gOUTPUT, FALSE,	vUNDEF, 2, NULL,
-	"print number of reads with '1000' separator", NULL },
+	"display reads number thousands separator", NULL },
 	{ 'o', "out",	0,	tNAME,	gOUTPUT, vUNDEF, 0, 0, NULL, OutFileTip.c_str()	},
 #ifndef _NO_ZLIB
 	{ 'z',"gzip",	0,	tENUM,	gOUTPUT, FALSE, vUNDEF, 2, NULL, "compress the output", NULL},
@@ -132,57 +131,30 @@ const BYTE Options::UsageCount = sizeof(Options::Usages)/sizeof(Options::Usage);
 
 // Returns common name of output files
 string GetOutFileName();
-void PrintImitParams(const ChromFiles& cFiles, const char* templName, const BedF* templ, const OutFiles& oFile);
+void PrintImitParams(const ChromSizesExt& cSizes, const char* templName, const BedF* templ, const OutFiles& oFile);
 
 /*****************************************/
 int main(int argc, char* argv[])
 {
-//#ifdef DEBUG
-//	Coverage b;
-//	//b.AddFrag(50,20);	
-//
-//	//b.AddFrag(5,20);	
-//	//b.AddFrag(15,20);	
-//
-//	b.AddFrag(10,20);	b.Print();
-//	b.AddFrag(30,20);	b.Print();
-//	b.AddFrag(15,25);	b.Print();
-//	b.AddFrag(20,15);	b.Print();
-//	//b.AddFrag(40,10);
-//	//b.AddFrag(10,20);	b.Print();
-//	//b.AddFrag(50,10);	b.Print();
-//	b.Output();
-//	return 0;
-//#endif
-//
-	//float a = 0.0123;
-	//float b = 0.00123;
-	//float c = 12.3;
-	//int w = 5;
-	//cout << setprecision(2);// << fixed;
-	//cout << setw(w) << a << EOL;
-	//cout << setw(w) << b << EOL;
-	//cout << setw(w) << c << EOL;
-
-	if (argc < 2)	return Options::PrintUsage(false);			// output tip
-	int fileInd = Options::Tokenize(argc, argv);
+	if (argc < 2)	return Options::PrintUsage(true);			// output tip
+	int fileInd = Options::Parse(argc, argv);
 	if( fileInd < 0 )	return 1;								// wrong otpion
-	if(!Chrom::SetStatedID(Options::GetSVal(oCHROM))) return 1;	// wrong chrom name
+
+	//MemStatus::StartObserve(Options::GetUIVal(oVERB)==vDBG);
 
 	int ret = 0;
 	BedF* templ = NULL;
-	const ChromSizes* cSizes = NULL;
 	const char* fBedName = fileInd==argc ? NULL : argv[fileInd];	// template name
 
 	// initialize Seq before Read::Init()
-	Seq::Init(Seq::sMode(Options::GetIVal(oSMODE)), ULONG(Options::GetFVal(oREAD_LIMIT)));
+	Seq::Init(Seq::sMode(Options::GetIVal(oSMODE)), ULONG(Options::GetFVal(oRD_LIMIT)));
 	// initialize Read before OutFiles::Init()
 	Read::Init(
-		Options::GetUIVal(oREAD_LEN),
-		Read::rNameType(Options::GetIVal(oREAD_NAME)),
-		Seq::IsPE() && !Options::Assigned(oREAD_NAME),
-		char(Options::GetFVal(oFQ_QUAL)),
-		Options::GetUIVal(oREAD_LIMIT_N)
+		Options::GetUIVal(oRD_LEN),
+		Read::rNameType(Options::GetIVal(oRD_NAME)),
+		Seq::IsPE() && !Options::Assigned(oRD_NAME),
+		char(Options::GetFVal(oRD_QUAL)),
+		Options::GetUIVal(oRD_LIMIT_N)
 	);
 	OutFiles::Init(
 		OutFiles::oFormat(Options::GetIVal(oFORMAT)),
@@ -215,78 +187,70 @@ int main(int argc, char* argv[])
 		//readlen(Options::GetUIVal(oBS_LEN)),
 		flattens
 	);
-	Nts::LetN = Options::GetBVal(oLET_N);
-	Nts::StatN = Imitator::Verbose(vPAR);	// Imitator::Init() should be called before to define Verbose
-	string outFileName = GetOutFileName();	// Imitator::Init() should be called before to define mode,
-											// on which default name is depended
+	RefSeq::LetGaps = Options::GetBVal(oLET_GAPS);
+	RefSeq::StatGaps = Imitator::Verbose(vPAR);	// Imitator::Init() should be called before
 	Random::SetSeed(Options::GetUIVal(oSEED));
-	if(Options::GetBVal(oLOCALE))
-		cout.imbue(locale(LOCALE_ENG));
+	if(Options::GetBVal(oLOCALE))	cout.imbue(locale(LOCALE_ENG));
 
 	// execution
 	Mutex::Init(Options::GetIVal(oNUMB_THREAD)>1);
-	Timer::Enabled = Options::GetBVal(oTIME);
+	Timer::Enabled = Options::GetBVal(oTIME) && Imitator::Verbose(vRES);
 	Timer::StartCPU();
 	Timer timer;
 	try {
+		// check file names first of all
 		FS::CheckedFileName(fBedName);
-		ChromFiles cFiles(FS::CheckedFileDirName(oGFILE), Imitator::All);
+		const char* qlPatt = FS::CheckedFileName(oRD_QUAL_PATT);	// read quality pattern
 
-		if(fBedName || OutFiles::IsSamSet())
-			cSizes = new const ChromSizes(cFiles, Imitator::Verbose(vRT));
+		ChromSizesExt cSizes(FS::CheckedFileDirName(oGFILE), Imitator::Verbose(vRT));
+		if(!Chrom::SetCustomID(Options::GetSVal(oCHROM)))		// should be invoke after ChromSizes()
+			Err(Err::OPT_CHROM, Options::OptionToStr(oCHROM).c_str()).Throw();
 
 		if(fBedName) {
 			Obj::eInfo info = Obj::iNONE;
 			if(Imitator::Verbose(vPAR))		info = Obj::iLAC;
 			if(Imitator::Verbose(vDBG))		info = Obj::iSTAT;
 			//Obj::Ambig::SetSupplAlarm(Obj::Ambig::SHORT, "for given binding length");
-			templ = new BedF(Template, fBedName, cSizes, info, false,
+			templ = new BedF(Template, fBedName, &cSizes, info, false,
 				0, //readlen(Options::GetUIVal(oBS_LEN)),		// binding length
 				Imitator::Verbose(vDBG)							// print ambigs alarm
 			);
 			if(flattens.second)
-				templ->Extend(flattens.second, cSizes, Obj::iLAC);
+				templ->Extend(flattens.second, &cSizes, Obj::iLAC);
 		}
 		// set treated chroms
-		if( !cFiles.SetTreated(templ) )
-			Err(Err::TF_EMPTY, fBedName, "features per selected chromosomes").Throw();
-		Imitator::SetThreadNumb( min(chrid(Options::GetFVal(oNUMB_THREAD)), cFiles.TreatedCount()) );
+		if( !cSizes.SetTreated(Imitator::All, templ) )
+			Err(Err::TF_EMPTY, fBedName, "features per stated " + Chrom::ShortName(Chrom::CustomID())).Throw();
+		
+		Imitator::SetThreadNumb( min(chrid(Options::GetFVal(oNUMB_THREAD)), cSizes.TreatedCount()) );
 
-		OutFiles oFile(
-			outFileName,
-			Imitator::IsControl(),
-			cSizes, cFiles,
-			FS::CheckedFileName(oFQ_QUAL_PATT),
-			Options::CommandLine(argc, argv)
-		);
-		if(cSizes)		delete cSizes, cSizes = NULL;
+		OutFiles oFile(GetOutFileName(), Imitator::IsControl(),
+			cSizes, qlPatt, Options::CommandLine(argc, argv));
 
-		PrintImitParams(cFiles, fBedName, templ, oFile);
-		Imitator(cFiles, oFile).Execute(templ);
+		PrintImitParams(cSizes, fBedName, templ, oFile);
+		Imitator(cSizes, oFile).Execute(templ);
 	}
 	catch(Err &e)				{ ret = 1; cerr << e.what() << endl; }
 	catch(const exception &e)	{ ret = 1; cerr << e.what() << EOL; }
 	catch(...)					{ ret = 1; cerr << "Unregistered error" << endl; }
 	if(templ)	delete templ;
-	if(cSizes)	delete cSizes;
-	Timer::StopCPU(true);
-	timer.Stop("wall-clock: ", false, true);
+	Timer::StopCPU(false);
+	timer.Stop("\twall-clock: ", false, true);
 	Mutex::Finalize();
-	//if( OPT_DEBUG() && Imitator::Verbose(vDBG))
-	//	cout << "Locked memory: " << (mem0 - getAvailSystemMemory())/1024 << " Kb\n";
+	//MemStatus::StopObserve();
 	return ret;
 }
 
-void PrintImitParams(const ChromFiles& cFiles, const char* templName, 
+void PrintImitParams(const ChromSizesExt& cSizes, const char* templName, 
 	const BedF* templ, const OutFiles& oFile)
 {
 	if( !Imitator::Verbose(vPAR) )	return;
-	cout << SignPar << "Reference" << SepDCl << "genome" << SepCl << cFiles.Path();
+	cout << SignPar << "Reference" << SepDCl << "genome" << SepCl << cSizes.Path();
 	cout << SepCm << Chrom::TitleName() << SepCl;
-	if(!Chrom::StatedAll())		
-		cout << Chrom::Mark(Chrom::StatedID());
-	else if(cFiles.TreatedCount() < cFiles.ChromCount())	
-		cFiles.PrintTreatedNames();
+	if(!Chrom::NoCustom())		
+		cout << Chrom::Mark(Chrom::CustomID());
+	else if(cSizes.TreatedCount() < cSizes.ChromCount())	
+		cSizes.PrintTreatedChroms();
 	else	
 		cout << "all";
  	cout << EOL;
@@ -302,14 +266,14 @@ void PrintImitParams(const ChromFiles& cFiles, const char* templName,
 	cout << SignPar;
 	Read::Print();
 	oFile.PrintReadQual(SignPar);
-	cout << SignPar << "Optimization: include 'N' along the edges of the ref. sequence"
-		 << SepCl << Options::BoolToStr(oLET_N) << EOL;
+	cout << SignPar << "Optimization: process the entire ref. chromosome"
+		 << SepCl << Options::BoolToStr(oLET_GAPS) << EOL;
 	cout << SignPar << "Stated sample: ";
 	if(ControlMode)		cout << SAMPLE_FG() << PERS << EOL;
 	else {
 		cout << "foreground" << Equel << SAMPLE_FG()
 				<< PERS << SepGroup << "background" << Equel << SAMPLE_BG() << PERS << EOL;
-		if(cFiles.TreatedCount() > 1) {
+		if(cSizes.TreatedCount() > 1) {
 			cout << SignPar << "Background for all chromosomes" << SepCl;
 			if(bool(SAMPLE_BG()))	cout << Options::BoolToStr(oBG_ALL) << EOL;
 			else					cout << "negligible due to zero background sample\n";
@@ -324,7 +288,8 @@ void PrintImitParams(const ChromFiles& cFiles, const char* templName,
 	float ws = Options::GetFVal(oSTRAND_ERR);
 	if(ws)	cout << SignPar << "Reads with wrong strand"
 					<< SepCl << ws << PERS << EOL;
-	cout << SignPar << "Actual threads" << SepCl << int(Imitator::ThrCnt) << EOL;
+	if(!Imitator::IsSingleThread())
+		cout << SignPar << "Actual threads" << SepCl << int(Imitator::ThrCnt) << EOL;
 	cout << SignPar << "Fragment lognormal distribution"
 			<< SepCl << "mean" << Equel << Options::GetFVal(oFRAG_MEAN) 
 			<< SepGroup << "stand.dev" << Equel << Options::GetFVal(oFRAG_SIGMA) << EOL;
@@ -343,12 +308,6 @@ string GetOutFileName()
 	
 	if( !outName_c )				return DefFileName[Imitator::TMode];
 	if( FS::IsDirExist(outName_c) )	return FS::MakePath(string(outName_c)) + DefFileName[Imitator::TMode];
-	//string outName = string(outName_c);
-	//if( FS::HasExt(outName) ) {
-	//	cout << "discarded extention in " << outName << EOL;
-	//	outName = FS::FileNameWithoutExt(outName);
-	//}
-	//return outName;
 	return string(outName_c);
 }
 
@@ -386,7 +345,7 @@ string GetOutFileName()
 //		//if( chr.Length() != chr1.Length() )		cout << "Error length!\n";
 //		//else {
 //		//	for(ULONG i=0; i<chr.Length(); i++)
-//		//		if( chr._nts[i] != chr1._nts[i] ) {
+//		//		if( chr._seq[i] != chr1._seq[i] ) {
 //		//			cout << "Error!\n";
 //		//			break;
 //		//		}

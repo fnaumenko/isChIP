@@ -1,7 +1,9 @@
 /**********************************************************
 OutTxtFile.h (c) 2014 Fedor Naumenko (fedor.naumenko@gmail.com)
 All rights reserved.
-Last modified: 21.03.2019
+-------------------------
+Last modified: 03.04.2019
+-------------------------
 Provides output text files functionality
 ***********************************************************/
 #pragma once
@@ -198,7 +200,7 @@ public:
 
 	static void Print() {
 		cout << "Sequencing: " << (IsPE() ? "paired" : "single") << "-end"
-			 << SepSCl << FT::ItemTitle(FT::ABED, true) << " limit = " << ReadsLimit() << EOL;
+			 << SepSCl << FT::ItemTitle(FT::ABED) << " limit = " << ReadsLimit() << EOL;
 	}
 
 } seq;
@@ -206,25 +208,25 @@ public:
 // 'ReadQualPattern' sets the Read quality pattern according to the external external or in its absence
 class ReadQualPattern
 {
-	char* rqPatt;	// Read quality pattern buffer, or NULL if no external Read quality
-	char* rqTempl;	// pointer to Read quality within FQ|SAM external template,
+	char* _rqPatt;	// Read quality pattern buffer, or NULL if no external Read quality
+	char* _rqTempl;	// pointer to Read quality within FQ|SAM external template,
 					// or NULL if non of such files
 public:
 	// Creates Read quality pattern buffer and fills it by first valid line from file.
 	//	@rqPattFName: name of valid file with a quality line
 	ReadQualPattern(const char* rqPattFName);
 
-	~ReadQualPattern() { if(rqPatt) delete[] rqPatt, rqPatt = NULL; }
+	~ReadQualPattern() { if(_rqPatt) delete[] _rqPatt, _rqPatt = NULL; }
 
 	// Fills external FQ|SAM template by Read quality pattern and remembers it
 	//	@templ: pointer to external FQ|SAM Read quality template
 	void Fill(char* templ);
 
 	// Returns Read quality pattern buffer
-	inline const char* Pattern() const { return rqPatt; }
+	inline const char* Pattern() const { return _rqPatt; }
 
 	// Returns pointer to Read quality within FQ|SAM external template
-	inline const char* Templ() const { return rqTempl; }
+	inline const char* Templ() const { return _rqTempl; }
 };
 
 // 'ReadName' represents Read's name in output files.
@@ -479,11 +481,11 @@ public:
 	//	@hrName: conditionally constant part of the Read name
 	//	@trName: dynamic part of Read's name contained chroms number and Read's number|position,
 	//	or NULL for empty name
-	//	@commLine: command line
+	//	@cmLine: command line
 	//	@cSizes: chrom sizes
 	//	@qPatt: external Read quality pattern
 	SamOutFile(const string& fName, const ReadName& rName,
-		const string& commLine, const ChromSizes& cSizes, ReadQualPattern& qPatt);
+		const string& cmLine, const ChromSizes& cSizes, ReadQualPattern& qPatt);
 
 	// Clone constructor for multithreading
 	SamOutFile(const SamOutFile& file, const ReadName& rName)
@@ -599,7 +601,7 @@ class WigOutFiles
 	};
 
 	// 'WigOutFile' implements methods for writing BedGraph file
-	class WigOutFile : public Chroms<CoverProxy>, public TxtOutFile
+	class WigOutFile : public ChromMap<CoverProxy>, public TxtOutFile
 	{
 		// Writes coverage for given chrom to file
 		void WriteCover(chrid cID, CoverProxy& proxy);
@@ -612,16 +614,16 @@ class WigOutFiles
 	public:
 		// Creates new instance for writing and initializes line write buffer.
 		//	@fName: file name without extention
-		//	@cl: command line to add as a comment in the first line
-		//	@cFiles: chrom files
-		WigOutFile(const string& fName, const string& cl, const ChromFiles& cFiles);
+		//	@cmLine: command line to add as a comment in the first line
+		//	@cSizes: chrom sizes
+		WigOutFile(const string& fName, const string& cmLine, const ChromSizesExt& cSizes);
 
 		// Creates new strand-separated instance for writing and initializes line write buffer.
 		//	@fName: file name without extention
-		//	@cl: command line to add as a comment in the first line
+		//	@cmLine: command line to add as a comment in the first line
 		//	@strand: string denoted strand, or empty string
 		//	@wig: pattern replacing basic Chrom container
-		WigOutFile(const string& fName, const string& cl, const string& strand, const WigOutFile& wig);
+		WigOutFile(const string& fName, const string& cmLine, const string& strand, const WigOutFile& wig);
 
 		~WigOutFile();
 
@@ -643,9 +645,9 @@ public:
 
 	// Creates new instance for writing and initializes line write buffer.
 	//	@fName: file name with extention
-	//	@cl: command line to add as a comment in the first line
-	//	@cFiles: chrom files
-	WigOutFiles(const string& fName, const string& cl, const ChromFiles& cFiles);
+	//	@cmLine: command line to add as a comment in the first line
+	//	@cSizes: chrom sizes
+	WigOutFiles(const string& fName, const string& cmLine, const ChromSizesExt& cSizes);
 
 	~WigOutFiles();
 
@@ -683,8 +685,8 @@ private:
 	// 'OutFile' wraps output files: FQ, SAM, BED.
 	class OutFile
 	{
-		typedef void	(OutFile::*tpAddRInfo)(chrlen, fraglen);
-		typedef int		(OutFile::*tpAddRead)(const Nts&, chrlen, fraglen, Gr::Type);
+		typedef void (OutFile::*tpAddRInfo)(chrlen, fraglen);
+		typedef int	 (OutFile::*tpAddRead)(const RefSeq&, chrlen, fraglen, Gr::Type);
 	
 		// pointer to the 'add Read' method
 		static tpAddRead	pAddRead;
@@ -713,28 +715,28 @@ private:
 		}
 
 		// Adds one SE Read
-		//	@nts: cutted chromosome
+		//	@seq: cutted reference chromosome
 		//	@pos: current fragment's position
 		//	@len: length of current fragment
 		//	@g: FG or BG; needs for strand error imitation
 		//	return:	1: fragment is out of range (end of chrom)
 		//			0: Read is added successfully
 		//			-1: N limit is exceeded
-		int AddReadSE (const Nts& nts, chrlen pos, fraglen len, Gr::Type g);
+		int AddReadSE (const RefSeq& seq, chrlen pos, fraglen len, Gr::Type g);
 	
 		// Adds two PE Reads
-		//	@nts: cutted chromosome
+		//	@seq: cutted reference chromosome
 		//	@pos: current fragment's position
 		//	@len: length of current fragment
 		//	@g: FG or BG; needs for strand error imitation; not used
 		//	return:	1: fragment is out of range (end of chrom)
 		//			0: Reads are added successfully
 		//			-1: N limit is exceeded
-		int AddReadPE (const Nts& nts, chrlen pos, fraglen len, Gr::Type g);
+		int AddReadPE (const RefSeq& seq, chrlen pos, fraglen len, Gr::Type g);
 
 		// Empty (trial) method
-		inline int NotAddRead (const Nts&, chrlen, fraglen, Gr::Type)	{ return 0; }
-		//inline int NotAddRead (const Nts*, chrlen, fraglen, bool, const Featr*)	{ return 0; }
+		inline int NotAddRead (const RefSeq&, chrlen, fraglen, Gr::Type)	{ return 0; }
+		//inline int NotAddRead (const RefSeq*, chrlen, fraglen, bool, const Featr*)	{ return 0; }
 
 	public:
 		// Initializes static members
@@ -758,13 +760,10 @@ private:
 
 		// Creates and initializes new instance for writing.
 		//	@fName: common file name without extention
-		//	@cSizes: chrom sizes, or NULL
-		//	@cFiles: chrom files
+		//	@cSizes: chrom sizes
 		//	@rqPatt: external Read quality pattern
-		//	@commLine: command line
-		OutFile(const string& fName, 
-			const ChromSizes* cSizes, const ChromFiles& cFiles, 
-			ReadQualPattern& rqPatt, const string& commLine);
+		//	@cmLine: command line
+		OutFile(const string& fName, const ChromSizesExt& cSizes, ReadQualPattern& rqPatt, const string& cmLine);
 
 		// Clone constructor for multithreading
 		//	@oFile: original instance
@@ -780,18 +779,18 @@ private:
 		inline void EndWriteChrom(chrid cID) { if(_wigFile)	_wigFile->StopChrom(cID); }
 
 		// Adds read(s) to output file
-		//	@nts: cutted chromosome
+		//	@seq: cutted reference chromosome
 		//	@pos: current fragment's position
 		//	@fLen: length of current fragment
 		//	@g: FG or BG; needs for strand error imitation
 		//	return:	1: fragment is out of range (end chrom)
 		//			0: Read(s) is(are) added, or nothing (trial)
 		//			-2: N limit is exceeded; Read(s) is(are) not added
-		inline int AddRead (const Nts& nts, chrlen pos, fraglen fLen, Gr::Type g) {
-			return (this->*pAddRead)(nts, pos, fLen, g);
+		inline int AddRead (const RefSeq& seq, chrlen pos, fraglen fLen, Gr::Type g) {
+			return (this->*pAddRead)(seq, pos, fLen, g);
 		}
-		//inline int AddRead (const Nts* nts, chrlen pos, fraglen fLen, bool primer, const Featr* ftr) {
-		//	return (this->*callAddRead[_mode])(nts, pos, fLen, primer, ftr);
+		//inline int AddRead (const RefSeq* seq, chrlen pos, fraglen fLen, bool primer, const Featr* ftr) {
+		//	return (this->*callAddRead[_mode])(seq, pos, fLen, primer, ftr);
 
 		// Prints output file formats and sequencing mode
 		//	@signOut: output marker
@@ -841,9 +840,9 @@ public:
 	//	@cSizes: chrom sizes, or NULL
 	//	@cFiles: chrom files
 	//	@rqPattFName: name of valid file with Read quality pattern, or NULL
-	//	@commLine: command line
-	OutFiles(const string& fName, bool control, const ChromSizes* cSizes,
-		const ChromFiles& cFiles, const char* rqPattFName, const string& commLine);
+	//	@cmLine: command line
+	OutFiles(const string& fName, bool control, const ChromSizesExt& cSizes,
+		const char* rqPattFName, const string& cmLine);
 
 	// Clone constructor for multithreading.
 	//	@file: original instance
@@ -862,16 +861,16 @@ public:
 	void EndWriteChrom(chrid cID);
 
 	// Adds read(s) to output file
-	//	@nts: cutted chromosome
+	//	@seq: cutted reference chromosome
 	//	@pos: current fragment's position
 	//	@len: length of current fragment
 	//	@g: FG or BG; needs for strand error imitation
 	//	return:	1: fragment is out of range (end chrom)
 	//			0: Read(s) is(are) added, or nothing (trial)
 	//			-1: N limit is exceeded; Read(s) is(are) not added
-	int AddRead (const Nts& nts, chrlen pos, fraglen len, Gr::Type g) {
+	int AddRead (const RefSeq& seq, chrlen pos, fraglen len, Gr::Type g) {
 		if(_freq)	_freq->AddFrag(len);
-		return _oFiles[_gMode]->AddRead(nts, pos, len, g);
+		return _oFiles[_gMode]->AddRead(seq, pos, len, g);
 	}
 
 	// Prints output file formats and sequencing mode

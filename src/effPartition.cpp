@@ -31,13 +31,13 @@ BYTE DigitsCnt (ss_sum val)
 
 // ********** IdNumbers **********
 
-// Constructor by chrom files
-effPartition::IdNumbers::IdNumbers(const ChromFiles& cFiles)
+// Constructor by chrom sizes
+effPartition::IdNumbers::IdNumbers(const ChromSizesExt& cSizes)
 {
-	reserve(cFiles.TreatedCount());
-	for(ChromFiles::cIter it=cFiles.cBegin(); it!=cFiles.cEnd(); it++)
-		if( cFiles.IsTreated(it) )
-			push_back( IdNumber(CID(it), cFiles.TreatedLength(it, 1)) );
+	reserve(cSizes.TreatedCount());
+	for(ChromSizes::cIter it=cSizes.cBegin(); it!=cSizes.cEnd(); it++)
+		if( cSizes.IsTreated(it) )
+			push_back( IdNumber(CID(it), cSizes.DefEffLength(it)) );
 }
 
 		// Initializes instance by numbers
@@ -466,15 +466,15 @@ void effPartition::Init(IdNumbers& numbers, ss_id ssCnt, UINT limMult)
 }
 
 // Creates numbers partition by identified values, with sums sorted in descending order
-//	@chrFiles: chrom files as chrom ID and chrom sizes container to be distributed
+//	@chrFiles:chrom sizes container to be distributed
 //	@ssCnt: count of subsets;
 //	if 0 then creates an empty partition with undefined (maximum type's value) inaccuracy
 //	@limMult: STree() call's limit multiplier -
 //	it increases the limit of 1 million recursive invokes by limMult times;
 //	if 0 then omit DSTree method invoking (fast, but not 'perfect')
-effPartition::effPartition(const ChromFiles& chrFiles, ss_id ssCnt, UINT limMult)
+effPartition::effPartition(const ChromSizesExt& cSizes, ss_id ssCnt, UINT limMult)
 {
-	IdNumbers numbs(chrFiles);
+	IdNumbers numbs(cSizes);
 	Init(numbs, ssCnt, limMult);
 }
 

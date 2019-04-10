@@ -1,7 +1,9 @@
 /**********************************************************
 Imitator.h (c) 2014 Fedor Naumenko (fedor.naumenko@gmail.com)
 All rights reserved.
-Last modified: 21.03.2019
+-------------------------
+Last modified: 10.04.2019
+-------------------------
 Provides chip-seq imitation functionality
 ***********************************************************/
 #pragma once
@@ -16,51 +18,40 @@ typedef	BYTE	a_coeff;	// type coefficient of amplification
 // Task modes
 enum eMode { TEST, CONTROL };
 
+enum eVerb {	// verbose level
+	vCRIT,		// print critical messages only
+	vRES,		// print vCRIT + results
+	vRT,		// print vRES + runtime info
+	vPAR,		// print vRT + parameters
+	vDBG		// print vPAR + additional info
+};
+
+
 #define SignPar	"# "	// Marker of output parameter in Usage
 #define	TestMode	(Imitator::TMode==TEST)
 #define	ControlMode (Imitator::TMode==CONTROL)
 
-// 'Average' encapsulates average counting
-class Average
-{
-private:
-	bool	_keep;		// true if statistic is accumulated
-	ULONG	_count;
-	ULLONG	_summator;
-public:
-	inline Average() : _summator(0), _count(0), _keep(true)	{}
-	// Gets arithmetic average.
-	inline float Mean()	 const { return (float)_summator/_count; }
-	inline ULLONG Sum()	 const { return _summator; }
-	inline ULONG Count() const { return _count; }
-	// Returns parameter val
-	UINT operator+=(UINT val);
-};
-
-//static struct DistrParams
-//{
-//	static float lnMean;	// lognorm: Mean/LnFactor + LnTerm
-//	static float lnSigma;	// lognorm: Sigma/LnFactor
-//	static float ssMean;	// mean of size selection normal distribution
-//	static float ssSigma;	// sigma of size selection normal distribution
-//
-//	// Initializes lognorm fragment and size selection distribution values;
-//	//	@mean: expectation of frag normal distribution
-//	//	@sigma: standard deviation of frag normal distribution
-//	//	@ssMean: expectation of size sel normal distribution
-//	//	@ssSigma: standard deviation of size sel normal distribution
-//	//	@ssActive: true if size selection mode is ON
-//	static void Init(float lnM, float lnS, float ssM, float ssS, bool ssActive) {
-//		lnMean = lnM;  lnSigma = lnS;  ssMean = ssActive ? ssM : 0; ssSigma = ssS;
-//	}
-//
-//	inline bool IsSS() { return ssMean; }
-//} distrParams;
-//
-
 // 'Imitator' implements main algorithm of simulation.
 class Imitator
 {
+// 'Average' encapsulates average counting
+	class Average
+	{
+	private:
+		bool	_keep;		// true if statistic is accumulated
+		ULONG	_count;
+		ULLONG	_summator;
+
+	public:
+		inline Average() : _summator(0), _count(0), _keep(true)	{}
+		// Gets arithmetic average.
+		inline float Mean()	 const { return (float)_summator/_count; }
+		inline ULLONG Sum()	 const { return _summator; }
+		inline ULONG Count() const { return _count; }
+		// Returns parameter val
+		UINT operator+=(UINT val);
+	};
+
 	// 'FragLenStat' keeps statistics of selected frag length; used in SetSample()
 	struct FragLenStat
 	{
@@ -164,6 +155,29 @@ class Imitator
 		inline void Clear() { memset(fCnts, 0, 2*Gr::Cnt*sizeof(FragCnt)); }
 	};
 
+	// 'GenomeSizes' keeps total, defined and gaps length in purpose to print average gap statistics
+	struct GenomeSizes
+	{
+	private:
+		ULONG	Total;		// sum of chroms length
+		ULONG	Defined;	// sum if chroms defined (effective) length
+		ULONG	Gaps;		// sum of chroms gaps length
+
+	public:
+		inline GenomeSizes() { Total = Defined = Gaps = 0; }
+
+		// constructor by single chrom
+		inline GenomeSizes(const RefSeq& seq) : 
+			Total(seq.Length()), Defined(seq.DefRegion().Length()), Gaps(seq.GapLen()) {}
+
+		// Thread-safety increment sizes by RefSeq
+		void IncrSizes(const RefSeq& seq);
+
+		inline float GapsInPers() const { return 100.f * Gaps / Total; }
+
+		inline float UndefInPers() const { return 100.f * (Total - Defined) / Total; }
+	};
+
 	// 'ChromCutter' encapsulates thread context and methods to cut chromosomes.
 	class ChromCutter
 	{
@@ -174,16 +188,13 @@ class Imitator
 		private:
 			//typedef fraglen	(FragDistr::*tpLognormNext)();
 
-			//static tpLognormNext pLognormNext;
-			//static float ssDVar;	// Doubled variance 2*sigma^2 in the size sel normal distribution
-			//static float ssFactor;	// Factor sigma*sqr(2PI) in the size sel normal distribution
-			//static float ssAlRatio; // Size sel normal distribution aligning up ratio
-			static float ssFactor0;		// factor sigma*sqrt(2) in the size sel norm distr
-			static float ssFactor1;		// factor 2.5/sqrt(2PI) in the size sel norm distr
+				  static float ssFactor0;	// factor sigma*sqrt(2) in the size sel norm distr
+			const static float ssFactor1;	// factor 2.5/sqrt(2PI) in the size sel norm distr
 
 			double	_normal_x2;		// second random coordinate (for normal RNG)
 			short	_phase;			// phase (for normal RNG)
 			Average*_avr;			// average to count the frags (for statistics), or NULL
+			//tpLognormNext _pLognormNext;
 
 			// Normal distribution with mean=0 and variance=1 (standard deviation = 1)
 			//	return:  value with Gaussian likelihood between about -5 and +5
@@ -197,18 +208,19 @@ class Imitator
 				return fraglen(exp(Normal() * DistrParams::lnSigma + DistrParams::lnMean));
 			}
 
-			//inline fraglen LognormNextWithStat() { return *_avr += LognormNextDirect();	}
+			//fraglen LognormNextWithStat() { return *_avr += LognormNextDirect(); }
 
 		public:
 			//	Initializes size sel factors
-			static void Init();
+			inline static void Init() { ssFactor0 = float(DistrParams::ssSigma * sqrt(2.f)); }
 
 			// Creates instance
 			//	@avr: generated frags average (for trial mode), or NULL (for working mode)
 			// _normal_x2 is initialized by random double to avoid
 			//		undesirable 'out of range' random initialization
-			FragDistr(Average* avr) : _avr(avr), _normal_x2(DRand()) {
-				//pLognormNext = avr ? 
+			FragDistr(Average* avr) : _avr(avr), _normal_x2(DRand())
+			{
+				//_pLognormNext = avr ? 
 				//	&Imitator::ChromCutter::FragDistr::LognormNextWithStat:
 				//	&Imitator::ChromCutter::FragDistr::LognormNextDirect;
 			}
@@ -218,34 +230,19 @@ class Imitator
 			// About 1.5 times faster then std::lognormal_distribution (<random>)
 			inline fraglen LognormNext() {
 				return _avr ? *_avr += LognormNextDirect() : LognormNextDirect();
-				//return (this->*pLognormNext)(); 
+				//return (this->*_pLognormNext)(); 
 			}
-
-			//// Returns next random size selection length according to a normal distribution
-			//inline fraglen SzSelNext() { 
-			//	return fraglen(Normal() * DistrParams::ssSigma + DistrParams::ssMean);
-			//}
 
 			// Returns next random size sel limits
 			//	@min: random min limit
 			//	@max: random max limit
 			inline void SizeSelLimNext(fraglen& min, fraglen& max)
 			{
-				if(DistrParams::IsSS()) {
-					float ssDev = ssFactor0 * (float)sqrt(log(ssFactor1 / DRand()));
-					min = fraglen(DistrParams::ssMean - ssDev);
-					if(min < Read::Len)		min = Read::Len;
-					// below doesn't compiled by gcc
-					//min = max(fraglen(DistrParams::ssMean - ssDev), fraglen(Read::Len));
-					max = fraglen(DistrParams::ssMean + ssDev);
-				}
+				float ssDev = ssFactor0 * sqrt(log(ssFactor1 / DRand()));
+				min = fraglen(DistrParams::ssMean - ssDev);
+				if(min < Read::Len)		min = Read::Len;
+				max = fraglen(DistrParams::ssMean + ssDev);
 			}
-
-			// Returns true if size selection is failure
-			//bool SzSelFailure(fraglen fLen) {
-			//	return ssON ? 
-			//	DRand() > ssAlRatio * exp(-pow(fLen - ssMean, 2) / ssDVar) / ssFactor : false;
-			//}
 
 			// Returns random fragment's length within 0 and mean frag length
 			// should to round ssMean??
@@ -314,10 +311,10 @@ class Imitator
 		FragCnts	_fragCnt;	// numbers of selected/recorded fragments for FG & BG, for both Teat & Input
 		FragDistr	_fragDistr;	// normal & lognormal random number generator
 		MDA			_ampl;
-		const ChromFiles& _cFiles;	// reference genome
+		const ChromSizesExt& _cSizes;	// reference genome
 
 		// Sets global mode
-		ULONG SetGMode(GM::Mode gmode);
+		void SetGMode(GM::Mode gmode);
 
 		// Increments counters of local and total recorded fragments thread-safely
 		//	@g: ground
@@ -336,11 +333,11 @@ class Imitator
 
 		// Prints thread-safe info about treated chroms and stops timer
 		//	@cID: chrom ID
-		//  @nts: current chromosome
+		//  @seq: current reference chromosome
 		//	@enRegLen: length of all enriched regions
 		//	@timer: current timer to thread-saves time output 
 		//	@excLimit: true if limit is exceeded
-		void PrintChrom (chrid cID, const Nts& nts, chrlen enRegLen, Timer& timer, bool excLimit);
+		void PrintChrom (chrid cID, const RefSeq& seq, chrlen enRegLen, Timer& timer, bool excLimit);
 
 		// Sets terminate's output message
 		//	@tID: thread ID
@@ -375,12 +372,15 @@ class Imitator
 		// Returns number of FG recorded frags
 		inline ULLONG RecFgFragCnt() const { return _fragCnt[Gr::FG].RecCnt(); }
 		
+		// Set mode, print chrom name, start timer, return number of cells
+		ULLONG PrepareCutting(GM::Mode gm, chrid cID, Timer& timer);
+
 		// Treats chromosomes given for current thread
 		//	@cSubset: pointer to ChrSubset - set of chrom IDs treated in this thread
 		thrRetValType Execute(const effPartition::Subset& cSubset);
 		
 		// Cuts chromosome until reaching end position of current treated feature
-		//	@nts: cutted chromosome
+		//	@seq: cutted reference chromosome
 		//	@currPos: cutting start position
 		//	@feature: current treated feature
 		//	@bg: if true then generate background (swap foreground and background)
@@ -388,7 +388,7 @@ class Imitator
 		//	return: 0 if success,
 		//		1 if end chromosome is reached (continue treatment),
 		//		-1 if limit is achieved (cancel treatment)
-		int	CutChrom (const Nts& nts, chrlen* const currPos, const Featr& feature,
+		int	CutChrom (const RefSeq& seq, chrlen* const currPos, const Featr& feature,
 			bool bg, FragLenStat* fragStat = NULL);
 	};
 
@@ -398,42 +398,45 @@ class Imitator
 	/*
 	* output view:
 	* A: always aligned                    A                                A
-	* chrom       reads  sample ampl r/kbp|        reads sample ampl  r/kbp|   N   N_excl  mm:ss
+	* chrom       reads  sample ampl r/kbp|        reads sample ampl  r/kbp|  gaps g_excl  mm:ss
 	* ------------------------------------|--------------------------------|--------------------
 	* chr 17: FG: 111111  100%   1.4  11.3|   BG: 222222   10%  0.622  0.59|  3.5%  3.1%   00:03
 	* -------^---^-------^-----^------^------^----^-------^-----^------^-----^------^------^-----
-	* chrNam      CountW  SmpW  AmplW  DnsW        CountW  SmpW  AmplW  DnsW   time
+	* chrNam      CountW  SmpW  AmplW  DnsW        CountW  SmpW  AmplW  DnsW  GapsW  GapsW  time
     * margN: 1   2       3     4      5      6    2       3     4      5     7      8      9
 	*/
+	public:
+		static const BYTE marg_T	= 2;	// length of margin 9 before time
 	private:
 		static const BYTE margC_	= 1;	// length of margin 1 after chrom name
 		static const BYTE marg_R	= 1;	// length of margin 2 before Reads count
-		static const BYTE margR_S	= 3;	// length of margin 3 between Reads count and sample
-		static const BYTE margS_	= 3;	// length of margin 4 after sample
-		static const BYTE marg_D	= 3;	// length of margin 5 before density
-		static const BYTE margD_	= 3;	// length of margin 6 after density
-		//static const BYTE margD_N	= 3;	// length of margin 7 between density and N
-		static const BYTE margN_Nex	= 2;	// length of margin 8 between N and N excleded
-		static const BYTE marg_T	= 2;	// length of margin 9 before time
+		static const BYTE marg_S	= 2;	// length of margin 3 before sample
+		static const BYTE marg_A	= 3;	// length of margin 4 before ampl coeff
+		static const BYTE marg_D	= 1;	// length of margin 5 before density
+		static const BYTE margD_	= 2;	// length of margin 6 after density
+		static const BYTE margG_excl= 1;	// length of margin 8 between gaps and gaps excleded
+		static const BYTE SampleW	= 6;	// width of 'sample' field	[strlen("sample");]
+		static const BYTE DensW		= 6;	// width of 'density' field [strlen(UnitDens)]
 		static const BYTE AmplW		= 4;	// width of ampl coefficient field
-		static const BYTE NW		= 4;	// length of 'N' field
-		static const BYTE AmplPr	= 1;	// precision of ampl coefficient field
-		static const BYTE SamplePr	= 2;	// precision of sample field
+		static const BYTE GapsW		= 4;	// width of gaps field
+		static const BYTE AmplPr	= 1;	// precision of ampl coefficient
+		static const BYTE SamplePr	= 2;	// precision of sample
+		static const BYTE GapsPr	= 2;	// precision of gaps
+
+		static const char* tGapsExcl;		// title of excluded gaps
+		static const char* tTime;			// title of time output
 
 		// Prints empty margin
 		//	@width: margin width
 		static inline void PrintMarg(BYTE width) { cout << setw(width) << BLANK; }
 
 		BYTE	CountW;		// width of 'number of Reads' field
-		BYTE	SampleW;	// width of 'sample' field
-		BYTE	DensW;		// width of 'density' field
+		BYTE	SampleWRP;	// 'sample' field right padding: space to the right of the value (0|1)
+		BYTE	DensWRP;	// 'density' field right padding: space to the right of the value (0|1)
 		BYTE	DensPr;		// precision of density
-		float	DensMax;	// maximal density
 		Gr::Type GrType;	// FG|BG
 
 	public:
-		static const char* sMargTime;	// margin string before time output
-
 		// Gets the maximum length of chrom name field with blank after
 		static const BYTE ChromNameW() { 
 			// 2 = 1 for blank inside chrom name + 1 for COLON
@@ -445,22 +448,22 @@ class Imitator
 
 		inline ChromView(Gr::Type grType) : GrType(grType) {}
 
-		// Prints chroms 'N' statistics
-		static void PrintN(const Nts& nts);
+		// Prints chroms gaps statistics
+		static void PrintGaps(const GenomeSizes& s);
 
 		// Prints chrom's header: Reads
 		//	@FgHeader: true for foreground header
 		//	return: header width
 		int PrintHeader(bool FgHeader);
 
-		// Prints chrom's header: 'N' statistics
-		static int PrintHeaderN();
+		// Prints chrom's header: gaps statistics
+		static int PrintHeaderGaps();
 
 		// Print info about recorded Reads (count, sample, ampl, density) for ground type of this nstance
-		//  @fragCnt: Reads counters
 		//	@gMode: gen mode for which info is printed
+		//  @fragCnt: Reads counters
 		//	@densLen: length on which the density is determined
-		void PrintReads(const FragCnt fragCnt, GM::Mode gMode, chrlen densLen);
+		void PrintReads(GM::Mode gMode, const FragCnt fragCnt, chrlen densLen);
 
 		// Set task mode
 		//static void SetMode() { margC_R -= (gMode = BYTE(TestMode)); }
@@ -504,24 +507,36 @@ class Imitator
 		}
 	};
 
-	static Context	GlobContext[];	// global generation context
-	static ChromView ChrView[];	// chrom views per ground
-	static ULONG	TotalLen[];	// FG, BF genome length; needed to define total density
-	static float	AutoSample;	// adjusted FG sample to stay in limit
-	static float	SelFragAvr;	// mean length of selected fragments
-	static BYTE	Verb;			// verbose level
-	static bool	MakeControl;	// true if control file (input) should be produced
-	static bool	UniformScore;	// true if template features scores are ignored
-	static Imitator	*Imit;		// singletone instance: to call threads only
-	static const BedF *Bed;		// template bed-file (test mode) or NULL (control mode)
+	static GenomeSizes gSizes;		// genome total sizes; needed to define average % of gaps, excl gaps
+	static ChromView ChrView[];		// FG, BF chrom views
+	static ULONG	TreatedLen[];	// FG, BF genome treated length; needed to define total density
+	static Context	GlobContext[];	// TM, CM global generation context
+	static float	AutoSample;		// adjusted FG sample to stay in limit
+	static float	SelFragAvr;		// mean length of selected fragments
+	static BYTE	Verb;				// verbose level
+	static bool	MakeControl;		// true if control file (input) should be produced
+	static bool	UniformScore;		// true if template features scores are ignored
+	static Imitator	*Imit;			// singletone instance: to call threads only
+	static const BedF *Bed;			// template bed-file (test mode) or NULL (control mode)
 	//static readlen	BindLen;	// binding length
 
-	const ChromFiles& _cFiles;	// ref genome library
-	OutFiles& _oFile;			// output file
+	const ChromSizesExt& _cSizes;	// ref genome library
+	OutFiles& _oFile;				// output file
 
 	// Returns stated count of cells
 	//	@gm: generated mode
 	inline static UINT CellCnt(GM::Mode gm) { return GlobContext[gm].CellCnt; }
+
+	// Gets Reads estimated count per chrom and corrects maximum count and density
+	//	@g: ground
+	//	@densLen: length on which density is defined
+	//	@factor: CellsCnt / recAvrLen
+	//	@numeric: 1 for diploid chromosomes, 0 for haploid ones
+	//	@maxCnt: FG|BG maximum counters to fill
+	//	@maxDens: FG|BG maximum densities to fill
+	//	return: estimated number of Reads
+	static ULONG GetReadsCnt(Gr::Type g, chrlen densLen, float factor, 
+		BYTE numeric, ULONG maxCnt[], float maxDens[]);
 
 	// Returns stated sample
 	//	@gm: generated mode
@@ -534,20 +549,29 @@ class Imitator
 	//	@print: true if chromosomes name should be printed
 	static void PrintChromName(chrid cID, GM::Mode gm, bool print);
 
+	inline static void PrintReadInfo(
+		Gr::Type gr, GM::Mode gMode, const FragCnt fCnts[], const ULONG rgnLens[])
+	{
+		ChrView[gr].PrintReads(gMode, fCnts[gr], rgnLens[gr]);
+	}
+
 	// Prints chromosome's name and full statistics
 	//	@cID: chromosomes ID, or CHRID_UNDEF to print "total" instead chrom name
 	//	@fCnts: array of fragment's counters, for FG and BG
-	//	@regLens: array of region's lengths to print FG|BG density
-	//	@printChrName: true if chromosome's name should be printed
+	//	@rgnLens: array of region's lengths to print FG|BG density
+	//	@prChrName: true if chromosome's name should be printed
 	static void PrintChromInfo(chrid cID, GM::Mode gMode,
-		const FragCnt* fCnts, const ULONG regLens[], bool printChrName=true);
+		const FragCnt fCnts[], const ULONG rgnLens[], bool prChrName=true);
 
 	// Prints header (FG and BG, or single) and solid line
 	//	@header: if false, then print solid line only
 	static void PrintHeader(bool header);
 
-	// Increments grounds total length.
-	static void IncrementTotalLength(chrlen defRegLen, chrlen enrRegLen);
+	// Prints total outcome
+	static void PrintTotal();
+
+	// Increments grounds total length
+	static void IncrementTotalLength(const RefSeq& seq, chrlen enrRgnLen);
 	
 	//// Increments counter of total recorded fragments thread-safely.
 	////	@g: ground
@@ -561,17 +585,6 @@ class Imitator
 	//			InterlockedIncrement(&(TotalFragCnt[g].PrimerRec));
 	//	return cnt + TotalFragCnt[!g].Rec() >= Seq::FragsLimit();
 	//}
-
-	// Gets Reads estimated count per chrom and corrects maximum count and density
-	//	@g: ground
-	//	@densLen: length on which density is defined
-	//	@factor: CellsCnt / recAvrLen
-	//	@numeric: 1 for diploid chromosomes, 0 for haploid ones
-	//	@maxCnt: FG|BG maximum counters to fill
-	//	@maxDens: FG|BG maximum densities to fill
-	//	return: estimated number of Reads
-	static ULONG GetReadsCnt(Gr::Type g, chrlen densLen, float factor, 
-		BYTE numeric, ULONG maxCnt[], float maxDens[]);
 
 	// Initializes Reads view
 	//	@g: ground
@@ -611,27 +624,26 @@ class Imitator
 public:
 	static BYTE	ThrCnt;			// actual number of threads
 	static eMode TMode;			// current task mode
-	// minimal length of selected fragments: established by --frag-dev or Read::Len if size filter is OFF
-	static fraglen FragLenMin;
-	static short	FlatLen;	// Boundary flattening length
-	// true if total genome is treated.
-	// Set to false in Test mode only if single chrom is defined and BG_ALL is false.
-	static bool All;
+	static short FlatLen;		// Boundary flattening length
+	static fraglen FragLenMin;	// minimal length of selected fragments:
+								// established by --frag-dev or Read::Len if size filter is OFF
+	static bool All;	// true if total genome is treated
+						// false only in Test mode if custom chrom and BG_ALL is false.
 	
 	// Print amplification info
 	static void PrintAmpl(const char* ampls[]);
 
 	// Returns true if control is set
-	static inline bool IsControl() { return MakeControl; }
+	static inline bool IsControl()			{ return MakeControl; }
 
 	// Returns true if single thread is set
-	static inline bool IsSingleThread() { return ThrCnt == 1; }
+	static inline bool IsSingleThread()		{ return ThrCnt == 1; }
 
 	// Returns true if given verbose level is active
-	static inline bool	Verbose(eVerb level)	{ return Verb >= level; }
+	static inline bool Verbose(eVerb level)	{ return Imitator::Verb >= level; }
 
 	// Set number of threads
-	static inline void SetThreadNumb(BYTE numb) { 
+	static void SetThreadNumb(BYTE numb) { 
 		FragCnt::Init((ThrCnt=numb) == 1);
 		OutFiles::MultiThread = numb > 1;
 	}
@@ -665,9 +677,9 @@ public:
 
 	// Creates singleton instance.
 	//  @cFiles: list of chromosomes as fa-files
-	//	@oFile: output files
-	inline Imitator(const ChromFiles& cFiles, OutFiles& oFile)
-		: _cFiles(cFiles), _oFile(oFile) { Imit = this; }
+	//	@ocSizes: chrom sizes
+	inline Imitator(const ChromSizesExt& cSizes, OutFiles& oFile)
+		: _cSizes(cSizes), _oFile(oFile) { Imit = this; }
 
 	// Runs task in current mode and write result to output files
 	//	@templ: input template or NULL

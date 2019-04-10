@@ -1,7 +1,9 @@
 /**********************************************************
 OutTxtFile.cpp (c) 2014 Fedor Naumenko (fedor.naumenko@gmail.com)
 All rights reserved.
-Last modified: 21.03.2019
+-------------------------
+Last modified: 03.04.2019
+-------------------------
 Provides output text files functionality
 ***********************************************************/
 
@@ -91,7 +93,7 @@ int Random::Range(int max) {
 	if( max == 1 )	return 1;
 	return min(int(DRand() * (max-1) + 1), max);
 #else
-	return int(DRand() * (max - 1) + 1);
+	return int(DRand() * --max + 1);
 #endif
 }
 
@@ -115,26 +117,26 @@ float DistrParams::ssSigma;	// sigma of size selection normal distribution
 
 // Creates Read quality pattern buffer and fills it by first valid line from file.
 //	@rqPattFName: name of valid file with a quality line
-ReadQualPattern::ReadQualPattern(const char* rqPattFName) : rqPatt(NULL), rqTempl(NULL)
+ReadQualPattern::ReadQualPattern(const char* rqPattFName) : _rqPatt(NULL), _rqTempl(NULL)
 {
 	if(!rqPattFName) return;
 
 	TabFile file(rqPattFName);
 	const char* line = file.GetLine();	// first line in file
 	if(!line)	Err("no lines", rqPattFName).Throw();
-	rqPatt = new char[Read::Len];		// don't check allocation: small size
+	_rqPatt = new char[Read::Len];		// don't check allocation: small size
 	readlen lineLen = (readlen)file.LineLength();
 	if(lineLen < Read::Len)
-		Read::FillBySeqQual(rqPatt);	// keep the rest if buffer filled by default quality
+		Read::FillBySeqQual(_rqPatt);	// keep the rest if buffer filled by default quality
 	else	lineLen = Read::Len;	// cut off LineLen in any case
-	memcpy(rqPatt, line, lineLen);
+	memcpy(_rqPatt, line, lineLen);
 }
 
 // Fills external FQ|SAM template by Read quality pattern and remembers it
 //	@templ: pointer to external FQ|SAM Read quality template
 void ReadQualPattern::Fill(char* templ)
 { 
-	if(rqPatt)	memcpy(rqTempl = templ, rqPatt, Read::Len);
+	if(_rqPatt)	memcpy(_rqTempl = templ, _rqPatt, Read::Len);
 	else		Read::FillBySeqQual(templ);
 }
 
@@ -376,11 +378,11 @@ const char* SamOutFile::FLAG[2];
 // Creates new instance for writing, initializes line write buffer writes header.
 //	@fName: file name without extention
 //	@rName: Read's name
-//	@commLine: command line
+//	@cmLine: command line
 //	@cSizes: chrom sizes
 //	@qPatt: external Read quality pattern
 SamOutFile::SamOutFile(const string& fName, const ReadName& rName,
-	const string& commLine, const ChromSizes& cSizes, ReadQualPattern& qPatt)
+	const string& cmLine, const ChromSizes& cSizes, ReadQualPattern& qPatt)
 	: ExtOutFile(fName + FT::RealExt(FT::SAM, ExtOutFile::Zipped), rName)
 {
 	if(Seq::IsPE())	{ FLAG[0] = "99";	FLAG[1] = "147"; }
@@ -395,11 +397,11 @@ SamOutFile::SamOutFile(const string& fName, const ReadName& rName,
 	StrToIOBuff("@HD\tVN:1.0\tSO:unsorted");
 	for(ChromSizes::cIter it=cSizes.cBegin(); it!=cSizes.cEnd(); it++) {
 		ss.str(strEmpty);	// clear stream
-		ss << it->second;
+		ss << it->second.Size();
 		StrToIOBuff("@SQ\tSN:" + Chrom::AbbrName(CID(it)) + "\tLN:" + ss.str());
 	}
 	StrToIOBuff("@PG\tID:" + Product::Title + "\tPN:" + Product::Title + 
-		"\tVN:" + Product::Version + "\tCL:" + commLine);
+		"\tVN:" + Product::Version + "\tCL:" + cmLine);
 	if(OutFiles::MultiThread)		Write();
 
 	//== maximal length of write line buffer without Read & Quality fields, with delimiters
@@ -535,28 +537,28 @@ void WigOutFiles::WigOutFile::Init(const string& fName, const string& cl, const 
 
 // Creates new instance for writing and initializes line write buffer.
 //	@fName: file name without extention
-//	@cl: command line to add as a comment in the first file line
-//	@cFiles: chrom files
+//	@cmLine: command line to add as a comment in the first file line
+//	@cSizes: chrom sizes
 WigOutFiles::WigOutFile::WigOutFile(
-	const string& fName, const string& cl, const ChromFiles& cFiles)
+	const string& fName, const string& cmLine, const ChromSizesExt& cSizes)
 	: TxtOutFile(fName + FT::RealExt(FT::WIG, ExtOutFile::Zipped), TAB)
 {
-	Init(fName, cl);
-	for(ChromFiles::cIter it=cFiles.cBegin(); it!=cFiles.cEnd(); it++)
-		if( cFiles.IsTreated(it) )
+	Init(fName, cmLine);
+	for(ChromSizes::cIter it=cSizes.cBegin(); it!=cSizes.cEnd(); it++)
+		if( cSizes.IsTreated(it) )
 			AddElem(CID(it), CoverProxy());
 }
 
 // Creates new strand-separated instance for writing and initializes line write buffer.
 //	@fName: file name without extention
-//	@cl: command line to add as a comment in the first line
+//	@cmLine: command line to add as a comment in the first line
 //	@strand: string denoted strand, or empty string
 //	@wig: pattern replacing basic Chrom container
 WigOutFiles::WigOutFile::WigOutFile(
-	const string& fName, const string& cl, const string& strand, const WigOutFile& wig)
+	const string& fName, const string& cmLine, const string& strand, const WigOutFile& wig)
 	: TxtOutFile(fName + FT::RealExt(FT::WIG, ExtOutFile::Zipped), TAB)
 {
-	Init(fName, cl, strand);
+	Init(fName, cmLine, strand);
 	Assign(wig);
 }
 
@@ -623,16 +625,16 @@ bool WigOutFiles::IsStrands;		// true if wigs with different strands should be g
 
 // Creates new instance for writing and initializes line write buffer.
 //	@fName: file name without extention
-//	@cl: command line to add as a comment in the first line
-//	@cFiles: chrom files
-WigOutFiles::WigOutFiles(const string& fName, const string& cl, const ChromFiles& cFiles)
+//	@cmLine: command line to add as a comment in the first line
+//	@cSizes: chrom sizes
+WigOutFiles::WigOutFiles(const string& fName, const string& cmLine, const ChromSizesExt& cSizes)
 {
 	memset(_files, 0, Count * sizeof(WigOutFile*));
 
-	_files[Count-1] = new WigOutFile(fName, cl, cFiles);
+	_files[Count-1] = new WigOutFile(fName, cmLine, cSizes);
 	if(IsStrands) {
-		_files[0] = new WigOutFile(fName + "_pos", cl, "positive", *_files[Count-1]);
-		_files[1] = new WigOutFile(fName + "_neg", cl, "negative", *_files[Count-1]);
+		_files[0] = new WigOutFile(fName + "_pos", cmLine, "positive", *_files[Count-1]);
+		_files[1] = new WigOutFile(fName + "_neg", cmLine, "negative", *_files[Count-1]);
 	}
 }
 
@@ -681,12 +683,11 @@ float	OutFiles::OutFile::StrandErrProb;	// the probability of strand error
 
 // Creates and initializes new instance for writing.
 //	@fName: common file name without extention
-//	@cSizes: chrom sizes, or NULL
-//	@cFiles: chrom files
+//	@cSizes: chrom sizes
 //	@rqPatt: external Read quality pattern
-//	@commLine: command line
-OutFiles::OutFile::OutFile(const string& fName, const ChromSizes* cSizes,
-	const ChromFiles& cFiles, ReadQualPattern& rqPatt, const string& commLine) :
+//	@cmLine: command line
+OutFiles::OutFile::OutFile(const string& fName, const ChromSizesExt& cSizes,
+	ReadQualPattern& rqPatt, const string& cmLine) :
 	_bedFile(NULL), _samFile(NULL), _wigFile(NULL), _primer(true)
 {
 	_fqFile1 = _fqFile2 = NULL;
@@ -697,11 +698,11 @@ OutFiles::OutFile::OutFile(const string& fName, const ChromSizes* cSizes,
 			_fqFile2 = new FqOutFile(fName + "_2", _rName, rqPatt);
 	}
 	if(HasFormat(ofBED))
-		_bedFile = new BedROutFile(fName, _rName, commLine);
+		_bedFile = new BedROutFile(fName, _rName, cmLine);
 	if(HasFormat(ofSAM))
-		_samFile = new SamOutFile (fName, _rName, commLine, *cSizes, rqPatt);
+		_samFile = new SamOutFile (fName, _rName, cmLine, cSizes, rqPatt);
 	if(HasFormat(ofWIG))
-		_wigFile = new WigOutFiles(fName, commLine, cFiles);
+		_wigFile = new WigOutFiles(fName, cmLine, cSizes);
 }
 
 // Clone constructor for multithreading
@@ -736,14 +737,14 @@ void OutFiles::OutFile::BeginWriteChrom(chrid cID)
 }
 
 // Adds one SE Read
-//	@nts: cutted chromosome
+//	@seq: cutted reference chromosome
 //	@pos: current fragment's position
 //	@len: length of current fragment
 //	@g: FG or BG; needs for strand error imitation
 //	return:	1: fragment is out of range (end of chrom)
 //			0: Read is added successfully
 //			-1: N limit is exceeded
-int OutFiles::OutFile::AddReadSE(const Nts& nts, chrlen pos, fraglen len, Gr::Type g)
+int OutFiles::OutFile::AddReadSE(const RefSeq& seq, chrlen pos, fraglen len, Gr::Type g)
 {
 	//if(RandomReverse && !primer)	// for amplified frag _reverse is the same
 	//	_reverse = _rng.Boolean();	// true if read is reversed (neg strand)
@@ -754,7 +755,7 @@ int OutFiles::OutFile::AddReadSE(const Nts& nts, chrlen pos, fraglen len, Gr::Ty
 		if(HasWigOnly())	return 0;
 	}
 	chrlen rPos = reverse ? pos + len - Read::Len : pos;	// Read's position
-	const char* read = nts.Read(rPos);
+	const char* read = seq.Read(rPos);
 	int ret = Read::CheckNLimit(read);
 	if(ret)		return ret;			// 1: NULL read, -1: N limit is exceeded
 
@@ -779,24 +780,24 @@ int OutFiles::OutFile::AddReadSE(const Nts& nts, chrlen pos, fraglen len, Gr::Ty
 }
 
 // Adds two PE Reads
-//	@nts: cutted chromosome
+//	@seq: cutted reference chromosome
 //	@pos: current fragment's position
 //	@len: length of current fragment
 //	@g: FG or BG; needs for strand error imitation; not used
 //	return:	1: fragment is out of range (end of chrom)
 //			0: Reads are added successfully
 //			-1: N limit is exceeded
-int OutFiles::OutFile::AddReadPE(const Nts& nts, chrlen pos, fraglen len, Gr::Type g)
+int OutFiles::OutFile::AddReadPE(const RefSeq& seq, chrlen pos, fraglen len, Gr::Type g)
 {
 	if(_wigFile) {
 		_covers.AddFrag(pos, len);
 		if(HasWigOnly())	return 0;
 	}
 	int ret;
-	const char* read1 = nts.Read(pos);
+	const char* read1 = seq.Read(pos);
 	if(ret = Read::CheckNLimit(read1))	return ret;	// 1: NULL read, -1: N limit is exceeded
 	chrlen pos2 = pos + len - Read::Len;
-	const char* read2 = nts.Read(pos2);
+	const char* read2 = seq.Read(pos2);
 	if(ret = Read::CheckNLimit(read2))	return ret;	// 1: NULL read, -1: N limit is exceeded
 
 	(this->*pAddReadInfo)(pos, len);		// add additional info to the Read name
@@ -849,8 +850,8 @@ void OutFiles::PrintItemTitle()
 {
 	const char* frags = "fragments";
 	if(HasWigOnly())			cout << frags;
-	else if(!HasFormat(ofWIG))	cout << FT::ItemTitle(FT::ABED, true);
-	else cout << FT::ItemTitle(FT::ABED, true) << '/' << frags;
+	else if(!HasFormat(ofWIG))	cout << FT::ItemTitle(FT::ABED);
+	else cout << FT::ItemTitle(FT::ABED) << '/' << frags;
 	cout << COLON;
 }
 
@@ -876,18 +877,18 @@ void OutFiles::Init(oFormat fFormat, BYTE mapQual, bool wigStrand, float strandE
 //	@cSizes: chrom sizes, or NULL
 //	@cFiles: chrom files
 //	@rqPattFName: name of valid file with Read quality pattern, or NULL
-//	@commLine: command line
+//	@cmLine: command line
 OutFiles::OutFiles(
-	const string& fName, bool control, const ChromSizes* cSizes,
-	const ChromFiles& cFiles, const char* rqPattFName, const string& commLine)
+	const string& fName, bool control, const ChromSizesExt& cSizes,
+	const char* rqPattFName, const string& cmLine)
 	: _freq(NULL), _gMode(GM::Test)
 {
 	_gMode = GM::Test;
 	ReadQualPattern qPatt(rqPattFName);
 
 	memset(_oFiles, 0, 2*sizeof(OutFile*));	// in case of an incomplete constructor calls
-	_oFiles[0] = new OutFile(fName, cSizes, cFiles, qPatt, commLine);
-	if(control)	_oFiles[1] = new OutFile(fName+"_input", cSizes, cFiles, qPatt, commLine);
+	_oFiles[0] = new OutFile(fName, cSizes, qPatt, cmLine);
+	if(control)	_oFiles[1] = new OutFile(fName+"_input", cSizes, qPatt, cmLine);
 
 	_rqTempl = qPatt.Templ();	// must be after OutFile constructor because it fills the pattern
 	if(HasFormat(ofFREQ)) {
@@ -958,7 +959,7 @@ void OutFiles::PrintFormat	(const char* signOut) const
 //	@signOut: output marker
 void OutFiles::PrintReadQual (const char* signOut) const 
 {
-	if(HasWigOnly())	return;
+	if(HasWigOnly() || Format == ofFREQ)	return;
 	cout << signOut << "Read quality" << SepDCl;
 	if(HasFormat(ofSAM, ofFQ)) {
 		cout << "pattern: ";

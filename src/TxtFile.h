@@ -1,14 +1,14 @@
 /**********************************************************
 TxtFile.h (c) 2014 Fedor Naumenko (fedor.naumenko@gmail.com)
 All rights reserved.
-Last modified: 21.03.2019
+-------------------------
+Last modified: 06.04.2019
+-------------------------
 Provides read|write text file functionality
 ***********************************************************/
 
 #pragma once
 #include "common.h"
-
-#define INT_CAPACITY	10		// maximal number of digits in integer
 
 // Number of basics file's reading|writing buffer blocks.
 // Should be less than 2047 because of ULONG type of block size variable.
@@ -18,19 +18,20 @@ typedef short rowlen;	// type: length of row in TxtFile
 
 // 'TabFilePar' keeps basic parameters for TabFile
 struct TabFilePar {
-	const BYTE	MinFieldCnt;	// minimum number of feilds in file line; these fields are checked during initialization
-	const BYTE	MaxFieldCnt;	// maximum possible number of feilds in data line; these fields are checked by a call
-	const char Comment;			// char indicates that line is comment
-	const char* LineSpec;		// substring on which each data line is beginning
+	const BYTE MinFieldCnt;	// minimum number of feilds in file line; checked during initialization
+	const BYTE MaxFieldCnt;	// maximum possible number of feilds in data line; checked by a call
+	const char Comment;		// char indicates that line is comment
+	const char* LineSpec;	// substring on which each data line is beginning
 
-	inline TabFilePar(BYTE	minTabCnt, BYTE maxTabCnt, char comm, const char* lSpec) :
+	inline TabFilePar() : MinFieldCnt(0), MaxFieldCnt(0), Comment(cNULL), LineSpec(NULL) {}
+
+	inline TabFilePar(BYTE	minTabCnt, BYTE maxTabCnt, char comm = HASH, const char* lSpec = NULL) :
 		MinFieldCnt(minTabCnt),
 		MaxFieldCnt(maxTabCnt<minTabCnt ? minTabCnt : maxTabCnt),
 		Comment(comm),
 		LineSpec(lSpec)
 		{}
 };
-
 // 'File Type' implements bioinformatics file type routines 
 static class FT
 {
@@ -59,6 +60,7 @@ public:
 		BED,	// ordinary bed
 		WIG,	// wiggle
 		SAM,	// sam
+		BAM,	// bam
 		FQ,		// fastQ
 		FA		// fasta
 	};
@@ -79,16 +81,16 @@ public:
 	//	@t: file type
 	//	@isZip: true if add ".gz"
 	static const string Ext(eTypes t, bool isZip = false)	{ return Types[t].Extens; }
-#ifdef _ISCHIP
+
 	// Gets file extension, beginning at DOT and adding .gz if needed
 	//	@t: file type
 	//	@isZip: true if add ".gz"
 	static const string RealExt(eTypes t, bool isZip = false);
-#endif
+
 	// Gets an item's title
 	//	@t: file type
 	//	@pl: true if plural form
-	static const string& ItemTitle(eTypes t, bool pl = false)
+	static const string& ItemTitle(eTypes t, bool pl = true)
 	{ return pl ? Types[t].ItemPl : Types[t].Item; }
 
 	// Gets TabFile params
@@ -129,20 +131,19 @@ public:
 		// The first bit is set to 1 in the constructor.
 		// If CR symbol is found at the end of line,
 		//	the second bit is raised to 1, the first turn down to 0
-		EOLSZ		= 0x003,	// mask for the 2 first bits
-		EOLCHECKED	= 0x004,	// the presence of a symbol CR is checked; for Reading mode
-		ZIPPED		= 0x008,	// file is zipped
-		ABORTING	= 0x010,	// invalid file should be completed by throwing exception; for Reading mode
-		ENDREAD		= 0x020,	// last call of GetRecord() has returned NULL; for Reading mode
-		PRNAME		= 0x040,	// print file name in exception's message; for Reading mode
-		MTHREAD		= 0x080,	// file in multithread mode: needs to be locked while writing
-		CLONE		= 0x100,	// file is a clone
-		//CONSTIT		= 0x200	// file is a constituent of an aggregate file
+		F_CR		= 0x01,	// sign of Curent Return ('\r')
+		//EOLSZ		= 0x03,	// mask for the 2 first bits
+		EOLCHECKED	= 0x02,	// the presence of a symbol CR is checked; for Reading mode
+		ZIPPED		= 0x04,	// file is zipped
+		ABORTING	= 0x08,	// invalid file should be completed by throwing exception; for Reading mode
+		ENDREAD		= 0x10,	// last call of GetRecord() has returned NULL; for Reading mode
+		PRNAME		= 0x20,	// print file name in exception's message; for Reading mode
+		MTHREAD		= 0x40,	// file in multithread mode: needs to be locked while writing
+		CLONE		= 0x80,	// file is a clone
 	};
 
 private:
-	const static int BasicBlockSize = 1024 * 1024;	// basic block 1 Mb
-	const static int NUMB_BLK = 4;	// size of basic block in Mb
+	const static int BlockSize = 4 * 1024 * 1024;	// 4 Mb
 	
 	LLONG	_fSize;			// the length of uncompressed file; for zipped file more than
 							// 4'294'967'295 its unzipped length is unpredictable
@@ -160,7 +161,7 @@ protected:
 	
 	inline void RaiseFlag(eFlag f) const	{ _flag |= f; }
 	inline void SetFlag	(eFlag f, bool val)	{ val ? _flag |= f : _flag &= ~f; }
-	inline bool IsFlag	(eFlag f)	const	{ return (_flag & f) != 0; }	// != 0 to avoid warning C4800
+	inline bool IsFlag	(eFlag f)	const	{ return _flag & f; }
 	inline bool IsZipped()			const	{ return IsFlag(ZIPPED); }
 
 	// *** 3 methods used by TxtInFile only
@@ -168,15 +169,17 @@ protected:
 	// Gets the number of characters corresponded to EOL
 	// In Windows EOL matches '\r\n', in Linux EOL matches '\n',
 	//	return: in Windows always 1, in Linux: 2 for file created in Windows, 1 for file created in Linux
-	inline UINT EOLSize() const	{ return _flag & EOLSZ; }
+	//inline UINT EOLSize() const	{ return _flag & EOLSZ; }
+	inline UINT EOLSize() const	{ 	return 2 - (_flag & F_CR); }
 
 	// Returns true if EOL size is not defined
-	inline bool IsEOLnotDef() const { return (_flag & EOLCHECKED) == 0; }
+	inline bool IsEOLundef() const { return (_flag & EOLCHECKED) == 0; }
 
 	// Establishes the presence of CR symbol at the end of line.
 	//	@c: if c is CR then the second bit is raised to 1, the first turn down to 0,
 	//	so the value return by EOLSZ mask is 2, otherwise remains in state 1
-	inline void SetEOL(char c)	{ if(c==CR)	_flag ^= EOLSZ;	RaiseFlag(EOLCHECKED); }
+	inline void SetEOL(char c)	{ if(c==CR)	 RaiseFlag(F_CR); RaiseFlag(EOLCHECKED); }
+	//inline void SetEOL(char c)	{ if(c==CR)	_flag ^= EOLSZ;	RaiseFlag(EOLCHECKED); }
 
 private:
 	// Initializes instance variables, opens a file, sets a proper error code.
@@ -189,9 +192,6 @@ private:
 	// Allocates memory for the I/O buffer with checking.
 	//	return: true if successful
 	bool CreateIOBuff();
-
-	// Returns file name if name is printable, otherwise empty string.
-	inline const string& FileNameToExcept() const { return IsFlag(PRNAME) ? _fName : strEmpty; }
 
 protected:
 	// Constructs an TxtFile instance: allocates I/O buffer, opens an assigned file.
@@ -227,16 +227,12 @@ protected:
 	// Returns current error code.
 	//inline Err::eCode ErrCode() const	{ return _errCode; }
 
-	// Throws exception
-	//	@msg: exception message
-	//	@isExc: if true then throw exception, otherwise warning
-	inline void ThrowExcept(const string& msg, bool isExc = true) const {
-		Err(msg, FileNameToExcept()).Throw(isExc);
-	}
-
 public:
 	// Gets file name.
 	inline const string& FileName() const { return _fName; }
+
+	// Gets conditional file name: name if it's printable, otherwise empty string.
+	inline const string& CondFileName() const { return IsFlag(PRNAME) ? _fName : strEmpty; }
 
 	// Gets size of uncompressed file,
 	// or size of compressed file if its uncompressed length is more than UINT_MAX.
@@ -245,6 +241,13 @@ public:
 
 	// Gets number of readed/writed records.
 	ULONG RecordCount() const { return _recCnt; }
+
+	// Throws exception
+	//	@msg: exception message
+	//	@isExc: if true then throw exception, otherwise warning
+	inline void ThrowExcept(const string& msg, bool isExc = true) const {
+		Err(msg, CondFileName()).Throw(isExc);
+	}
 };
 
 class TxtInFile : public TxtFile
@@ -253,27 +256,29 @@ private:
 	UINT	_recLen;		// the length of record with EOL marker
 	UINT	_readedLen;		// number of actually readed chars in block
 	UINT *	_linesLen;		// array of lengths of lines in a record
-	BYTE	_linesInRecCnt;	// number of lines in a record
+	BYTE	_recLineCnt;	// number of lines in a record
 
 	// Raises ENDREAD sign an return NULL
-	inline char* ReadingEnded()		  { RaiseFlag(ENDREAD); return NULL; }
+	//inline char* ReadingEnded()		  { RaiseFlag(ENDREAD); return NULL; }
+
+	// Returns record without control
+	inline char* RealRecord() const { return _buff + _currRecPos - _recLen; }
 
 	// Reads next block.
 	//	@offset: shift of start reading position
-	//	return: 1 if file is not finished; 0 if it is finished; -1 if unsuccess reading
+	//	return: 0 if file is finished; -1 if unsuccess reading; otherwhise number of readed chars
 	int ReadBlock(const UINT offset);
 
-	// Returns file name or empty string depends on if name is printing
-	const string& FileNameToExcept() const { return IsFlag(PRNAME) ? FileName() : strEmpty; }
+	// Returns true if block is complete, move remainder to the top
+	bool CompleteBlock(UINT currLinePos, UINT blankLineCnt);
 
 	// Gets string containing file name and current record number.
-	//inline const string RecordNumbToStr() const
-	//{ return LineNumbToStr(0); }
+	//inline const string RecordNumbToStr() const { return LineNumbToStr(0); }
 
 	// Gets number of line.
 	//	@lineInd: index of line in a record
 	inline ULONG LineNumber	(BYTE lineInd) const { 
-		return (_recCnt-1)*_linesInRecCnt + lineInd + 1;
+		return (_recCnt-1)*_recLineCnt + lineInd + 1;
 	}
 
 protected:
@@ -288,26 +293,31 @@ protected:
 
 	inline ~TxtInFile() { if(_linesLen)	delete [] _linesLen; }
 
-	
 	// Gets length of current reading record including EOL marker.
 	inline UINT	RecordLength() const	{ return _recLen; }
 
 	// Gets current record.
-	inline const char* Record() const { 
-		return IsFlag(ENDREAD) ? NULL : _buff + _currRecPos - _recLen;
-	}
+	inline const char* Record() const { return IsFlag(ENDREAD) ? NULL : RealRecord(); }
 
-	// Gets next record.
+	// Gets next record
 	//	return: point to the next record in a buffer.
 	inline const char* NextRecord() const { return _buff + _currRecPos; }
 
-	// Sets _currLinePos to the beginning of next non-empty line inread/write buffer.
-	//	@counterN: if not NULL, adds to counterN the number of 'N' in a record. Used in Fa() only.
-	//	@posTab: if not NULL, sets TABs positions in line to this array
-	//	@cntTabs: if 'posTab' is not NULL, the length of 'posTab' array
-	//	return: point to line or NULL if no more lines
-	char*	GetRecord(chrlen* const counterN=NULL, short* const posTab=NULL, BYTE cntTabs=0);
-	
+	// Reads record
+	//	return: pointer to line or NULL if no more lines
+	const char*	GetRecord();
+
+	// Reads N-controlled record
+	//	@counterN: counter of 'N'
+	//	return: pointer to line or NULL if no more lines
+	const char*	GetRecord(chrlen* const counterN);
+
+	// Reads tab-controlled record
+	//	@tabPos: TAB's positions array that should be filled
+	//	@cntTabs: maximum number of TABS in TAB's positions array
+	//	return: pointer to line or NULL if no more lines
+	char*	GetRecord(short* const tabPos, const BYTE tabCnt);
+
 	// Gets string containing file name and current line number.
 	//	@lineInd: index of line in a record; if 0, then first line
 	const string LineNumbToStr(BYTE lineInd = 0) const;
@@ -315,32 +325,19 @@ protected:
 #ifdef _FQSTATN
 	// Gets length of line.
 	//	@lineInd: index of line in a record
-	//	@withEOL: if true then with EOL marker length, ptherwise without it
-	inline UINT	LineLengthByInd	(BYTE lineInd, bool withEOL = false) const { 
-		return _linesLen[lineInd] - (withEOL ? 0 : EOLSize());
+	//	@withoutEOL: if true then without EOL marker length, otherwise without it
+	inline UINT	LineLengthByInd	(BYTE lineInd, bool withoutEOL = true) const { 
+		return _linesLen[lineInd] - withoutEOL * EOLSize();
 	}
 
 	// Throw exception if no record is readed.
 	void CheckGettingRecord() const { 
-		if( IsEOLnotDef() )
+		if( IsEOLundef() )
 			Err("attempt to get record's info without reading record", FileName().c_str()).Throw();
 	}
 #endif
 
 public:
-	// Throws exception with message as file name followed by exception message
-	//	@msg: exception message
-	inline void ThrowExcept(const string& msg) const {
-		Err(msg, FileNameToExcept()).Throw(true);
-	}
-
-	// Prints file name followed by message 
-	//	@msg: message
-	//	@eol: if true then carriage should be return
-	inline void PrintMsg(const string& msg, bool eol) const {
-		Err(msg, FileNameToExcept()).Throw(false, eol);
-	}
-
 	// Throws exception occurred in the current reading line 
 	//	@code: exception code
 	inline void ThrowLineExcept(Err::eCode code) const {
@@ -509,7 +506,7 @@ public:
 
 	// Adds to line int and float values and adds line to the IO buff.
 	//	@ndigit: number if float digits to write
-	void WriteLine(int val1, float val2, float val3, BYTE ndigit, const char*str);
+	//void WriteLine(int val1, float val2, float val3, BYTE ndigit, const char*str);
 
 	// Adds to line 2 int values and adds line to the IO buff.
 	void WriteLine(ULONG val1, ULONG val2);
@@ -530,167 +527,6 @@ public:
 #endif	// _FILE_WRITE
 
 #ifndef _FQSTATN
-#ifndef _WIGREG
-
-// 'Region' represents a simple region within nucleotides array (chromosome).
-struct Region
-{
-	chrlen Start;	// start position of the region in standard chromosomal coordinates
-	chrlen End;		// end position of the region in standard chromosomal coordinates
-
-	inline Region(chrlen start=0, chrlen end=0) : Start(start), End(end) {}
-
-	// Gets length of region.
-	// The End is not included in the bases https://genome.ucsc.edu/FAQ/FAQformat.html#format1
-	inline chrlen Length() const {	return End - Start; }
-
-	inline chrlen Centre() const {	return Start + (Length()>>1); }
-
-	// Initializes instance
-	inline void Init(chrlen start, chrlen end) { Start = start; End = end; }
-
-	inline bool operator==(const Region& r) const { return End == r.End && Start == r.Start; }
-
-	// Returns true if this instance is invalid
-	//inline bool Invalid() const { return Start >= End; }
-
-	// Returns true if Region r is covered by this instance.
-	//	@r: tested Region; should be sorted by start position
-	inline bool Cover(const Region& r) const { return r.End <= End && r.Start >= Start; }
-
-	// Returns true if Region r is adjoined with this instance.
-	//	@r: tested Region; should be sorted by start position
-	inline bool Adjoin(const Region& r) const { return r.Start == End; }
-
-	// Returns true if Region r is crossed with this instance.
-	//	@r: tested Region; should be sorted by start position
-	inline bool Cross(const Region& r) const { return r.Start < End && r.End > Start; }
-
-	// Compares two Regions by start position. For sorting a container.
-	static inline bool CompareByStartPos(const Region& r1, const Region& r2) {
-		return r1.Start < r2.Start;
-	}
-
-	// Extends Region with chrom length control.
-	// If extended Region starts from negative, or ends after chrom length, it is fitted.
-	//	@extLen: extension length in both directions
-	//	@cLen: chrom length; if 0 then no check
-	void Extend(chrlen extLen, chrlen cLen);
-
-#ifdef DEBUG
-	inline void Print() const { cout << Start << TAB << End << EOL; }
-#endif
-};
-
-class Regions
-/*
- * 'Regions' represents a container of defined regions within chromosome.
- * Defined in TxtFile.h since it's used in Fa class.
- */
-{
-private:
-	vector<Region> _regions;
-
-public:
-	typedef vector<Region>::const_iterator Iter;
-
-	// Iterator to region Begin position
-	inline const Iter Begin()	const { return _regions.begin(); }
-
-	// Iterator to region End position
-	inline const Iter End()		const { return _regions.end(); }
-
-	// Default (empty) constructor needed for adding to Chroms collection and to state common chroms
-	inline Regions() {}
-	
-	// Copying constructor
-	//inline Regions(const Regions& rgns) { _regions = rgns._regions;	}
-	
-	// Single region constructor
-	inline Regions(chrlen start, chrlen end) { _regions.push_back(Region(start, end)); }
-	
-	// Gets count of regions.
-	inline chrlen Count()	const { return chrlen(_regions.size()); }
-	
-	// Geta total length of regions.
-	chrlen Length() const;
-	
-	// Gets first start position.
-	inline chrlen FirstStart()	const { return _regions.front().Start; }
-	
-	// Gets last end position.
-	inline chrlen LastEnd()		const { return _regions.back().End; }
-
-	inline Regions& operator=(const Regions& rgn)
-	{
-		_regions = rgn._regions;
-		return *this;
-	}
-
-	// Reserves container's capacity.
-	//	@count: reserved number of regions. The real number may be differ.
-	inline void Reserve(chrlen count) { _regions.reserve(count); }
-	
-	// Clears container.
-	inline void Clear()	{ _regions.clear(); }
-
-	// Adds gap beginning of current gap position.
-	//	@gapStart: gap's start position
-	//	@currGapStart: current gap start position holder
-	//	@minGapLen: minimal length which defines gap as a real gap
-	void AddGap(chrlen gapStart, chrlen currGapStart, chrlen minGapLen);
-	
-	inline const Region & operator[](chrlen ind) const { return _regions[ind]; }
-
-	// Copies external Regions to this instance
-	inline void Copy(const Regions &regns) { _regions = regns._regions;	}
-	
-	// Copies subReagions from external Regions.
-	inline void Copy(const vector<Region>& regns, chrlen start, chrlen stop) {
-		_regions = vector<Region>(regns.begin() + start, regns.begin() + stop + 1);
-	}
-#ifdef DEBUG
-	void Print() const;
-#endif
-	friend class ShellRegions;
-
-#if defined _DENPRO || defined _BIOCC
-
-	// Returns an iterator referring to the past-the-end element, where end is external
-	//	@curr_it: region's const iterator, from which the search is started
-	//	@end: external pre-defined end coordinate
-	Iter ExtEnd(Iter curr_it, chrlen end) const;
-
-	// Initializes this instance by intersection of two Regions.
-	void FillOverlap(const Regions &regn1, const Regions &regn2);
-
-	// Initializes this instance by inverted external Regions.
-	//	@regn: external Regions
-	//	@masEnd: the maximum possible end-coordinate of region:
-	//	the chromosome length in case of nucleotides sequance.
-	void FillInvert(const Regions &regn, chrlen maxEnd);
-
-	//// Initializes this instance by external Regions.
-	//inline void Copy(const vector<Region>& regns) {	_regions = regns; }
-	
-	// Adds Region.
-	void inline AddRegion(chrlen start, chrlen end)	{ _regions.push_back(Region(start, end)); }
-
-protected:
-	// Reads data from file @fname
-	//	@fname: name of file
-	//	return: written minimal gap length
-	short Read(const string & fName);
-	
-	// Saves data to file
-	//	@fname: name of file
-	//	@minGapLen: minimal length which defines gap as a real gap
-	void Write(const string & fName, short minGapLen) const;
-
-#endif	// _DENPRO, _BIOCC
-};
-
-#endif	// _WIGREG
 
 class TabFile : public TxtInFile
 /*
@@ -702,8 +538,8 @@ class TabFile : public TxtInFile
 {
 private:
 	TabFilePar _params;
-	char	*_currLine;		// current readed line; for reading only
-	short	*_fieldPos;		// array of start positions in _currLine for each field
+	char*	_currLine;		// current readed line; for reading only
+	short*	_fieldPos;		// array of start positions in _currLine for each field
 	USHORT	_lineSpecLen;	// length of line specifier; for reading only
 
 	// Checks if filed valid and throws exception if not.
@@ -776,7 +612,7 @@ public:
 	inline bool IsAborting() const	{ return IsFlag(ABORTING); }
 
 	// Reads first line and set it as current.
-	// Throws exception if invalid and aborting file is set
+	// Throws exception if invalid
 	//	@cntLines: returned estimated count of lines.
 	//	It works properly only if lines are sorted by ascending, f.e. in sorted bed-files.
 	//	return: current line
@@ -793,9 +629,6 @@ public:
 	const char* StrFieldValid	(BYTE fInd)	const {
 		return IsFieldValid(fInd) ? StrField(fInd) : NULL;
 	}
-	// Gets pointer to the short chrom name in current line without check up; for BED-file only
-	const char* ChromName()	const {	return StrField(0) + strlen(Chrom::Abbr); }
-
 	// Reads checked integer by field's index from current line without check up.
 	inline int IntField	(BYTE fInd)	const {	return atoi(StrField(fInd)); }
 
@@ -817,79 +650,274 @@ public:
 	long LongFieldValid	(BYTE fInd)	const {
 		return IsFieldValid(fInd) ? LongField(fInd) : vUNDEF;
 	}
+	
+	// Gets pointer to the chrom mark in current line without check up; for BED-file only
+	inline const char* ChromMark()	const {	return StrField(0) + strlen(Chrom::Abbr); }
+
+	// Returns chrom ID extracted from current line; for BED-file only
+	inline chrid ChromID()	const {	return Chrom::ID(StrField(0) + strlen(Chrom::Abbr)); }
 };
 
-#if !defined _WIGREG
+#ifndef _WIGREG
 
-class FaFile : public TxtInFile
-/*
- * 'FaFile' supports reading/writing chromosomes in FA format.
- * Reading/writing based on TxtFile methods.
- * FaFile just adds some additional info support.
- */
+// 'Region' represents a simple region within nucleotides array (chromosome).
+struct Region
 {
+	chrlen Start;	// start position of the region in standard chromosomal coordinates
+	chrlen End;		// end position of the region in standard chromosomal coordinates
+
+	inline Region(chrlen start=0, chrlen end=0) : Start(start), End(end) {}
+
+	// Gets length of region.
+	// The End is not included in the bases https://genome.ucsc.edu/FAQ/FAQformat.html#format1
+	inline chrlen Length()	const {	return End - Start; }
+
+	inline bool Empty()		const { return !End; }
+
+	inline chrlen Centre()	const {	return Start + (Length()>>1); }
+
+	// Initializes instance
+	inline void Set(chrlen start, chrlen end) { Start = start; End = end; }
+
+	inline bool operator==(const Region& r) const { return End == r.End && Start == r.Start; }
+
+	// Returns true if this instance is invalid
+	inline bool Invalid() const { return Start >= End; }
+
+	// Returns true if Region r is covered by this instance.
+	//	@r: tested Region; should be sorted by start position
+	inline bool Cover(const Region& r) const { return r.End <= End && r.Start >= Start; }
+
+	// Returns true if Region r is adjoined with this instance.
+	//	@r: tested Region; should be sorted by start position
+	inline bool Adjoin(const Region& r) const { return r.Start == End; }
+
+	// Returns true if Region r is crossed with this instance.
+	//	@r: tested Region; should be sorted by start position
+	inline bool Cross(const Region& r) const { return r.Start < End && r.End > Start; }
+
+	// Compares two Regions by start position. For sorting a container.
+	static inline bool CompareByStartPos(const Region& r1, const Region& r2) {
+		return r1.Start < r2.Start;
+	}
+
+	// Extends Region with chrom length control.
+	// If extended Region starts from negative, or ends after chrom length, it is fitted.
+	//	@extLen: extension length in both directions
+	//	@cLen: chrom length; if 0 then no check
+	void Extend(chrlen extLen, chrlen cLen);
+
+#ifdef DEBUG
+	inline void Print() const { cout << Start << TAB << End << EOL; }
+#endif
+};
+
+// 'Regions' represents a container of defined regions within chromosome
+// Defined in TxtFile.h since it's used in Fa class
+class Regions
+{
+protected:
+	vector<Region> _regions;
+
 public:
-	// Fa file axtention
-	static const string Ext;
+	typedef vector<Region>::const_iterator Iter;
 
-	class Pocket	// keeps temporary variables needed for reading constructor only
+	// Iterator to region Begin position
+	inline const Iter Begin()	const { return _regions.begin(); }
+
+	// Iterator to region End position
+	inline const Iter End()		const { return _regions.end(); }
+
+	// Default (empty) constructor to form ChromMap collection
+	inline Regions() {}
+	
+	// Single region constructor
+	inline Regions(chrlen start, chrlen end) { _regions.push_back(Region(start, end)); }
+
+	// Copying constructor
+	//inline Regions(const Regions& rgns) { _regions = rgns._regions;	}
+	
+	// Gets count of regions.
+	inline chrlen Count()	const { return chrlen(_regions.size()); }
+	
+	// Geta total length of regions.
+	//chrlen Length() const;
+	
+	// Gets first start position.
+	inline chrlen FirstStart()	const { return _regions.front().Start; }
+	
+	// Gets last end position.
+	inline chrlen LastEnd()		const { return _regions.back().End; }
+
+	//Regions& operator=(const Regions& rgn);
+
+	inline const Region& operator[](chrlen ind) const { return _regions[ind]; }
+
+	// Reserves container's capacity.
+	//	@count: reserved number of regions. The real number may be differ.
+	inline void Reserve(chrlen count) { _regions.reserve(count); }
+	
+	// Clears container.
+	inline void Clear()	{ _regions.clear(); }
+
+	inline void Add	(const Region& rgn)		{ _regions.push_back(rgn); }
+
+	// Copies subregions
+	inline void Copy(const vector<Region>& source, chrlen start, chrlen stop) {
+		_regions = vector<Region>(source.begin() + start, source.begin() + stop + 1);
+	}
+
+#if defined _DENPRO || defined _BIOCC
+
+	// Returns an iterator referring to the past-the-end element, where end is external
+	//	@curr_it: region's const iterator, from which the search is started
+	//	@end: external pre-defined end coordinate
+	Iter ExtEnd(Iter curr_it, chrlen end) const;
+
+	// Initializes this instance by intersection of two Regions.
+	void FillOverlap(const Regions &regn1, const Regions &regn2);
+
+	// Initializes this instance by inverted external Regions.
+	//	@regn: external Regions
+	//	@masEnd: the maximum possible end-coordinate of region:
+	//	the chromosome length in case of nucleotides sequance.
+	void FillInvert(const Regions &regn, chrlen maxEnd);
+
+	// Initializes this instance by external Regions.
+	inline void Copy(const Regions& rgns)	{ _regions = rgns._regions; }
+	
+	inline void Add(chrlen start, chrlen end){ Add(Region(start, end)); }
+
+#endif	// _DENPRO, _BIOCC
+#ifdef DEBUG
+	void Print() const;
+#endif
+};
+
+// 'ChromDefRegions' represents a container of defined regions within chromosome
+// Defined in TxtFile.h since it's used in Fa class
+class ChromDefRegions : public Regions
+{
+	// 'Combiner' consistently combines regions separated by a space less than the minimum allowed
+	class Combiner
 	{
-		chrlen	_countN,		// count of 'N' in chromosome
-				_currGapStart,	// current gap start position
-				_minGapLen,		// minimal length which defines gap as a real gap
-				_cLen,			// length of chromosome
-				_currPos;		// current readed nt position
-		Regions& _defRgns;		// external chromosome's defined regions
-
-		// Sets the initial state.
-		void Clear();
-
-		// Adds some amount of 'N' as a gap to assign defined regions
-		//	@gapStart: gap's start position.
-		//	@gapLen: gap's length; if 0, complete adding gaps
-		void AddN(chrlen shiftGapStart, chrlen gapLen);
+		chrlen	_gapLen;	// minimum allowable gap between regions
+		Region	_rgn;		// current region
 
 	public:
-		inline Pocket(Regions& rgns, chrlen minGapLen)
-			: _countN(0), _currGapStart(0), _minGapLen(minGapLen), _defRgns(rgns) {}
+		// Constructor accepting the minimum allowable gap
+		inline Combiner(chrlen minGapLen) : _gapLen(minGapLen) {}
 
-		// Gets total amount of 'N'
-		inline chrlen CountN()		const { return _countN; }
+		// Returns false if the next region is separated from the current one
+		// by a value less than the established minimum gap.
+		// Otherwise returns true and combined region as parameter.
+		bool ExceptRegion(Region& rgn);
 
-		// Gets chromosome's length
-		inline chrlen ChromLength() const { return _cLen; }
-
-		// Closes adding gaps
-		inline void CloseAddN() { _defRgns.AddGap(_cLen, _currGapStart, _minGapLen); }
-
-		friend class FaFile;
+		// Returns last excepted region
+		inline const Region& LastRegion() const { return _rgn; }
 	};
 
-	// Opens an existing .fa fil and reads first line.
-	//	@fName: full .fa file name
-	//	@pocket: external temporary variables
-	FaFile	(const string & fName, Pocket& pocket);
+	static const int DefCapacuty = 12;	// default container capacity
 
-//#if defined _FILE_WRITE && defined DEBUG 
-//	// Creates a new FaFile and writes header line.
-//	FaFile	(const string & fName, const char *chrName);
-//#endif
+	string	_fName;
+	chrlen	_gapLen;	// total length of gaps
+	mutable bool _new;
+
+public:
+	// Creates new instance and initializes it from file if one exist
+	//	@cfName: chrom file name without extension
+	//	@minGapLen: length, gaps less than which are ignored when reading; if 0 then read all regions 
+	ChromDefRegions(const string& cfName, chrlen minGapLen=2);
+	
+	// Returns true if instance is empty
+	inline bool Empty() const { return _new; }
+
+	// Returns total length of gaps
+	inline chrlen GapLen() const { return _gapLen; }
+
+	// Increments total length of gaps
+	inline void IncrGapLen(chrlen gapLen) { _gapLen += gapLen; }
+
+	// Adds def region beginning of current gap position.
+	//	@rgn: def region
+	//	@minGapLen: minimal length which defines gap as a real gap
+	void AddRegion(const Region& rgn, chrlen minGapLen);
+
+	// Saves new instance
+	void Write() const;
+
+#if defined _DENPRO || defined _BIOCC
+	// Combines regions with a gap less than a specified value
+	void Combine(chrlen minGapLen);
+#endif
+};
+
+// 'FaFile' supports reading/writing chromosomes in FA format
+class FaFile : public TxtInFile
+{
+	// 'DefRgnMaker' produced chrom defined regions while FaFile reading 
+	class DefRgnMaker
+	{
+		chrlen	_minGapLen,			// minimal length which defines gap as a real gap
+				_currPos;			// current readed nt position
+		Region	_defRgn;			// current defined region
+		ChromDefRegions& _defRgns;	// external chrom's defined regions
+
+	public:
+		inline DefRgnMaker(ChromDefRegions& rgns, chrlen minGapLen)
+			: _minGapLen(minGapLen), _currPos(0), _defRgns(rgns) { _defRgns.Clear(); }
+
+		// Adds last readed line length
+		inline void AddLineLen(chrlen lineLen) { _currPos += lineLen; }
+
+		// Remove last readed line length
+		inline void RemoveLineLen(chrlen lineLen) { _currPos -= lineLen; }
+
+		// Adds a gap to assign defined regions
+		//	@start: gap's start position.
+		//	@len: gap's length
+		void AddGap(chrlen start, chrlen len);
+
+		// Closes adding gaps, saves hrom's defined regions
+		//	@cLen: chrom length
+		void CloseAddGaps(chrlen cLen);
+	};
+
+	typedef const char* (FaFile::*tpGetLine)();
+	static const char FaComment = '>';
+
+	chrlen		_cLen;			// length of chromosome
+	tpGetLine	_pGetLine;		// pointer to the 'GetLine' method
+	DefRgnMaker	*_rgnMaker;
+
+	// Search 'N' subsequence in the current line beginning from the start position
+	//	@startPos: starting line reading position
+	//	@NCnt: number of 'N' in the line beginning from the start position
+	//	return: true if line trimming is complete, false for single 'N'
+	void CountN(chrlen startPos, chrlen NCnt);
+
+	// Reads line and set it as current with def filling regions
+	// Since method scans the line, it takes no overhead expenses to do this.
+	const char* GetLineWitnNControl();
+
+public:
+	// Opens existing file and reads first line.
+	//	@rgns: def regions to fill, otherwise NULL to reading without 'N' control
+	FaFile(const string& fName, ChromDefRegions* rgns=NULL);
+
+	inline ~FaFile() { if(_rgnMaker) delete _rgnMaker; }
+
+	// Gets chromosome's length
+	inline chrlen ChromLength() const { return _cLen; }
 
 	// Gets current readed line.
 	inline const char* Line()	const { return Record(); }
 	
-	// Reads line and set it as current with filling regions
-	// Since method scans the line, it takes no overhead expenses to do this.
-	//	@pocket: external temporary variables
-	const char* GetLine(Pocket& pocket);
+	// Reads line and set it as current (with filling def regions if necessary)
+	inline const char* GetLine()	{ return (this->*_pGetLine)(); }
 
-	// Reads line and set it as current without filling regions
-	inline const char* GetLine() { return GetRecord(); }
-
-//#ifdef _FILE_WRITE
-	// Adds line to file
-	//inline void AddLine(const char *src, BYTE len)	{ RecordToIOBuff(src, len); }
-//#endif	// _FILE_WRITE
+	// Closes reading
+	inline void CLoseReading()	{ if(_rgnMaker)	_rgnMaker->CloseAddGaps(_cLen); }
 };
 
 #endif	// _WIGREG

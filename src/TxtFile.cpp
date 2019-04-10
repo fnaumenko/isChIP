@@ -1,11 +1,14 @@
 /**********************************************************
 TxtFile.cpp (c) 2014 Fedor Naumenko (fedor.naumenko@gmail.com)
 All rights reserved.
-Last modified: 21.03.2019
+-------------------------
+Last modified: 06.04.2019
+-------------------------
 Provides read|write text file functionality
 ***********************************************************/
 
 #include "TxtFile.h"
+#include <fstream>	// to write ChromDefRegions
 #ifndef _FILE_WRITE
 #include <fstream>
 #endif
@@ -13,13 +16,14 @@ Provides read|write text file functionality
 /************************ class FT ************************/
 
 const FT::fType FT::Types[] = {
-	{ "", strEmpty, strEmpty,			TabFilePar( 0, 0, '\0', NULL) },		// undefined type
-	{ "bed", "read",	"reads",		TabFilePar( 6, 6, HASH, Chrom::Abbr) },	// alignment bed
-	{ "bed", "feature", "features",		TabFilePar( 3, 6, HASH, Chrom::Abbr) },	// ordinary bed
-	{ "wig", "interval", "intervals",	TabFilePar( 2, 2, HASH, NULL) },		// wiggle
-	{ "sam", strEmpty, strEmpty,		TabFilePar( 0, 0, HASH, NULL) },		// sam
-	{ "fq", strEmpty, strEmpty,			TabFilePar( 0, 0, '\0', NULL) },		// fastQ
-	{ "fa", strEmpty, strEmpty,			TabFilePar( 0, 0, '\0', NULL) }			// fasta
+	{ "",	 strEmpty,	strEmpty,	TabFilePar() },		// undefined type
+	{ "bed", "read",	"reads",	TabFilePar( 6, 6, HASH, Chrom::Abbr) },	// alignment bed
+	{ "bed", "feature", "features",	TabFilePar( 3, 6, HASH, Chrom::Abbr) },	// ordinary bed
+	{ "wig", "interval","intervals",TabFilePar( 2, 2) },
+	{ "sam", strEmpty,	strEmpty,	TabFilePar( 0, 0) },
+	{ "bam", strEmpty,	strEmpty,	TabFilePar() },
+	{ "fq",	 strEmpty,	strEmpty,	TabFilePar() },
+	{ "fa",  strEmpty,	strEmpty,	TabFilePar() }
 };
 const BYTE FT::Count = sizeof(FT::Types)/sizeof(FT::fType);
 
@@ -48,17 +52,15 @@ bool FT::CheckType(const char* fName, eTypes t, bool printfName, bool throwExc) 
 	return true;
 }
 
-#ifdef _ISCHIP
 // Gets file extension, beginning at DOT and adding .gz if needed
 //	@t: file type
 //	@isZip: true if add ".gz"
 const string FT::RealExt(eTypes t, bool isZip)
 {
-	string ext = string(".") + Types[t].Extens;
+	string ext = string(1, DOT) + Types[t].Extens;
 	if(isZip)	ext += ZipFileExt;
 	return ext;
 }
-#endif
 
 /************************ end of class FT ************************/
 
@@ -66,14 +68,12 @@ const string FT::RealExt(eTypes t, bool isZip)
 const char* modes[] = { "r", "w", "a+" };
 const char* bmodes[] = { "rb", "wb" };
 
-//int TxtFile::NUMB_BLK = 4;	// size of basic block in Mb
-
 // Sets error code and throws exception if it is allowed.
 void TxtFile::SetError(Err::eCode errCode) const
 {
 	_errCode = errCode;
 	if( IsFlag(ABORTING) )
-		Err(errCode, FileNameToExcept().c_str()).Throw();
+		Err(errCode, CondFileName().c_str()).Throw();
 }
 
 // Initializes instance variables, opens a file, sets a proper error code.
@@ -88,7 +88,7 @@ bool TxtFile::SetBasic(const string& fName, eAction mode, void* flStream)
 	_errCode = Err::NONE;
 	_fName = fName;
 	_currRecPos = _recCnt = 0;
-	_buffLen = NUMB_BLK * BasicBlockSize;	// by default; can be corrected
+	_buffLen = BlockSize;	// by default; can be corrected
 #ifdef _NO_ZLIB
 	if(IsZipped()) { SetError(Err::FZ_BUILD); return false; }
 #endif
@@ -202,17 +202,20 @@ TxtFile::~TxtFile()
 TxtInFile::TxtInFile(const string& fName, eAction mode, 
 	BYTE cntRecLines, bool abortInvalid, bool printName) : 
 	_linesLen(NULL),
-	_linesInRecCnt(cntRecLines),
+	_recLineCnt(cntRecLines),
 	_readedLen(0),
 	TxtFile(fName, mode, abortInvalid, printName)
 {
-	if(ReadBlock(0) >= 0)					// read first block
+	if(Length() && ReadBlock(0) >= 0) {		// read first block
 		_linesLen = new UINT[cntRecLines];	// set lines buffer
+		return;								// non-empty file
+	}
+	RaiseFlag(ENDREAD);						// empty file
 }
 
 // Reads next block.
 //	@offset: shift of start reading position
-//	return: 1 if file is not finished; 0 if it is finished; -1 if unsuccess reading
+//	return: 0 if file is finished; -1 if unsuccess reading; otherwhise number of readed chars
 int TxtInFile::ReadBlock(const UINT offset)
 {
 	size_t readLen;
@@ -230,7 +233,6 @@ int TxtInFile::ReadBlock(const UINT offset)
 		if(readLen != _buffLen - offset && !feof((FILE*)_stream) )
 		{ SetError(Err::F_READ); return -1; }
 	}
-	
 	_readedLen = readLen + offset;
 //#ifdef ZLIB_OLD
 	//if( _readTotal + _readedLen > _fSize )
@@ -241,75 +243,140 @@ int TxtInFile::ReadBlock(const UINT offset)
 	{ SetError(Err::F_READ); return -1; }
 	_currRecPos = 0;
 	//_stopwatch.Stop();
-	return _readedLen == 0 ? 0 : 1;
+	return _readedLen;
 }
 
-// Sets _currLinePos to the beginning of next non-empty line in _buff
-//	@counterN: if not NULL, adds to counterN the number of 'N' in a record. Used in Fa() only.
-//	@posTab: if not NULL, sets TABs positions in line to this array
-//	@cntTabs: if @posTab is not NULL, the length of @posTab array
-//	return: point to line or NULL if no more lines
-char* TxtInFile::GetRecord(chrlen* const counterN, short* const posTab, BYTE cntTabs)
+// Returns true if block is complete, move remainder to the top
+bool TxtInFile::CompleteBlock(UINT currLinePos, UINT blankLineCnt)
 {
-	if(Length() == 0)	return ReadingEnded();
-	UINT i, 
-		 currLinePos = _currRecPos,	// start position of current readed record
-		 cntEmpty = 0;				// counter of empty lines
+	if(_readedLen != _buffLen)	// final block, normal completion
+	{ RaiseFlag(ENDREAD); return true; }
+	if( !currLinePos )			// block is totally unreaded
+	{	SetError(Err::F_BIGLINE); RaiseFlag(ENDREAD); return true; }
+
+	blankLineCnt = _readedLen - _currRecPos - blankLineCnt;	// now length of unreaded remainder
+	// move remainder to the beginning of buffer; if length of unreaded remain = 0, skip moving
+	memmove(_buff, _buff + _currRecPos, blankLineCnt);
+	_recLen = 0;
+	if(!ReadBlock(blankLineCnt))
+	{ RaiseFlag(ENDREAD); return true; };
+	return false;
+}
+
+// Reads record
+//	return: pointer to line or NULL if no more lines
+const char* TxtInFile::GetRecord()
+{
+// Sets _currLinePos to the beginning of next non-empty line inread/write buffer
+// GetRecord(), GetRecordN() and GetRecordTab() are quite similar,
+// but they are separated for effectiveness
+	if(IsFlag(ENDREAD))	return NULL;
+	//if(Length() == 0)	return ReadingEnded();
+	 
+	UINT i, blanklCnt = 0,			// counter of empty lines
+		 currPos = _currRecPos;		// start position of current readed record
+
+	_recLen = 0;
+	for(BYTE rec=0; rec<_recLineCnt; rec++)
+		for(i=currPos;;i++)	{
+			if(_buff[i]==EOL) {
+				if( i==currPos ) {				// EOL marker is first in line
+					currPos++; blanklCnt++;		// skip empty line
+					continue;
+				}
+				if(IsEOLundef())	
+					SetEOL(_buff[i-1]);		// define EOL size
+				//_flag |= !bool(_buff[i-1]-CR);
+				_recLen += (_linesLen[rec] = ++i - currPos);
+				currPos = i;
+				break;
+			}
+			if(i >= _readedLen) {			// check for the next block
+				if(CompleteBlock(currPos, blanklCnt))	return NULL;
+				currPos = blanklCnt = i = rec = 0;
+			}
+		}
+	_currRecPos = currPos;			// next record position
+	_recCnt++;
+	return RealRecord();
+}
+
+// Reads N-controlled record
+//	@counterN: counter of 'N'
+//	return: pointer to line or NULL if no more lines
+const char* TxtInFile::GetRecord(chrlen* const counterN)
+{
+	if(IsFlag(ENDREAD))	return NULL;
+	 
+	UINT i, blanklCnt = 0,			// counter of empty lines
+		 currPos = _currRecPos;		// start position of current readed record
 	chrlen cntN = 0;				// local counter of 'N'
-	BYTE indTab = 1;				// index of TAB position in @posTab
 	char c;
 
 	_recLen = 0;
-	for(BYTE r=0; r<_linesInRecCnt; r++)
-		for(i=currLinePos;; i++)	{
-			if( i >= _readedLen ) {				// check for the next block
-				if( _readedLen != _buffLen )	// final block
-					if( i == _buffLen			// current line is not ended by EOL
-					|| _buff[i-1] == EOL		// current line which is ended by EOL
-					|| _buff[i-1] == '\0')		// EOL has been replaced by previous call TabFile::GetLine()
-						return ReadingEnded();	// normal completion
-					else {						// current line is not ended by EOL
-						if(i<_buffLen)
-							_buff[i] = '\0';	// close current line
-						goto A;
-					}
-				// jump to the next block
-				if( !currLinePos ) {			// this block is totally unreaded
-					SetError(Err::F_BIGLINE);
-					return ReadingEnded();
-				}
-				// length of untreated rest of record
-				UINT restLen = _readedLen - _currRecPos - cntEmpty;
-				// move untreated remainder to the beginning of buffer; if restLen=0, skip moving
-				memmove(_buff, _buff + _currRecPos, restLen);
-				if( !ReadBlock(restLen) )
-					return ReadingEnded();	// record was finished exactly by previous ReadBlock()
-				// restart at the beginning of the record
-				indTab = 1;
-				cntN = currLinePos = cntEmpty = i = _recLen = r = 0;
-			}
-			c = _buff[i];
-			if( c==cN )
-				cntN++;
-			else if( c==TAB ) {
-				if(indTab < cntTabs)
-					posTab[indTab++] = i - currLinePos + 1;
-			}
+	for(BYTE rec=0; rec<_recLineCnt; rec++)
+		for(i=currPos;;i++)	{
+			if( (c=_buff[i]) == cN)		cntN++;
 			else if( c==EOL ) {
-				if( i==currLinePos ) {			// EOL marker is first in line
-					currLinePos++; cntEmpty++;	// skip empty line
+				if( i==currPos ) {				// EOL marker is first in line
+					currPos++; blanklCnt++;		// skip empty line
 					continue;
 				}
-				if( IsEOLnotDef() )		SetEOL(_buff[i-1]);		// define EOL size
-A:				_recLen += (_linesLen[r] = i - currLinePos + 1);
-				currLinePos = i + 1;
+				if(IsEOLundef())	SetEOL(_buff[i-1]);		// define EOL size
+				_recLen += (_linesLen[rec] = ++i - currPos);
+				currPos = i;
 				break;
 			}
+			if(i >= _readedLen) {			// check for the next block
+				if(CompleteBlock(currPos, blanklCnt))	return NULL;
+				cntN = currPos = blanklCnt = i = rec = 0;
+			}
 		}
-	_currRecPos = currLinePos;			// next record position
-	 if(counterN)		(*counterN) += cntN;
-	 _recCnt++;
-	return _buff + _currRecPos - _recLen;
+	_currRecPos = currPos;			// next record position
+	_recCnt++;
+	*counterN += cntN;
+	return RealRecord();
+}
+
+// Reads tab-controlled record
+//	@tabPos: TAB's positions array that should be filled
+//	@cntTabs: maximum number of TABS in TAB's positions array
+//	return: pointer to line or NULL if no more lines
+char* TxtInFile::GetRecord(short* const tabPos, const BYTE tabCnt)
+{
+	if(IsFlag(ENDREAD))	return NULL;
+	 
+	UINT i, blanklCnt = 0,			// counter of empty lines
+		 currPos = _currRecPos;		// start position of current readed record
+	BYTE tabInd = 1;				// index of TAB position in tabPos
+	char c;
+
+	_recLen = 0;
+	for(BYTE rec=0; rec<_recLineCnt; rec++)
+		for(i=currPos;;i++)	{
+			if( (c=_buff[i]) == TAB) {
+				if(tabInd < tabCnt)
+					tabPos[tabInd++] = i + 1 - currPos;
+			}
+			else if(c == EOL) {
+				if( i==currPos ) {				// EOL marker is first in line
+					currPos++; blanklCnt++;		// skip empty line
+					continue;
+				}
+				if(IsEOLundef())	SetEOL(_buff[i-1]);		// define EOL size
+				_recLen += (_linesLen[rec] = ++i - currPos);
+				currPos = i;
+				break;
+			}
+			if(i >= _readedLen) {			// check for the next block
+				if(CompleteBlock(currPos, blanklCnt))	return NULL;
+				currPos = blanklCnt = i = rec = 0;
+				tabInd = 1;
+			}
+		}
+	_currRecPos = currPos;			// next record position
+	_recCnt++;
+	return RealRecord();
 }
 
 // Gets string containing file name and current line number.
@@ -321,7 +388,6 @@ const string TxtInFile::LineNumbToStr(BYTE lineInd) const
 	//str += SepCl;
 	return str + ": line " + NSTR(LineNumber(lineInd));
 }
-
 
 /************************ TxtInFile: end ************************/
 
@@ -470,14 +536,14 @@ void TxtOutFile::SetLineBuff(rowlen len)
 
 // Adds to line int and float values and adds line to the IO buff.
 //	@ndigit: number if float digits to write
-void TxtOutFile::WriteLine(int val1, float val2, float val3, BYTE ndigit, const char*str)
-{
-	LineAddInt(val1);
-	LineAddFloat(val2, ndigit);
-	LineAddFloat(val3, ndigit);
-	LineAddStr(str);
-	LineToIOBuff();
-}
+//void TxtOutFile::WriteLine(int val1, float val2, float val3, BYTE ndigit, const char*str)
+//{
+//	LineAddInt(val1);
+//	LineAddFloat(val2, ndigit);
+//	LineAddFloat(val3, ndigit);
+//	LineAddStr(str);
+//	LineToIOBuff();
+//}
 
 // Adds to line 2 int values and adds line to the IO buff.
 void TxtOutFile::WriteLine(ULONG val1, ULONG val2)
@@ -546,174 +612,6 @@ void TxtOutFile::Write() const
 
 #ifndef _FQSTATN
 
-#ifndef _WIGREG
-
-/************************ struct Region ************************/
-
-// Extends Region with chrom length control.
-// If extended Region starts from negative, or ends after chrom length, it is fitted.
-//	@extLen: extension length in both directions
-//	@cLen: chrom length; if 0 then no check
-void Region::Extend(chrlen extLen, chrlen cLen)
-{
-	Start -= extLen > Start ? Start : extLen;
-	End += extLen;
-	if(cLen && End > cLen)	End = cLen;
-}
-
-/************************ end of struct Region ************************/
-
-/************************ class Regions ************************/
-
-// Geta total length of regions.
-chrlen Regions::Length () const
-{
-	chrlen len = 0;
-	for(Iter it=_regions.begin(); it<_regions.end(); it++)
-		len += it->Length();
-	return len;
-}
-
-#if defined _DENPRO || defined _BIOCC
-
-// Returns an iterator referring to the past-the-end element, where end is external
-//	@curr_it: region's const iterator, from which the search is started
-//	@end: external pre-defined end coordinate
-Regions::Iter Regions::ExtEnd(Iter curr_it, chrlen end) const
-{
-	Iter it = curr_it;
-	for(; it != _regions.end(); it++)
-		if(it->End > end)	break;
-	return it;
-}
-
-	// Initializes this instance by intersection of two Regions.
-//	Typically for that purpose is used Interval Tree,
-//	but this implementation uses Regions ordering and is simpler.
-void Regions::FillOverlap(const Regions &regn1, const Regions &regn2)
-{
-	chrlen start=0, end=0, start1, start2, end1, end2;
-	Iter it1 = regn1._regions.begin();
-	Iter it2 = regn2._regions.begin();
-	Reserve( max(regn1.Count(), regn2.Count()) );
-	for(; it1 != regn1._regions.end(); it1++) {
-		start1 = it1->Start;	end1 = it1->End;
-		start2 = it2->Start;	end2 = it2->End;
-		if(start1 < start2) {
-			if(end1 > start2) {
-				start = start2;
-				if(end1 > end2) {	end = end2;	it2++; it1--; }
-				else				end = end1;
-			}
-		}
-		else
-			if(start1 >= end2)	{	it2++; it1--;	}
-			else {
-				start = max(start1, start2);
-				if(end1 > end2) {	end = end2;	it2++; it1--; }
-				else				end = end1;
-			}
-		if( end ) {
-			AddRegion(start, end);
-			if( it2 == regn2._regions.end() )		return;
-			end = 0;
-		}
-	}
-}
-
-// Initializes this instance by inverted external Regions,
-// so the regions turns to the gaps and vice versa.
-// Each new region is less than proper old gap by 1 from each side.
-//	@regn: external Regions
-//	@maxEnd: the maximum possible end-coordinate of region:
-//	the chromosome length in case of nucleotides sequance.
-void Regions::FillInvert(const Regions &regn, chrlen maxEnd)
-{
-	chrlen start=0, end=0;
-	Reserve(regn.Count() + 1);
-	Iter it = regn._regions.begin();
-	for(; it != regn._regions.end(); it++) {
-		end = it->Start - 1;
-		AddRegion(start, end);
-		start = it->End + 1;
-	}
-	if(start < (maxEnd + 1))
-		AddRegion(start, maxEnd);
-}
-
-// Reads data from file @fname
-//	return: written minimal gap length
-short Regions::Read(const string & fName)
-{
-	TabFile file(fName, TxtFile::READ, 2);
-	ULONG evalLineLen = 0;
-	// first line is definition line with gap length;
-	// no need to check since aborting invalid file is set
-	const char* currLine = file.GetFirstLine(&evalLineLen);
-	short minGapLen = file.IntField(1);
-	Reserve( static_cast<chrlen>( file.Length() / evalLineLen ) );
-	//do		AddRegion( file.IntField(0), file.IntField(1) );
-	while( (currLine = file.GetLine()) != NULL )
-		AddRegion( file.IntField(0), file.IntField(1) );
-	return minGapLen;
-}
-
-// Saves data to file
-//	@fname: name of file
-//	@minGapLen: minimal length which defines gap as a real gap
-void Regions::Write(const string & fName, short minGapLen) const
-{
-#ifdef _FILE_WRITE
-	TxtOutFile file(fName);
-
-	file.SetLineBuff(2*INT_CAPACITY+2);
-	file.WriteLine("minGap", minGapLen);
-	for(Iter it = Begin(); it != End(); it++)
-		file.WriteLine(it->Start, it->End);
-	file.Write();
-#else
-	ofstream file;
-
-	file.open (fName);
-	file << "minGap\t" << minGapLen << EOL;
-	for(Iter it = Begin(); it != End(); it++)
-		file << it->Start << TAB << it->End << EOL;
-	file.close();
-#endif
-}
-
-#endif	// _DENPRO, _BIOCC
-
-// Adds gap, beginning of current gap position.
-//	@gapStart: gap's start position.
-//	@currGapStart: current gap start position holder
-//	@minGapLen: minimal length which defines gap as a real gap
-void Regions::AddGap(chrlen gapStart, chrlen currGapStart, chrlen minGapLen)
-{
-	if( gapStart && gapStart != currGapStart )		// current N-region is closed
-		if( currGapStart-_regions.back().End/*-1*/ < minGapLen )
-			_regions.back().End = gapStart/*-1*/;		// pass minimal allowed undefined nt
-		else 
-			_regions.push_back(Region(currGapStart, gapStart));	// add new def-region
-}
-
-#ifdef DEBUG
-void Regions::Print () const
-{
-	int i=0;
-	cout << "Regions:\n";
-	//for(auto it=_regions.begin(); it<_regions.end(); it++)
-	for(Iter it=_regions.begin(); it<_regions.end(); it++)
-		cout <<
-		//setw(2) << 
-		++i << COLON << TAB <<
-		//setw(9) << 
-		it->Start << TAB << it->End << endl;
-}
-#endif
-/************************ end of class Regions ************************/
-#endif	// _WIGREG
-
 /************************ class TabFile ************************/
 
 // Checks if field valid and throws exception if not.
@@ -743,7 +641,7 @@ void TabFile::Init(eAction mode)
 }
 
 // Reads first line and set it as current.
-// Throws exception if invalid and aborting file is set
+// Throws exception if invalid
 //	@cntLines: returned estimated count of lines.
 //	It works properly only if lines are sorted by ascending, f.e. in sorted bed-files.
 //	return: current line
@@ -758,8 +656,6 @@ const char* TabFile::GetFirstLine(ULONG *cntLines)
 
 const char*	TabFile::GetLine()
 {
-	char*	currLine;	// a bit faster than using _currLine in heep
-
 	// fill _fieldPos 0 to check if all fields will be initialize
 	// _fieldPos keeps start positions (next after TAB) for each field in line.
 	// First field's position usually is 0, but if there are blanks in the beginning of the line,
@@ -767,15 +663,14 @@ const char*	TabFile::GetLine()
 	// GetRecord(..) fills _fieldPos beginning from second field.
 	memset(_fieldPos, vUNDEF, sizeof(short) * _params.MaxFieldCnt);
 
-	currLine = GetRecord(NULL, _fieldPos, _params.MaxFieldCnt);
-	if( currLine != NULL ) {
+	char* currLine = GetRecord(_fieldPos, _params.MaxFieldCnt);	// a bit faster than using _currLine
+	if(currLine) {
 		USHORT	currPos = 0;	// a bit faster than using _currPos in heep
 	
 		// skip blanks at the beginning of line
 		while( *(currLine+currPos)==BLANK )	currPos++;
 		// skip comment line
-		if( *(currLine+currPos)==_params.Comment )
-			return GetLine();
+		if( *(currLine+currPos)==_params.Comment )	return GetLine();
 		// check line for specifier
 		if(_params.LineSpec && memcmp(currLine+currPos, _params.LineSpec, _lineSpecLen) )
 			return GetLine();
@@ -788,16 +683,16 @@ const char*	TabFile::GetLine()
 				SetError(Err::TF_FIELD);
 				return _currLine = NULL;
 			}
-			currLine[_fieldPos[i]-1] = '\0';	// replace TABs by 0
+			currLine[_fieldPos[i]-1] = cNULL;	// replace TABs by 0
 		}
 		
 		for(; i<_params.MaxFieldCnt; i++) {
 			if( _fieldPos[i] == vUNDEF )		// numbers of TABs is less than number of optional fields
 				break;
-			currLine[_fieldPos[i]-1] = '\0';	// replace TABs by 0
+			currLine[_fieldPos[i]-1] = cNULL;	// replace TABs by 0
 		}
 		
-		currLine[RecordLength()-1] = '\0';	// close last position by 0
+		currLine[RecordLength()-1] = cNULL;	// close last position by 0
 
 		// this version when _fieldPos is not initialized in TxtFile::GetRecord(): a bit more slower
 		//for(BYTE i=1; i<_cntFields; i++) {
@@ -805,7 +700,7 @@ const char*	TabFile::GetLine()
 		//	for(; currPos<_recLen; currPos++)
 		//		if(currLine[currPos]==TAB)
 		//			break;
-		//	currLine[currPos] = '\0';		// replace TABs by 0
+		//	currLine[currPos] = cNULL;		// replace TABs by 0
 		//	_fieldPos[i] = ++currPos;
 		//}
 	}
@@ -814,80 +709,304 @@ const char*	TabFile::GetLine()
 
 /************************ end of class TabFile ************************/
 
-#if !defined _WIGREG
+#ifndef _WIGREG
+
+/************************ struct Region ************************/
+
+// Extends Region with chrom length control.
+// If extended Region starts from negative, or ends after chrom length, it is fitted.
+//	@extLen: extension length in both directions
+//	@cLen: chrom length; if 0 then no check
+void Region::Extend(chrlen extLen, chrlen cLen)
+{
+	Start -= extLen > Start ? Start : extLen;
+	End += extLen;
+	if(cLen && End > cLen)	End = cLen;
+}
+
+/************************ end of struct Region ************************/
+
+/************************ class Regions ************************/
+
+// Geta total length of regions.
+//chrlen Regions::Length () const
+//{
+//	chrlen len = 0;
+//	for(Iter it=_regions.begin(); it<_regions.end(); it++)
+//		len += it->Length();
+//	return len;
+//}
+
+//Regions& Regions::operator=(const Regions& rgn)
+//{
+//	_regions = rgn._regions;
+//	return *this;
+//}
+
+#if defined _DENPRO || defined _BIOCC
+
+// Returns an iterator referring to the past-the-end element, where end is external
+//	@curr_it: region's const iterator, from which the search is started
+//	@end: external pre-defined end coordinate
+Regions::Iter Regions::ExtEnd(Iter curr_it, chrlen end) const
+{
+	Iter it = curr_it;
+	for(; it != _regions.end(); it++)
+		if(it->End > end)	break;
+	return it;
+}
+
+// Initializes this instance by intersection of two Regions.
+//	Typically for that purpose is used Interval Tree,
+//	but this implementation uses Regions ordering and is simpler.
+void Regions::FillOverlap(const Regions &regn1, const Regions &regn2)
+{
+	chrlen start=0, end=0, start1, start2, end1, end2;
+	Iter it1 = regn1._regions.begin();
+	Iter it2 = regn2._regions.begin();
+	Reserve( max(regn1.Count(), regn2.Count()) );
+	for(; it1 != regn1._regions.end(); it1++) {
+		start1 = it1->Start;	end1 = it1->End;
+		start2 = it2->Start;	end2 = it2->End;
+		if(start1 < start2) {
+			if(end1 > start2) {
+				start = start2;
+				if(end1 > end2) {	end = end2;	it2++; it1--; }
+				else				end = end1;
+			}
+		}
+		else
+			if(start1 >= end2)	{	it2++; it1--;	}
+			else {
+				start = max(start1, start2);
+				if(end1 > end2) {	end = end2;	it2++; it1--; }
+				else				end = end1;
+			}
+		if( end ) {
+			Add(start, end);
+			if( it2 == regn2._regions.end() )		return;
+			end = 0;
+		}
+	}
+}
+
+// Initializes this instance by inverted external Regions,
+// so the regions turns to the gaps and vice versa.
+// Each new region is less than proper old gap by 1 from each side.
+//	@regn: external Regions
+//	@maxEnd: the maximum possible end-coordinate of region:
+//	the chromosome length in case of nucleotides sequance.
+void Regions::FillInvert(const Regions &regn, chrlen maxEnd)
+{
+	Region rgn;
+	Iter it = regn._regions.begin();
+
+	Reserve(regn.Count() + 1);
+	for(; it != regn._regions.end(); it++) {
+		rgn.End = it->Start - 1;
+		Add(rgn);
+		rgn.Start = it->End + 1;
+	}
+	if(rgn.Start < (maxEnd + 1)) {
+		rgn.End = maxEnd;
+		Add(rgn);
+	}
+}
+
+#endif	// _DENPRO, _BIOCC
+
+#ifdef DEBUG
+void Regions::Print () const
+{
+	int i=0;
+	cout << "Regions:\n";
+	for(Iter it=_regions.begin(); it<_regions.end(); it++)
+		cout <<
+		//setw(2) << 
+		++i << COLON << TAB <<
+		//setw(9) << 
+		it->Start << TAB << it->End << endl;
+}
+#endif
+/************************ end of class Regions ************************/
+
+/************************ ChromDefRegions ************************/
+
+// Returns false if the next region is separated from the current one
+// by a value less than the established minimum gap.
+// Otherwise returns true and combined region as parameter.
+bool ChromDefRegions::Combiner::ExceptRegion(Region& rgn)
+{
+	if(_rgn.Empty())				 { _rgn = rgn;			return false; }	// first income region
+	if(rgn.Start-_rgn.End < _gapLen) { _rgn.End = rgn.End;	return false; }
+	Region	next = rgn;
+	rgn = _rgn;		// returned region
+	_rgn = next;
+	return true;
+}
+
+// Creates new instance and initializes it from file if one exist
+//	@cfName: chrom file name without extension
+//	@minGapLen: length, gaps less than which are ignored when reading; if 0 then read all regions 
+ChromDefRegions::ChromDefRegions(const string& cfName, chrlen minGapLen) : _gapLen(0), _new(true)
+{
+	_fName = cfName + ".region";
+	if(FS::IsFileExist(_fName.c_str())) {
+		TabFile file(_fName, TxtFile::READ, 2, 2);
+		Combiner comb(minGapLen);
+		Region rgn;
+		ULONG lineCnt;
+
+		if(file.GetFirstLine(&lineCnt)) {
+			_gapLen = file.LongField(1);	// first line contains total length of gaps
+			Reserve(lineCnt);
+			while(file.GetLine()) {
+				rgn.Set(file.LongField(0), file.LongField(1));
+				if(!minGapLen || comb.ExceptRegion(rgn))
+					Add(rgn);
+			}
+			if(minGapLen)	Add(comb.LastRegion());
+			_new = false;
+		}
+	}
+	else	Reserve(DefCapacuty);
+}
+
+// Adds def region beginning of current gap position.
+//	@rgn: def region
+//	@minGapLen: minimal length which defines gap as a real gap
+void ChromDefRegions::AddRegion(const Region& rgn, chrlen minGapLen)
+{
+	if( rgn.End && minGapLen && rgn.Length())	// current gap is closed
+		if( _regions.size() && rgn.Start-_regions.back().End < minGapLen )
+			_regions.back().End = rgn.End;		// pass minimal allowed gap
+		else 
+			_regions.push_back(rgn);			// add new def-region
+}
+
+void ChromDefRegions::Write() const
+{
+	if(!_new)	return;
+	ofstream file;
+
+	file.open (_fName.c_str(), ios_base::out);
+	file << "SumGapLen:" << TAB << _gapLen << EOL;
+	for(Iter it=Begin(); it!=End(); it++)
+		file << it->Start << TAB << it->End << EOL;
+	file.close();
+	_new = false;
+}
+
+#if defined _DENPRO || defined _BIOCC
+// Combines regions with a gap less than minGapLen
+void ChromDefRegions::Combine(chrlen minGapLen)
+{
+	Region rgn;
+	Regions rgns;	// new combined regions
+	Combiner comb(minGapLen);
+
+	rgns.Reserve(Count());
+	for(Iter it=Begin(); it!=End(); it++) {
+		rgn.Set(it->Start, it->End);
+		if(comb.ExceptRegion(rgn))	rgns.Add(rgn);
+	}
+	rgns.Add(comb.LastRegion());
+	Copy(rgns);
+}
+#endif
+
+/************************ end of ChromDefRegions ************************/
 
 /************************ class FaFile ************************/
-const string FaFile::Ext = ".fa";
-#define FA_COMMENT	'>'
 
-// Sets the initial state.
-void FaFile::Pocket::Clear()
+// Adds a gap to assign defined regions
+//	@start: gap's start position.
+//	@len: gap's length
+void FaFile::DefRgnMaker::AddGap(chrlen start, chrlen len)
 {
-	_currPos = _countN = _currGapStart = 0;
-	_defRgns.Clear();
+	_defRgn.End = (start += _currPos);
+	_defRgns.AddRegion(_defRgn, _minGapLen);
+	_defRgn.Start = start + len;
+	_defRgns.IncrGapLen(len);
 }
 
-// Adds some amount of 'N' as a gap to assign defined regions
-//	@gapStart: gap's start position.
-//	@gapLen: gap's length; if 0, complete adding gaps
-void FaFile::Pocket::AddN(chrlen shiftGapStart, chrlen gapLen)
+// Closes adding gaps, saves hrom's defined regions
+//	@cLen: chrom length
+void FaFile::DefRgnMaker::CloseAddGaps(chrlen cLen)
 {
-	shiftGapStart += _currPos;
-	_defRgns.AddGap(shiftGapStart, _currGapStart, _minGapLen);
-	_currGapStart = shiftGapStart + gapLen;
-	_countN += gapLen;
+	_defRgn.End = cLen;
+	_defRgns.AddRegion(_defRgn, _minGapLen);
+	_defRgns.Write();
 }
 
-// Opens an existing .fa fil and reads first line.
-//	@fName: full .fa file name
-//	@pocket: external temporary variables
-FaFile::FaFile(const string & fName, Pocket& pocket) : TxtInFile(fName, READ, 1)
+// Search 'N' subsequence in the current line beginning from the start position
+//	@startPos: starting line reading position
+//	@NCnt: number of 'N' in the line beginning from the start position
+//	return: true if line trimming is complete, false for single 'N'
+void FaFile::CountN(chrlen startPos, chrlen NCnt)
 {
-	// set header length
-	chrlen len = 0;
-	if( GetLine(pocket)[0] == FA_COMMENT ) {	// header line?
-		len = RecordLength();
-		pocket.Clear();
-		GetLine(pocket);				// first data line
-	}
-	// set genome length
-	len = chrlen(Length() - len);
-	pocket._cLen = len - EOLSize() * 
-		(len/RecordLength() +			// amount of EOL markers for whole lines
-		(len%RecordLength() ? 1 : 0) );	// EOL for part line
+	if(NCnt == 1)	return;
+
+	const char* line = Line();
+	chrlen lineLen = LineLength();
+	chrlen nCnt = 0, iN;				// local count N, first N index
+	bool firstN = true;
+
+	for(chrlen i=startPos; i<lineLen; i++)
+		if(line[i] == cN) {					// some 'N' subsequence begins?
+			nCnt++;
+			if(firstN)	{ iN = i; firstN = false; }
+		}		
+		else if(nCnt)						// is current subsequence finished?
+			if(nCnt == 1) {					// was it a single 'N'?
+				nCnt = 0; NCnt--; firstN = true;	
+			}
+			else {							// continuous 'N' sequence?
+				_rgnMaker->AddGap(iN, nCnt);	// add complete 'N' subsequence
+				CountN(i++, NCnt - nCnt);	// search in the rest of line
+				return;
+			}
 }
 
 // Reads line and set it as current, and generates regions
 // Since method scans the line, it takes no overhead expenses to do this.
 //	@pocket: external temporary variables
 //	return: current line.
-const char* FaFile::GetLine(Pocket& pocket) 
+const char* FaFile::GetLineWitnNControl() 
 {
-	chrlen countN = 0;
-	const char* line = GetRecord(&countN);
-	if( line ) {
-		if( countN )			// some nt in line are undefined
-			for(chrlen i=0; i<LineLength(); i++)
-				if( line[i]==cN ) {
-					pocket.AddN(i, countN);
-					break;
-				}
-		pocket._currPos += LineLength();
+	chrlen nCnt = 0;	// number of 'N' in line
+	const char* line = GetRecord(&nCnt);
+	if(line) {
+		chrlen len = LineLength();
+		if(nCnt)
+			if(nCnt == len)	_rgnMaker->AddGap(0, nCnt);	// the whole line is filled by 'N'
+			else			CountN(0, nCnt);
+		_rgnMaker->AddLineLen(len);
 	}
 	return line;
 }
 
-//#if defined _FILE_WRITE  && defined DEBUG
-//FaFile::FaFile(const string & fName, const char *chrName) : TxtFile(fName, WRITE, 1)
-//{
-//	const char *title = ">Chrom::Abbr";
-//	char *header = new char[strlen(title) + strlen(chrName) + 1];
-//	strcpy(header, title);
-//	strcpy(header+strlen(title), chrName);
-//	RecordToIOBuff(header, strlen(title) + strlen(chrName));
-//	delete [] header;
-//}
-//#endif
+// Opens existing file and reads first line.
+//	@rgns: def regions to fill, otherwise NULL to reading without 'N' control
+FaFile::FaFile(const string& fName, ChromDefRegions* rgns) : TxtInFile(fName, READ, 1)
+{
+	_rgnMaker = rgns ? new DefRgnMaker(*rgns, 2) : NULL;
+	chrlen len = 0;
+	// set pointer to GetLine()
+	if(_rgnMaker)	_pGetLine = &FaFile::GetLineWitnNControl;
+	else			_pGetLine = &FaFile::GetRecord;
+
+	if(GetLine()[0] == FaComment) {		// is first line a header?
+		len = RecordLength();
+		if(_rgnMaker)	_rgnMaker->RemoveLineLen(LineLength());
+		GetLine(); 
+	}
+	// set chrom length
+	len = chrlen(Length()) - len;
+	_cLen = len - EOLSize() * 
+		(len/RecordLength() +		// amount of EOL markers for whole lines
+		bool(len%RecordLength()));	// EOL for part line
+}
 
 /************************ end of class FaFile ************************/
 
@@ -902,14 +1021,15 @@ const char* FaFile::GetLine(Pocket& pocket)
 readlen FqFile::ReadLength() const
 {
 	CheckGettingRecord();
-	return LineLengthByInd(READ) - EOLSize(); 
+	return LineLengthByInd(READ); 
 }
 
 // Gets checked Read from readed Sequence.
 const char* FqFile::GetCurrRead() const
 { 
-	CheckGettingRecord();
+	//CheckGettingRecord();
 	return NextRecord() - RecordLength() + LineLengthByInd(HEADER1); 
+	//return NextRecord() - LineLength() + LineLengthByInd(HEADER1); 
 }
 
 // Returns checked Sequence
@@ -918,9 +1038,9 @@ const char* FqFile::GetSequence()
 	const char* record = GetRecord();
 	if(record != NULL) {
 		if(*record != AT)
-			Err(Err::FQ_HEADER, LineNumbToStr(0).c_str()).Throw();
-		if( *(record + LineLengthByInd(HEADER1, true) + LineLengthByInd(READ, true)) != PLUS )
-			Err(_errCode = Err::FQ_HEADER2, LineNumbToStr(2).c_str()).Throw();
+			Err("non '@' marker; missed header line", LineNumbToStr(0).c_str()).Throw();
+		if( *(record + LineLengthByInd(HEADER1, false) + LineLengthByInd(READ, false)) != PLUS )
+			Err("non '+' marker; missed second header line", LineNumbToStr(2).c_str()).Throw();
 	}
 	return record;
 }
@@ -936,7 +1056,7 @@ const char* FqFile::GetSequence()
 //	@file: file that is aggregated
 //TxtFile::TxtFile(const string & fName, const TxtFile& file) :
 //	_flag(file._flag),
-//	_linesInRecCnt(file._linesInRecCnt),
+//	_recLineCnt(file._recLineCnt),
 //	_buffLineLen(0)
 //{
 //	if( !SetBasic(fName, READ, NULL) )	return;

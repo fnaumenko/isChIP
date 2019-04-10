@@ -81,8 +81,8 @@ public:
 
 		inline IdNumbers() {}
 
-		// Constructor by chrom files
-		IdNumbers(const ChromFiles& chrFiles);
+		// Constructor by chrom sizes
+		IdNumbers(const ChromSizesExt& cSizes);
 
 		// Initializes instance by numbers
 		void Init(const IdNumbers& numbers);
@@ -217,13 +217,13 @@ private:
 
 public:
 	// Creates numbers partition by identified values, with sums sorted in descending order
-	//	@chrFiles: chrom files as chrom ID and chrom sizes container to be distributed
+	//	@cSizes: chrom sizes container to be distributed
 	//	@ssCnt: count of subsets;
     //	if 0 then creates an empty partition with undefined (maximum type's value) inaccuracy
 	//	@limMult: STree() call's limit multiplier -
 	//	it increases the limit of 1 million recursive invokes by limMult times;
 	//	if 0 then omit DSTree method invoking (fast, but not 'perfect')
-	effPartition(const ChromFiles& chrFiles, ss_id ssCnt, UINT limMult = 1);
+	effPartition(const ChromSizesExt& cSizes, ss_id ssCnt, UINT limMult = 1);
 
 	// Returns the count of subsets.
 	inline ss_id SubsetCount() const { return result.SubsetCount(); }
