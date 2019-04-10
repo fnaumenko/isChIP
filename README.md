@@ -245,7 +245,7 @@ Forces to scan the entire reference chromosome, including gaps at each end (‘u
 By default these gaps are excluded from processing.<br>
 This permission makes no difference in data after alignment, but slightly increases the output volume and the runtime. 
 For instance, when simulation on the basis of mm9 genome, this option increases both values by about 2.4%. 
-For the hg19 genome the difference is about 0.1%.
+For the hg19 genome the difference is about 0.7%.
 
 ```-m|--smode <SE|PE>```<br>
 Generate reads according to stated sequencing mode: ```SE``` – single end, ```PE``` – paired end 
@@ -404,10 +404,10 @@ The next information is displaying for each chromosome and total (field values a
   chrom      reads sample  r/kbp        reads   sample  r/kbp  gaps  g_excl   mm:ss
 ───────────────────────────────────────────────────────────────────────────────────
 t chr 1:  FG: 1334  100%      55   BG: 350155      1%    3.57   2.9%  1.5%    00:01
-c chr 1:                               356366            3.58   2.9%  1.5%    00:00
+c chr 1:                               356366            3.58                 00:00
 ...
 ───────────────────────────────────────────────────────────────────────────────────
-t total:  FG: 93156 100%      55   BG: 944801      1%    3.54
+t total:  FG: 93156 100%      55   BG: 944801      1%    3.54   3.6%  2.4%
 total recorded reads:: test: 1037957, control: 993378
 ```
 
@@ -421,6 +421,8 @@ Amplified reads are not included in the sample statistics;
 * ```gaps``` – total fraction of reference undefined regions (gaps); only in ```PAR``` and ```DBG``` verbose mode;
 * ```g_excl``` – fraction of at each end excluded from treatment; only in ```PAR``` and ```DBG``` verbose mode;
 * ```mm:ss``` – wall time (only if ```–t|--time``` option is set)
+
+In the ‘total’ line, the total number of reads is indicated, as well as the average values of the density and the relative number of gaps and excluded from the treatment gaps for the entire genome.
 
 ### Limitation
 The total number of chromosomes is restricted by 255.<br>
