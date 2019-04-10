@@ -414,7 +414,7 @@ class Imitator
 		static const BYTE marg_A	= 3;	// length of margin 4 before ampl coeff
 		static const BYTE marg_D	= 1;	// length of margin 5 before density
 		static const BYTE margD_	= 2;	// length of margin 6 after density
-		static const BYTE margG_excl= 1;	// length of margin 8 between gaps and gaps excleded
+		static const BYTE margGexcl	= 1;	// length of margin 8 between gaps and gaps excleded
 		static const BYTE SampleW	= 6;	// width of 'sample' field	[strlen("sample");]
 		static const BYTE DensW		= 6;	// width of 'density' field [strlen(UnitDens)]
 		static const BYTE AmplW		= 4;	// width of ampl coefficient field
@@ -426,14 +426,16 @@ class Imitator
 		static const char* tGapsExcl;		// title of excluded gaps
 		static const char* tTime;			// title of time output
 
+		static BYTE GapsWexcl;		// width of excluded gaps field
+
 		// Prints empty margin
 		//	@width: margin width
 		static inline void PrintMarg(BYTE width) { cout << setw(width) << BLANK; }
 
-		BYTE	CountW;		// width of 'number of Reads' field
-		BYTE	SampleWRP;	// 'sample' field right padding: space to the right of the value (0|1)
-		BYTE	DensWRP;	// 'density' field right padding: space to the right of the value (0|1)
-		BYTE	DensPr;		// precision of density
+		BYTE CountW;		// width of 'number of Reads' field
+		BYTE SampleWRP;		// 'sample' field right padding: space to the right of the value (0|1)
+		BYTE DensWRP;		// 'density' field right padding: space to the right of the value (0|1)
+		BYTE DensPr;		// precision of density
 		Gr::Type GrType;	// FG|BG
 
 	public:
@@ -446,10 +448,12 @@ class Imitator
 		// returns ground title width or 0 if not TEST mode
 		static BYTE GrTitleW() { return TestMode * (Gr::TitleLength + strlen(SepCl)); }
 
-		inline ChromView(Gr::Type grType) : GrType(grType) {}
-
 		// Prints chroms gaps statistics
 		static void PrintGaps(const GenomeSizes& s);
+
+		static inline void PrintGapsMarg() { PrintMarg(margD_ + GapsW + margGexcl + GapsWexcl); }
+
+		inline ChromView(Gr::Type grType) : GrType(grType) {}
 
 		// Prints chrom's header: Reads
 		//	@FgHeader: true for foreground header
@@ -557,6 +561,7 @@ class Imitator
 
 	// Prints chromosome's name and full statistics
 	//	@cID: chromosomes ID, or CHRID_UNDEF to print "total" instead chrom name
+	//	@gMode: Test|Control
 	//	@fCnts: array of fragment's counters, for FG and BG
 	//	@rgnLens: array of region's lengths to print FG|BG density
 	//	@prChrName: true if chromosome's name should be printed

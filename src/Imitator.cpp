@@ -322,9 +322,9 @@ public:
 void Imitator::GenomeSizes::IncrSizes(const RefSeq& seq)
 {
 	Mutex::Lock(Mutex::INCR_SUM);
-	Total = seq.Length();
-	Defined = seq.DefRegion().Length();
-	Gaps = seq.GapLen();
+	Total += seq.Length();
+	Defined += seq.DefRegion().Length();
+	Gaps += seq.GapLen();
 	Mutex::Unlock(Mutex::INCR_SUM);
 }
 
@@ -347,6 +347,7 @@ void Imitator::GenomeSizes::IncrSizes(const RefSeq& seq)
 #define cFIL_VAL BLANK
 const char* Imitator::ChromView::tGapsExcl = "g_excl";
 const char* Imitator::ChromView::tTime = "mm:ss";
+BYTE Imitator::ChromView::GapsWexcl;
 
 // Prints str on given field and return field width
 //	@width: field width
@@ -412,7 +413,7 @@ int Imitator::ChromView::PrintHeaderGaps()
 	if(Verbose(vPAR)) {
 		lineW = PrFittedStr("gaps", margD_ + GapsW);
 		if(!RefSeq::LetGaps )
-			lineW += PrFittedStr(tGapsExcl, margG_excl + strlen(tGapsExcl));
+			lineW += PrFittedStr(tGapsExcl, margGexcl + GapsWexcl);
 	}
 	if(Timer::Enabled)
 		lineW += PrFittedStr(tTime, marg_T + strlen(tTime));
@@ -445,7 +446,7 @@ void Imitator::ChromView::PrintGaps(const GenomeSizes& s)
 {
 	PrFittedFloat(true, s.GapsInPers(), GapsPr, margD_ + GapsW);
 	if(RefSeq::LetGaps)		return;
-	PrFittedFloat(true, s.UndefInPers(), GapsPr, margG_excl + strlen(tGapsExcl));
+	PrFittedFloat(true, s.UndefInPers(), GapsPr, margGexcl + strlen(tGapsExcl));
 }
 
 // Initializes viewing data
@@ -470,6 +471,8 @@ void Imitator::ChromView::Init(ULONG maxCnt, float sample, float maxDens)
 	else if(maxDens < 15)	DensPr = 1, DensWRP = 1;// 1.23
 	else if(maxDens < 150)	DensPr = 0;				// 123.4
 	else					DensPr = 0;				// 1234.5
+
+	GapsWexcl = strlen(tGapsExcl);
 }
 
 #ifdef DEBUG
@@ -564,8 +567,11 @@ void Imitator::ChromCutter::PrintChrom (
 
 	PrintChromInfo(cID, _gMode, _fragCnt.GetFragCnts(), rgnLens, !IsSingleThread());
 	if(Verbose(vPAR)) {
-		const GenomeSizes s(seq);
-		ChromView::PrintGaps(s);
+		if(_gMode == GM::Test) {
+			const GenomeSizes s(seq);
+			ChromView::PrintGaps(s);
+		}
+		else ChromView::PrintGapsMarg();
 	}
 	timer.Stop(ChromView::marg_T);		// print time
 	if(excLimit) {
@@ -787,6 +793,7 @@ void Imitator::PrintChromName(chrid cID, GM::Mode gm, bool print)
 
 // Prints chromosome's name and full statistics
 //	@cID: chromosomes ID, or CHRID_UNDEF to print "total" instead chrom name
+//	@gMode: Test|Control
 //	@fCnts: array of fragment's counters, for FG and BG
 //	@rgnLens: array of region's lengths to print FG|BG density
 //	@prChrName: true if chromosome's name should be printed
@@ -861,9 +868,9 @@ void Imitator::Execute(BedF* templ)
 	// print statistics
 	if(Verb == vRES)		PrintTotal();
 	else if( Verbose(vRT) )	{
-		if(TestMode || _cSizes.TreatedCount() > 1) {	// print summary test statistics?
+		if(_cSizes.TreatedCount() > 1) {	// print summary test statistics?
 			PrintChromInfo(Chrom::UnID, GM::Test, GlobContext[GM::Test].fCnts, TreatedLen);
-			if(Verbose(vPAR))	ChrView[Gr::BG].PrintGaps(gSizes);
+			if(Verbose(vPAR))	ChrView[Gr::BG].PrintGaps(gSizes);	// ground doesn't matter
 			cout << EOL;
 		}
 		if(TestMode)	PrintTotal();
