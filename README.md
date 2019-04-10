@@ -55,8 +55,9 @@ The alternative way:<br>
 ```wget -r ftp://hgdownload.soe.ucsc.edu/goldenPath/mm9/chromosomes/```<br>
 ```mv hgdownload.soe.ucsc.edu/goldenPath/mm9/chromosomes mm9```<br>
 ```rm -r hgdownload.soe.ucsc.edu```<br>
-If you do not want to keep unused modifications, type<br>
-```rm mm9/*_random*```<br>
+Unplaced (chr*_random) and unlocalized (chrUn_*) sequences are not involved in modelling, 
+so you can delete them by typing<br>
+```rm mm9/*_*```<br>
 **in Windows**<br>
 copy and paste the string *ftp://hgdownload.soe.ucsc.edu/goldenPath/mm9/chromosomes/* into Windows browser address bar, 
 then copy *.fa.gz files to your local directory.<br>
@@ -80,7 +81,7 @@ comparable with what is experimentally observed in [Series GSE56098](https://www
 ### Help
 ```
 Processing:
-  -g|--gen <name>       reference genome library or single nucleotide sequence. Required
+  -g|--gen <name>       reference genome library. Required
   -n|--cells <int>      number of cells [1]
   -a|--ampl-c <int>     number of PCR cycles [0]
   -b|--bg <float>       number of selected fragments outside BSs (background),
@@ -90,8 +91,7 @@ Processing:
   --bg-all <OFF|ON>     turn on/off generation background for all chromosomes.
                         For the test mode only [ON]
   -c|--chr <name>       generate output for the specified chromosome only
-  -N|--let-N            include the regions filled with an ambiguous reference characters 'N'
-                        on the beginning and on the end of chromosome
+  -N|--full-size        process the entire reference chromosome (including gaps at each end)
   -m|--smode <SE|PE>    sequencing mode: SE - single end, PE - paired end [SE]
   -u|--ts-uni           uniform template score. For the test mode only
   -p|--threads <int>    number of threads [1]
@@ -108,16 +108,16 @@ Reads:
                         NONE - nothing
                         NUMB - read`s unique number across genome
                         POS  - read`s actual start position [NONE]
-  --rd-Nlim <int>       maximum permitted number of ambiguous characters 'N' in read [OFF]
+  --rd-Nlim <int>       maximum permitted number of ambiguous code N in read [OFF]
   --rd-lim <long>       maximum permitted number of total recorded reads [2e+08]
-  --rd-ql <char>        uniform quality value for the sequence  [~]
-  --rd-ql-patt <name>   quality values pattern for the sequence 
-  --rd-map-ql <int>     read mapping quality for SAM and BED output [255]
+  --rd-ql <char>        uniform read quality score [~]
+  --rd-ql-patt <name>   read quality scores pattern 
+  --rd-map-ql <int>     read mapping quality in SAM and BED output [255]
 Output:
   -f|--format <FQ,BED,SAM,WIG,FREQ>     format of output data, in any order  [FQ]
   -C|--control          generate control simultaneously with test
   -S|--strand           generate two additional wig files, each one per strand  
-  -s|--sep              print number of reads with '1000' separator
+  -s|--sep              display reads number thousands separator
   -o|--out <name>       location of output files or existing directory
                         [Test mode: mTest.*, Control mode: mInput.*]
   -z|--gzip             compress the output
@@ -163,21 +163,11 @@ Enumerable option values are case insensitive.<br>
 Compressed input files (.gz) are acceptable.
 
 ```-g|--gen <name>```<br>
-Reference genome library, or single nucleotide sequence.<br>
-Genome library is a directory contained nucleotide sequences for each chromosome in [FASTA](https://en.wikipedia.org/wiki/FASTA_format) format.<br>
-If ```name``` is a directory, first **isChIP** searches .fa files in it.
-If there are not such files, or the file corresponded to chromosome specified by option ```–c|--chr``` option is absent, isChIP searches .fa.gz files.
-
-There are 3 ways to define desirable reference sequences.<br>
-To generation output for the whole genome, ```name``` should be a path, 
-and all chromosome files should be in a uniform compressed condition.<br>
-To restrict output to some chromosomes, ```name``` should be a path, 
-and only desirable chromosome files should be decompressed or even present at all.<br>
-To generate output for a single chromosome, ```name``` can be a path and option ```–c|--chr``` 
-should be set, or ```name``` should indicate an appropriate reference file.<br>
+Reference genome library. It is a directory contained nucleotide sequences for each chromosome in [FASTA](https://en.wikipedia.org/wiki/FASTA_format) format.<br>
+First **isChIP** searches .fa files in it. If there are not such files, 
+or the file corresponded to chromosome specified by option ```–c|--chr``` option is absent, **isChIP** searches .fa.gz files.<br>
 In *test* mode the target references are determined by *template*. 
-See also ```--bg-all``` and ```–c|--chr ``` options.
-
+See [Template](#template) and ```--bg-all``` and ```–c|--chr ``` options. 
 **isChIP** omits  'random' contigs and haplotype sequences.
 One can obtain a genome library in  UCSC: ftp://hgdownload.soe.ucsc.edu/goldenPath/ or in Ensemble: ftp://ftp.ensembl.org/pub/release-73/fasta storage. 
 In the second case please copy genomic sequences with the same masked type only, 
@@ -242,14 +232,17 @@ Default: ```ON```
 
 ```-c|--chr <name>```<br>
 Generate output for the specified chromosome only. 
-```name``` means chromosome identifier, i.e. number or  character, for instance ```10```, ```X```. 
-This creates the same effect as referencing to the chromosome file instead of directory.<br>
+```name``` means chromosome identifier, i.e. number or  character, for instance ```10```, ```X```.<br>
 This is a strong option, which forces to ignore all other chromosomes from reference genome and *template*, 
-and abolishes the impact of option ```--bg-all```.
+and abolishes the impact of option ```--bg-all```. 
+If the specified chromosome is absent in *template*, the program has nothing to simulate.
 
-```-N|--let-N```<br>
-Forces the scanning process to include region consisting of ambiguous characters 'N' at the beginning and at the end of a reference chromosome. 
-It makes no difference in data after alignment, but slightly increases the output volume and the runtime.
+```-N|--full-size```<br>
+Forces to scan the entire reference chromosome, including gaps at each end (‘undefined telomeres’).<br>
+By default these gaps are excluded from processing.<br>
+This permission makes no difference in data after alignment, but slightly increases the output volume and the run time. 
+For instance, when simulation on the basis of mm9 genome, this option increases both values by about 2.4%. 
+For the hg19 genome the difference is about 0.1%.
 
 ```-m|--smode <SE|PE>```<br>
 Generate reads according to stated sequencing mode: ```SE``` – single end, ```PE``` – paired end 
@@ -264,7 +257,7 @@ In other modes is ignored.
 ```-p|--threads <int>```<br>
 Number of threads. The workflow is separated between chromosomes, so the actual number of threads 
 can be reduced (if the number of actual treated chromosomes is less then assigned value). 
-The actual threads number is displayed in ```PAR``` and ```DBG``` verbose mode (see ```-V|--verbose``` option).<br>
+The actual threads number is displayed in ```PAR``` and ```DBG``` verbose mode.<br>
 Range: 1-20<br>
 Default: 0
 
@@ -319,13 +312,12 @@ Additional info slightly increases the runtime and size of output files.<br>
 Default: ```NONE(SE)|NUMB(PE)```
 
 ```--rd-Nlim <int>```<br>
-Maximum permitted number of ambiguous reference characters ('N') in read.<br>
-This option is designed primarily for validation of the aligners.<br>
-In the real read sequences ambiguous characters could cause a failure in sequencing as well as undefined regions in the cut fragments, 
+Maximum permitted number of ambiguous code N in read.<br>
+This option is designed primarily for aligners validation.<br>
+In the real read sequences ambiguous code could cause a failure in sequencing as well as undefined regions in the cut fragments, 
 while simulated reads are fully defined by reference library. 
-Consequently the ambiguous characters in the library are translated into reads. 
-Different aligners considered undefined characters in references differently: 
-some of them as invalid, and some of them as an overlapping case.<br>
+Consequently the ambiguous bases in the library are translated into reads. 
+Different aligners considered these codes differently: some of them as invalid, some of them as an overlapping case.<br>
 Range: 0 - <```-r|--rd-len``` value><br>
 Default: ```-r|--rd-len``` value (what is the same as no checkup)
 
@@ -336,12 +328,12 @@ Range: 1e5-1e19<br>
 Default: 2e8.
 
 ```--rd-ql <char>```<br>
-Uniform quality value for the sequence (read) in FQ and SAM output.<br>
+Uniform read quality score in FQ and SAM output.<br>
 Range: '!'-'\~'<br>
 Default: '\~' (decimal 126)
 
 ```--rd-ql-patt <name>```<br>
-Quality values pattern for the sequence (read) in FQ and SAM output. 
+Read quality score pattern in FQ and SAM output. 
 ```name``` is a plain text file containing at least one line encodes the quality values for the sequence 
 as described in [FastQ](https://en.wikipedia.org/wiki/FASTQ_format) specification.<br>
 If the length of line is less then read length, the rest of pattern is filed by value defined by ```--rd-ql``` option.<br>
@@ -350,7 +342,7 @@ The lines starting with the character '#' are ignored.<br>
 The second and all the following encoding lines are ignored as well.
 
 ```-rd-map-ql <int>```<br>
-Read mapping quality in SAM and BED output (in the last case it is called 'score').<br>
+Read mapping quality in SAM and BED output (in the last case it is also called 'score').<br>
 Range: 0-255<br>
 Default: 255
 
@@ -383,14 +375,14 @@ The control file has the same name as the test, with the suffix '_input'.<br>
 In *control* mode is ignored.
 
 ```-S|--strand```<br>
-In addition to the WIG format forces to generate two additional wig files, each one per strand. 
+In addition to the WIG format forces to generate two additional wig files, each one per strand.<br> 
 Is valid only in ```SE``` sequencing mode.
 
 ```-o|--out <file>```<br>
 Output files location. If option’s value is a file, it is used as a common file name. 
 If file has an extension, it is discarded. If value is a directory, the default file name is used.<br>
 Default: *test* mode: **mTest.\***, *control* mode: **mInput.\***
-
+d
 ```-V|--verbose <SL|RES|RT|PAR|DBG>```<br>
 Set verbose level:<br>
 ```SL```	silent mode: no output except critical messages<br>
@@ -406,14 +398,14 @@ Default: ```RT```
 The next information is displaying for each chromosome and total (field values are given as an example):
 
 ```
-  chrom      reads sample  r/kbp        reads   sample  r/kbp     N   N_excl  mm:ss
+  chrom      reads sample  r/kbp        reads   sample  r/kbp  gaps  g_excl   mm:ss
 ───────────────────────────────────────────────────────────────────────────────────
-t chr 1:  FG: 1334  100%      55   BG: 350155      1%    3.57   5.2%  4.9%    00:01
-c chr 1:                               356366            3.58   5.2%  4.9%    00:00
+t chr 1:  FG: 1334  100%      55   BG: 350155      1%    3.57   2.9%  1.5%    00:01
+c chr 1:                               356366            3.58   2.9%  1.5%    00:00
 ...
 ───────────────────────────────────────────────────────────────────────────────────
 t total:  FG: 93156 100%      55   BG: 944801      1%    3.54
-total recorded reads:: test: 474931, control: 993378
+total recorded reads:: test: 1037957, control: 993378
 ```
 
 * ```t, c``` – test, control (only with ```-C|--control``` option)
@@ -423,8 +415,8 @@ total recorded reads:: test: 474931, control: 993378
 The actual sample may be reduced because of the next reasons: user-defined and/or scalable sample, different template feature’s score (for the foreground reads), exceeding the maximum number of ambiguous reference characters ‘N’ in read. 
 Amplified reads are not included in the sample statistics;
 * ```r/kbp``` – actual read density, in read per 1000 base pair;
-* ```N``` – total fraction of ambiguous reference characters 'N' in chromosome (only in ```PAR``` and ```DBG``` verbose mode);
-* ```N_excl``` – fraction of excluded from treatment ambiguous reference characters 'N' in chromosome (only in ```PAR``` and ```DBG``` verbose mode);
+* ```gaps``` – total fraction of reference undefined regions (gaps); only in ```PAR``` and ```DBG``` verbose mode;
+* ```g_excl``` – fraction of reference undefined regions (gaps) excluded from treatment; only in ```PAR``` and ```DBG``` verbose mode;
 * ```mm:ss``` – wall time (only if ```–t|--time``` option is set)
 
 ### Limitation
