@@ -1,9 +1,9 @@
 # isChIP
 **I**n **S**ilico **ChIP**-seq is a fast realistic ChIP-seq simulator.
 
-The modelling of the chromatin immunoprecipitaion followed by next generation sequencing process is based on presumably on Illumina protocol. 
-However, the **isChIP**’s options can be adjusted to the other techniques such as  Ion Torrent, etc.<br>
-For more information about model see [Model: brief description](#model-brief-description).
+The modelling of the chromatin immunoprecipitaion followed by next generation sequencing process is based primarily on Illumina protocol. 
+In addition, extra flexibility is implemented for the isChIP’s options to be straightforwardly re-formulated in other formats, such as Ion Torrent, etc. 
+More details of the model are provided in the section [Model: brief description](#model-brief-description).
 
 ### Performance
 On 2.5 GHz RAID HPC by default values of ground samples, in one-thread mode, within 1 minute **isChIP** records:<br>
@@ -69,27 +69,28 @@ To download **hg19** library, in the above example replace '**mm9**' with '**hg1
 ## Usage
 ```
 isChIP [options] -g|--gen <name> [<template>]
-	<template> - bed file whose features specify binding sites (BS)
+	<template> - bed file whose features specify binding sites
 ```
 
 ### Synopsis
 ```isChIP -g ref_genome –n 5```<br>
-Generates 'input' sequences in FastQ with read length of 50 and average read density of about 9 read/kbs, 
+generates 'input' sequences in FastQ with read length of 50 and average read density of about 9 read/kbs, 
 comparable with what is experimentally observed.
 
 ```isChIP -g mm9_dir –tz –n 300 –r 36 –f fq,sam templ.bed```<br>
-Generates test sequences in zipped FastQ and SAM, with read length of 36, timing, and average foreground/background read density 
+generates test sequences in zipped FastQ and SAM, with read length of 36, timing, and average foreground/background read density 
 comparable with what is experimentally observed in [Series GSE56098](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE56098).
 
 ### Help
 ```
 Processing:
   -g|--gen <name>       reference genome library. Required
-  -n|--cells <int>      number of cells [1]
+  -n|--cells <int>      number of nominal cells [1]
+  --ampl <MDA|PCR>      amplification technique [PCR]
   -a|--ampl-c <int>     number of PCR cycles [0]
   -b|--bg <float>       number of selected fragments outside BSs (background),
                         in percent of foreground. For the test mode only [1]
-  --fg <float>          in test mode the number of selected fragments within BSs, in percent;
+  -f|--fg <float>       in test mode the number of selected fragments within BSs, in percent;
                         in control mode the number of selected fragments, in percent [100]
   --bg-all <OFF|ON>     turn on/off generation background for all chromosomes.
                         For the test mode only [ON]
@@ -97,8 +98,9 @@ Processing:
   -N|--full-size        process the entire reference chromosome (including gaps at each end)
   -m|--smode <SE|PE>    sequencing mode: SE - single end, PE - paired end [SE]
   -u|--ts-uni           uniform template score. For the test mode only
-  -p|--threads <int>    number of threads [1]
-  -seed <int>           fix random emission with given seed, or 0 if do not fix [0]
+  -P|--threads <int>    number of threads [1]
+  --serv-dir <name>     folder to store service files [-g|--gen]
+  --seed <int>          fix random emission with given seed, or 0 if do not fix [0]
 Fragment distribution:
   --fr-mean <float>     mean of fragment lognormal distribution [5.46]
   --fr-sd <float>       standard deviation of fragment lognormal distribution [0.4]
@@ -107,17 +109,14 @@ Fragment distribution:
   --ss <OFF|ON>         turn off/on fragment's size selection [ON]
 Reads:
   -r|--rd-len <int>     length of output read [50]
-  --rd-name <NONE|NUMB|POS>     info added to read's name in output files:
-                        NONE - nothing
-                        NUMB - read`s unique number across genome
-                        POS  - read`s actual start position [NONE]
+  -p|--rd-pos           add read position to its name
   --rd-Nlim <int>       maximum permitted number of ambiguous code N in read [OFF]
   --rd-lim <long>       maximum permitted number of total recorded reads [2e+08]
   --rd-ql <char>        uniform read quality score [~]
   --rd-ql-patt <name>   read quality scores pattern 
   --rd-map-ql <int>     read mapping quality in SAM and BED output [255]
 Output:
-  -f|--format <FQ,BED,SAM,WIG,FREQ>     format of output data, in any order  [FQ]
+  -F|--format <FQ,BED,SAM,WIG,FREQ>     format of output data, in any order  [FQ]
   -C|--control          generate control simultaneously with test
   -S|--strand           generate two additional wig files, each one per strand  
   -s|--sep              display reads number thousands separator
@@ -140,21 +139,23 @@ Other:
 
 ### Mode
 
-**isChIP** generates output in one of two modes:<br>
+**isChIP** generates output in one of the two modes:<br>
 *test* – simulation of site of interest sequencing; the output is test sequences/alignment<br>
 *control* – simulation of control production; the output is 'input' sequences/alignment.<br>
-They are distinguished only by involvement or elimination of sites of interest in a process. 
-The sites are represented by the set of features stated in a single optional parameter – BED file, called *template*.
+These modes are distinguished only by involvement or elimination of sites of interest in a process. 
+The sites are represented by the set of features stated in a single optional parameter – a BED file called *template*.
 
 ### Template
 *Template* is a file in [BED](https://genome.ucsc.edu/FAQ/FAQformat.html#format1) format whose features correspond to binding events. 
 Each data line contains 3 (minimum required) or 5 and more fields. 
 First 3 fields define the binding site. 
 If there are no more fields in the line, all generating significant enriched regions have the same density. 
-If 4th field ('name') and 5th field ('score') are in a line, **isChIP** uses the feature’s score to restrict appropriate enriched density. 
-The unit does not matter, only score ratios are meaningful. 
-This peculiarity allows the use of BED files generated by peak callers, though different peak callers have different score units. 
-At the same time different stated scores can be ignored by applying  the option ```-u|--ts-uni```.<br>
+If 4th field ('name') and 5th field ('score') are in a line, **isChIP** interprets the value from the 5th field as the extraction efficiency. 
+The unit is not taken into account, only value ratios are implemented to be meaningful. 
+This property of the algorithm allows the use of BED files generated by peak callers. 
+Most peak callers save in the 5th field the peak p-values of FDR. 
+In both cases, they are directly proportional to the peak amplitude, which makes it possible to treat them as extraction efficiency. 
+At the same time different stated values of efficiency can be ignored by applying the option ```-u|--ts-uni```.<br>
 *Template* does not have to be sorted, but the features must be grouped by chromosomes. 
 This means that features belonging to the same chromosome must be arranged sequentially, in a single group. 
 The simplest way to ensure this is to pre-sort the file.
@@ -163,7 +164,7 @@ The simplest way to ensure this is to pre-sort the file.
 
 *Note:*<br>
 Enumerable option values are case insensitive.<br>
-Compressed input files (.gz) are acceptable.
+Compressed input files in gzip format are acceptable.
 
 ```-g|--gen <name>```<br>
 Reference genome library. It is a directory contained nucleotide sequences for each chromosome in [FASTA](https://en.wikipedia.org/wiki/FASTA_format) format.<br>
@@ -178,113 +179,125 @@ e.g. unmasked (‘dna'), since program does not recognise mask’s types.<br>
 This option is required.
 
 ```-n|--cells <int>```<br>
-The number of conditional cells. Each conditional cell corresponds to one passage through the reference chromosome (dual for the autosomes).<br>
-The convention is that this number assigns a lossless output by default (zero value of ```--fg``` option). 
+specifies the number of nominal cells, it is usually required. 
+Each nominal cell corresponds to one passage through the reference chromosome(dual for the autosomes).<br>
+The convention is that this number assigns a lossless output by default (zero value of ```-f|--fg``` option). 
 If you want to deal with a real number of cells, you should assign a real level of overall loss. 
-The key is that this proportionally increases the runtime. 
-For example, assigning 100 conditional cells with zero losses leads to the generation of data equivalent to 100,000 ‘real’ cells with a ‘real’ total loss of 99.9%, 
+The important implication is that this proportionally increases the runtime. 
+For example, assigning 100 nominal cells with zero losses leads to the generation of data equivalent to 100,000 ‘real’ cells with a ‘real’ total loss of 99.9%, 
 but in a runtime about 1000 times less (e.g. 10 seconds instead of almost 3 hours per chromosome).
 
 Since the total losses are difficult to estimate in advance, the inverse task, namely, 
 determining the overall loss in a real experiment post-factum, looks much more practical. 
-To do this, it is enough to select a model output with a peak density corresponding to the peak density in the actually observed data through several fast iterations with different number of conditional cells and zero foreground level. 
-Then the overall loss is calculated by the formula (1-n/N)*100%, where n is the number of conditional cells, N is the number of real cells in the experiment.
+To accomplish this, it is sufficient to select a model output with a peak density 
+corresponding to the peak density in the actually observed data through several fast iterations 
+with a different number of nominal cells and zero foreground level. 
+Then the overall loss is calculated by the formula (1-n/N)*100%, where n is the number of nominal cells, N is the number of real cells in the experiment.
 
-Besides the number of cells, the program’s output heavily depends on parameters of fragment distribution and size selection 
-(see [Fragments distribution and size selection](#fragments-distribution-and-size-selection)). 
-In general, by default distribution, a number of conditional cells from 3 to 10 provides an output read’s mean density comparable with real ‘inputs’, 
-and a value from 80 to 400 leads to data comparable with real tests in term of density.<br>
+In addition to the number of cells, the program’s output heavily depends on the parameters of fragment size distribution and size selection  
+(see the section [Fragments distribution and size selection](#fragments-distribution-and-size-selection)). 
+In general, with the default fragment size distribution, a number of nominal cells from 3 to 10 
+provides an output read’s mean density comparable with real ‘inputs’, 
+and a value from 80 to 400 leads to generated simulated data, which is comparable with real tests in terms of density.<br>
 Range: 1-2e6<br>
 Default: 1
 
 ```-a|--ampl-c <int>```<br>
-The number of PCR amplification cycles. 
-See [Model: brief description](#model-brief-description).<br>
-Value 0 means non amplification.<br>
+specifies the number of PCR amplification cycles. 
+See the section [Model: brief description](#model-brief-description).<br>
+Value 0 means the absence of amplification.<br>
 Range: 0-100<br>
 Default: 0 
 
 ```-b|--bg <float>```<br>
-The background level: in *test* the number of selected fragments which are not intersected with the *template* binding events, 
-as a percentage of the foreground (see ```--fg``` option).<br>
-In *control* mode it is ignored.<br>
+specifies the background level: in *test* mode the number of selected fragments, 
+which are not intersected with the template binding sites, as a percentage of the foreground (see the ```--fg``` option).<br>
+In *control* mode the level of losses is specified by the -f|--fg option, this option is ignored.<br>
 In practice a level of 1-3% corresponds with a good experimental data set, 
 while a level of more than 6% leads to generate data with a rather low signal-to-noise ratio.<br>
 Range: 0-100<br>
 Default: 1
 
-```--fg <float>```<br>
-The foreground level: in *test* mode the number of selected fragments which are intersected with the *template* binding events, 
+```-f|--fg <float>```<br>
+specifies the foreground level: in *test* mode the number of selected fragments which are intersected with the *template* binding events, 
 as a percentage of the total number of generated fragments.<br>
 In *control* mode the number of selected fragments, as a percentage of the total number of generated fragments.<br>
-This option is designed to simulate overall loss (see ```-n|--cells``` option).<br>
+This option is designed to simulate overall loss (see the ```-n|--cells``` option).<br>
 Range: 0-100<br>
 Default: 100
 
 ```--bg-all <OFF|ON>```<br>
-In *test* mode turn off/on background generation for all chromosomes, whether or not they are presented in *template*.<br>
-Mapping one or several few chromosomes to the whole reference genome leads to the appearance of short local lacks of alignment, 
-‘gaps’, corresponding to low mappability regions. This is true for all aligners. 
-Generation background for all chromosomes eliminates this issue.<br>
-Note that this process is time consuming, and is justified only in case of using subsequent alignment, 
-for example, for comparison with experimental FastQ, or to validate aligners. 
-When validating peak detectors on one or some chromosomes, it is more advantageous to use a direct SAM output.<br>
+turns off/on generation of background for all chromosomes in *test* mode, whether or not they are presented in *template*.<br>
+Mapping one chromosome to the whole reference genome leads to the appearance of short local discontinuities of alignment, 
+‘gaps’, corresponding to low mappability regions. This observation holds true for all aligner. 
+Typically, generation of background for all chromosomes eliminates this issue.<br>
+Notably, this process is time consuming and is justified only in the case of subsequent use of the alignment, 
+for example, for comparison with experimental FastQ or to validate aligners. 
+When validating peak detectors on one or some chromosomes, it is more advantageous to use a direct SAM output format (see ```-F|--format```).<br>
 The established option ```-c|--chr``` makes this option negligible.<br>
 In *control* mode is ignored.<br>
 Default: ```ON```
 
 ```-c|--chr <name>```<br>
 Generate output for the specified chromosome only. 
-```name``` means chromosome identifier, i.e. number or  character, for instance ```10```, ```X```.<br>
+The parameter ```name``` name is the chromosome identifier; it is a number or character, for example, ```10```, ```X```.<br>
 This is a strong option, which forces to ignore all other chromosomes from reference genome and *template*, 
 and abolishes the impact of option ```--bg-all```. 
 If the specified chromosome is absent in *template*, the program has nothing to simulate.
 
 ```-N|--full-size```<br>
-Forces to scan the entire reference chromosome, including gaps at each end (‘undefined telomeres’).<br>
+forces to scan the entire reference chromosome, including gaps at each end (‘undefined telomeres’).<br>
 By default these gaps are excluded from processing.<br>
 This permission makes no difference in data after alignment, but slightly increases the output volume and the runtime. 
 For instance, when simulation on the basis of mm9 genome, this option increases both values by about 2.4%. 
 For the hg19 genome the difference is about 0.7%.
 
 ```-m|--smode <SE|PE>```<br>
-Generate reads according to stated sequencing mode: ```SE``` – single end, ```PE``` – paired end 
-(see [Model: brief description](#model-brief-description)).<br>
+generates reads according to stated sequencing mode: ```SE``` – single end, ```PE``` – paired end 
+(see  the section [Model: brief description](#model-brief-description)).<br>
 Default: ```SE```
 
 ```-u|--ts-uni```<br>
-In *test* mode forces to ignore features scores established in *template*. 
-All binding sites will be simulated with maximum score.<br>
+forces to ignore extraction efficiency associated with features in *template* within the *test* mode. 
+All binding sites will be simulated with maximum efficiency.<br>
 In other modes is ignored.
 
-```-p|--threads <int>```<br>
-Number of threads. The workflow is separated between chromosomes, so the actual number of threads 
+```-P|--threads <int>```<br>
+specifies the number of threads. The workflow is separated between chromosomes, so the actual number of threads 
 can be reduced (if the number of actual treated chromosomes is less then assigned value). 
-The actual threads number is displayed in ```PAR``` and ```DBG``` verbose mode.<br>
+The actual threads number is displayed in ```PAR``` and ```DBG``` verbose mode (```-V|--verbose``` option).<br>
 Range: 1-20<br>
 Default: 0
 
+```--serv-dir <name>```<br>
+Explicit folder to keep service files. 
+isChIP generate auxiliary chrom.sizes, chrN.regions and sample files. 
+Although it takes no more than 1-2 additional seconds, the program nevertheless saves them for reuse. 
+By default, they are stored in the reference genome folder. 
+However, if this folder is closed for writing, or you want to store these files separately for your own reasons, that is the place.<br>
+Default: reference genome directory
+
 ```--seed <int>```<br>
-Fix random numbers emission to get repetitive results. 
+fixes random numbers emission to get repetitive results. 
 The actual seed equals the option value increased by a certain factor to provides a noticeable difference in the of random number generation option values that differ by 1.<br>
 Value 0 means non-recurring random generation.<br>
 Range: 0-100<br>
 Default: 0
 
 ```--fr-mean <float>```<br>
-Mean of fragment’s lognormal distribution. 
+specifies the mean of fragments’ lognormal distribution. 
 See [Fragments distribution and size selection](#fragments-distribution-and-size-selection).<br>
 Range: 2.0-9.0<br>
 Default: 5.46
 
 ```--fr-sd <float>```<br>
-Standard deviation of fragment’s lognormal distribution. 
+specifies the standard deviation of fragments’ lognormal distribution. 
 See [Fragments distribution and size selection](#fragments-distribution-and-size-selection).<br>
 Range: 0.1-1.0<br>
 Default: 0.4
 
 ```--ss-mean <int>```<br>
-Mean of size selection normal distribution. 
+specifies the mean of size selection normal distribution. 
 See [Fragments distribution and size selection](#fragments-distribution-and-size-selection).<br>
 By default this value is calculated as the mode of the fragment’s lognormal distribution. 
 In other words, option's value is equal to the most frequent value of the lognormal distribution, which for given defaults is 200.<br>
@@ -292,27 +305,27 @@ Range: 50-1000<br>
 Default: ```auto```
 
 ```--ss-sd <int>```<br>
-Standard deviation of fragment's size selection normal distribution. 
+specifies standard deviation of fragment's size selection normal distribution. 
 See [Fragments distribution and size selection](#fragments-distribution-and-size-selection).<br>
 Range: 1-200<br>
 Default: 30
 
+```--ss <OFF|ON>```<br>
+turns on/off fragments’ size selection.<br>
+Default:  ON
+
 ```-r|--rd-len <int>```<br>
-Length of output read.<br>
-Note, that **isChIP** does not perform a preliminary check of the read length relative to the mode of fragments distribution or the mean of size selection, 
-and therefore does not issue warnings. 
-If the reads are too long, their amount at the output is reduced up to 0.<br>
+specifies the length of output read.<br>
+Notably, **isChIP** does not perform a preliminary check of the read length relative to the mode of fragments distribution or the mean of size selection. 
+If the reads are too long, their number  at the output can be reduced up to 0 without any warnings.<br>
 Range: 20-500<br>
 Default: 50
 
-```--rd-name <NONE|NUMB|POS>```<br>
-Adds stated info to the name of read in output files:<br>
-```NONE``` – the read’s name consists only of the application name;<br>
-```NUMB``` – actual chromosome and read’s unique number across genome are added;<br>
-```POS```  – actual chromosome and read’s actual start position are added.<br>
-Position info is useful for verifying aligners. Unique number is required for the paired-end reads aligning.<br>
-Additional info slightly increases the runtime and size of output files.<br>
-Default: ```NONE(SE)|NUMB(PE)```
+```-p|--rd-pos```<br>
+Adds read’s actual start position to its name in the output files. It is useful for verifying aligners.<br>
+In case of PE reads start and end positions of fragment are added.<br>
+Read’s name format:  \<app\>:\<chr\>[:pos|:start-end].\<numb\>[/mate]<br>
+Mate is only added in BED output.
 
 ```--rd-Nlim <int>```<br>
 Maximum permitted number of ambiguous code N in read.<br>
@@ -320,37 +333,37 @@ This option is designed primarily for aligners validation.<br>
 In the real read sequences ambiguous code could cause a failure in sequencing as well as undefined regions in the cut fragments, 
 while simulated reads are fully defined by reference library. 
 Consequently the ambiguous bases in the library are translated into reads. 
-Different aligners considered these codes differently: some of them as invalid, some of them as an overlapping case.<br>
+Different aligners considered these codes differently: some of them as invalid, some of them as case of overlapping.<br>
 Range: 0 - <```-r|--rd-len``` value><br>
 Default: ```-r|--rd-len``` value (which means no checkup)
 
 ```--rd-lim <long>```<br>
-Maximum number of total written reads. The value emulates sequencer’s limit. 
+specifies the maximum number of total written reads. The value emulates sequencer’s limit. 
 It restricts the number of recorded reads for each chromosome proportionally.<br>
 Range: 1e5-1e19<br>
 Default: 2e8.
 
 ```--rd-ql <char>```<br>
-Uniform read quality score in FQ and SAM output.<br>
+provides a uniform read quality score in FQ and SAM output.<br>
 Range: '!'-'\~'<br>
 Default: '\~' (decimal 126)
 
 ```--rd-ql-patt <name>```<br>
-Read quality score pattern in FQ and SAM output. 
-```name``` is a plain text file containing at least one line encodes the quality values for the sequence 
-as described in [FastQ](https://en.wikipedia.org/wiki/FASTQ_format) specification.<br>
-If the length of line is less then read length, the rest of pattern is filed by value defined by ```--rd-ql``` option.<br>
-If the length of line is more then read length, the rest of line is ignored.<br>
+specifies a pattern of the read quality values in FQ and SAM output. 
+Parameter ```name``` is a name of a plain text file containing at least one line encoding the quality values 
+for the sequence as described in [FastQ](https://en.wikipedia.org/wiki/FASTQ_format) specification.<br>
+If the length of line is less then read length, then the rest of pattern is filed by value defined by ```--rd-ql``` option.<br>
+If the length of line is more then read length, then the rest of line is ignored.<br>
 The lines starting with the character '#' are ignored.<br>
 The second and all the following encoding lines are ignored as well.
 
 ```-rd-map-ql <int>```<br>
-Read mapping quality in SAM and BED output (in the last case it is also called 'score').<br>
+provides a read mapping quality in SAM and BED output (in the last case it is also called 'score').<br>
 Range: 0-255<br>
 Default: 255
 
 ```-f|--format <FQ,BED,SAM,WIG,FREQ>```<br>
-Output file formats.<br>
+specifies output file formats.<br>
 Value ```FQ``` forces to output the sequence. 
 In paired-end mode two [FQ](https://en.wikipedia.org/wiki/FASTQ_format) files are generated, with suffixes ‘_1’ and ‘_2’.<br>
 Unsorted [BED](https://genome.ucsc.edu/FAQ/FAQformat.html#format1) and [SAM](https://en.wikipedia.org/wiki/SAM_(file_format)) files represent the immediate (direct) precise alignment. 
@@ -361,44 +374,45 @@ In contrast to the utilities that restore the coverage by extending the read to 
 (such as [bedtools genomecov](https://bedtools.readthedocs.io/en/latest/content/tools/genomecov.html), 
 [deepTools bamCoverage](https://deeptools.readthedocs.io/en/develop/content/tools/bamCoverage.html), 
 [peakranger wigpe](http://ranger.sourceforge.net/manual1.18.html)), **isChIP** produces an actual coverage. 
-It is also possible to generate one wig file per strand (```-S|--strand``` option). 
-You can see the difference in the ![figure](https://github.com/fnaumenko/isChIP/tree/master/pict/formal-actual_coverage_label.png).<br>
+It is also possible to generate one WIG file per strand (```-S|--strand``` option). 
+The difference can be observed in the ![figure](https://github.com/fnaumenko/isChIP/tree/master/pict/formal-actual_coverage_label.png).<br>
 ```FREQ``` is a conditional format to control the output fragment frequency distribution de facto. 
 This is a plain text file with an extension .freq (.freq.txt in Windows), 
 representing the obtained distribution as a list of pairs \<fragment length\>\<number of repetitions\>. 
 Such a presentation can be visualized as a graph, for example, in Excel.<br>
-Any formats can be set following in any order.<br>
+Any formats can be set in any order.<br>
 Default: ```FQ```
 
 ```-C|--control```<br>
-In *test* mode forces to generate control sequence ('input') simultaneously with test. 
-The resulting control is fully complied with the test according to the criterion of the average specific background density.<br>
+forces to generate control sequence (‘input’) simultaneously with test within the test mode. 
+The resulting control is fully complied with the test in terms of the average specific background density.<br>
 The control’s number of 'cells' and sample are adjusted to minimize run-time and are printed on screen in ```PAR``` and ```DBG``` verbose level.<br>
 The control file has the same name as the test, with the suffix '_input'.<br>
 In *control* mode is ignored.
 
 ```-S|--strand```<br>
-In addition to the ```WIG``` format forces to generate two additional wig files, each one per strand.<br> 
+forces to generate two additional WIG files, one per each strand.<br> 
 Is valid only in ```SE``` sequencing mode.
 
 ```-o|--out <file>```<br>
-Output files location. If option’s value is a file, it is used as a common file name. 
+specifies output files location. If option’s value is a file, it is used as a common file name. 
 If file has an extension, it is discarded. If value is a directory, the default file name is used.<br>
 Default: *test* mode: **mTest.\***, *control* mode: **mInput.\***
 
 ```-V|--verbose <SL|RES|RT|PAR|DBG>```<br>
-Set verbose level:<br>
+sets verbose level:<br>
 ```SL```	silent mode: no output except critical messages<br>
 ```RES```	print processing total info<br>
 ```RT```	print processing info for each chromosome and total<br>
 ```PAR```	print actual parameters value (including number of features in template) and ```RT``` level<br>
-```DBG```	print ```PAR``` level with additional info, including *template* features statistics.<br>
+```DBG```	print ```PAR``` level with additional info, including *template* features statistics 
+and info about possible omitted features.<br>
 See [Output info](#output-info).<br>
 Default: ```RT```
 
 
 ### Output info
-The next information is displaying for each chromosome and total (field values are given as an example):
+An example of the generated output:
 
 ```
   chrom      reads sample  r/kbp        reads   sample  r/kbp  gaps  g_excl   mm:ss
@@ -414,20 +428,21 @@ total recorded reads:: test: 1037957, control: 993378
 * ```t, c``` – test, control (only with ```-C|--control``` option)
 * ```FG, BG``` – foreground (peak), background data (in test mode, in control mode just one background)
 * ```reads``` – number of recorded reads
-* ```sample``` – actual sample: the number of recorded reads relative to the number of selected ones, in percent. Selected means the reads derived from fragments passed through the size selection filter. 
+* ```sample``` – actual sample: the number of recorded reads relative to the number of selected ones, in percent. 
+Being ‘selected’ means the reads derived from fragments have passed through the size selection filter. 
 The actual sample may be reduced because of the next reasons: user-defined and/or scalable sample, different template feature’s score (for the foreground reads), exceeding the maximum number of ambiguous code N in read. 
 Amplified reads are not included in the sample statistics;
 * ```r/kbp``` – actual read density, in read per 1000 base pair;
 * ```gaps``` – total fraction of reference undefined regions (gaps); only in ```PAR``` and ```DBG``` verbose mode;
-* ```g_excl``` – fraction of at each end excluded from treatment; only in ```PAR``` and ```DBG``` verbose mode;
+* ```g_excl``` – fraction of at each end excluded from treatment; only in the ```PAR``` and ```DBG``` verbose modes;
 * ```mm:ss``` – wall time (only if ```–t|--time``` option is set)
 
 In the ‘total’ line, the total number of reads is indicated, as well as the average values of the density and the relative number of gaps and excluded from the treatment gaps for the entire genome.
 
 ### Limitation
 The total number of chromosomes is restricted by 255.<br>
-By permitted maximum values of lognormal mean = 9 and sd = 1.0 the maximum generated fragment length is about 1200 kb, 
-average length is about 13 kbp.
+With the maximal permitted parameter values of lognormal distribution, mean = 9 and sd = 1.0, 
+the maximal generated fragment length is about 1200 kbp, the average fragment length is about 13 kbp.
 
 ## Model: brief description
 The real protocol of ChIP-seq is simulated by repeating the basic cycle, performed for each treated chromosome (twice for autosomes). 
@@ -464,11 +479,11 @@ as to provide the most frequently observed distribution with mode of 200.<br>
 The size selection in **isChIP** is carried out according to the normal distribution. 
 By default, its *mean* is automatically adjusted so that it coincides with the mode of an initial lognormal distribution. 
 This provides the least computational loss. Of course the size selection mean can be set by user. 
-But in this case, one should bear in mind the decrease in output, the more, the further the size selection mean is from the lognormal mode 
+But in this case, one should bear in mind a decrease in output, which is the greater, the further the size selection mean is from the lognormal mode 
 (yellow graph):<br>
 ![Model Distribution](https://github.com/fnaumenko/isChIP/blob/master/pict/isChIP_fragDistr_label_.png)
 
-To facilitate the adjustment of distribution parameters use a specialized Windows utility [**RandomTest**](https://github.com/fnaumenko/RandomTest-Win). 
+To facilitate the adjustment of distribution parameters use of a specialized Windows utility [**RandomTest**](https://github.com/fnaumenko/RandomTest-Win) is recommended. 
 It visualizes the initial lognormal as well as the final distribution of fragments after size selection, 
 and allows you to quickly fit the parameters for the desired distribution.
 
