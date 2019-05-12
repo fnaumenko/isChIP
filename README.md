@@ -20,6 +20,7 @@ The required memory is linearly proportional to the number of threads. For one t
   [Details](#details)<br>
   [Model: brief description](#model-brief-description)<br>
   [Fragments distribution and size selection](#fragments-distribution-and-size-selection)
+  [Example of single cell simulation](#example-of-single-cell-simulation)
 
 ## Installation
 ### Executable file
@@ -492,15 +493,15 @@ To facilitate the adjustment of distribution parameters use of a specialized Win
 It visualizes the initial lognormal as well as the final distribution of fragments after size selection, 
 and allows you to quickly fit the parameters for the desired distribution.
 
-##Example of single cell simulation
+## Example of single cell simulation
 There are no reasons to prohibit the attempt to apply the formal ChIP-seq protocol to the single cell simulation. 
 Here are the in silico experiments on sequencing of formal TFBS using MDA, PCR, and both techniques sequentially, as compared to conventional sequencing.
 
 At the moment, MDA is usually applied to superlong fragments, up to 10 kb. 
 In fact, they provide a fairly massive output, however, the specific density remains low, and the accuracy of binding site positioning decreases drastically. 
 Test 4 is generated on the basis of a distribution with an average fragment length of only 1260 bp, but it already demonstrates unsatisfactory positioning.<br>
-To maintain satisfactory positioning, tests were performed on short fragments. 
-Template consisted of 1000 conditional TFBS with a length of 10. 
+To maintain this issue, tests were performed on short fragments. 
+*Template* consisted of 1000 conditional TFBS with a length of 10. 
 All tests were performing with background level of 1%.
 
 Size selection drastically reduces MDA output, therefore, all tests, except for 1, 
@@ -509,7 +510,6 @@ For successful MDA amplification, not only the initial fragment length is critic
 Short amplicons should make the greatest contribution. 
 Therefore, tests 7-8 are made for short reads. Indeed, test 8 can be considered quite successful.
 
-```
 | test | cells |  frag   |  read  | MDA |  PCR   |   relative    |
 |      | count | distrib | length |     | cycles | peak density* |
 | ---- |:-----:|:-------:|:------:|:---:|:------:|:-------------:|
@@ -524,9 +524,9 @@ Therefore, tests 7-8 are made for short reads. Indeed, test 8 can be considered 
 
 * The peak density was calculated as the average at a distance of +/- the average fragment length from the TFBS boundaries. The peak density of test 2 is taken as 100.
 ** 100 nominal cells, which corresponds to about 100,000 real cells with a total loss of 99%.
-```
+
 Fragments distributions are represented in the figure below.
-```
+
 | distr | logn | logn  |  ss  |  ss   | mean frag |
 |       | mean | sigma | mean | sigma |  length   |
 | ----- |:----:|:-----:|:----:|:-----:|:---------:|
@@ -535,7 +535,7 @@ Fragments distributions are represented in the figure below.
 |   C   | 7.06 |  0.4  |      |       |   1262    |
 
 logn – initial lognormal distribution, ss – additional size selection
-```
+
 Results:
 
 
