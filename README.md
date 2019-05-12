@@ -549,7 +549,7 @@ Fragments distributions:
 
 The figure of distributions:
 
-![Distribs](https://github.com/fnaumenko/isChIP/blob/master/pict/Distr_small.png)
+![Distribs](https://github.com/fnaumenko/isChIP/blob/master/pict/distr_small.png)
 
 
 ##
