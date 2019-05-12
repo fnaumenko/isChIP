@@ -205,7 +205,7 @@ and a value from 80 to 400 leads to generated simulated data, which is comparabl
 Range: 1-2e6<br>
 Default: 1
 
-`-a|--ampl-c <int>`<br>
+`-a|--pcr <int>`<br>
 specifies the number of PCR amplification cycles. 
 See the section [Model: brief description](#model-brief-description).<br>
 Value 0 means the absence of amplification.<br>
@@ -420,11 +420,11 @@ An example of the generated output:
 ```
   chrom      reads sample   ampl  r/kbp      reads   sample  ampl  r/kbp   gaps  g_excl  mm:ss
 ───────────────────────────────────────────────────────────────────────────────────────────────
-t chr 1:  FG: 1334  100%    83.8   55   BG: 350155     1%     72.3  3.57   2.9%  1.5%    00:01
-c chr 1:                    81.0            356366            69.1  3.58                 00:00
+t chr 1:  FG: 1334  100%    83.8   55   BG: 350155     1%    72.3   3.57   2.9%  1.5%    00:01
+c chr 1:                    81.0            356366           69.1   3.58                 00:00
 ...
 ───────────────────────────────────────────────────────────────────────────────────────────────
-t total:  FG: 93156 100%    82.1  55    BG: 944801      1%    70.9  3.54   3.6%  2.4%
+t total:  FG: 93156 100%    82.1  55    BG: 944801      1%   70.9   3.54   3.6%  2.4%
 total recorded reads:: test: 1037957, control: 993378
 ```
 
@@ -457,10 +457,10 @@ The basic cycle consists of the next phases:
 * **'loss fragments in ‘Library construction’'**: sampling of selected fragments according to user-defined sample (`--fg` and `-b|--bg` options), 
 *template* sample (defined as *template* features score) and automatically adjusted scaling sample (`--bg-all` and `--rd-lim` options);
 * **'amplification'** the selected fragments if required:<br>
-MDA: <br>
+**MDA**:<br>
 1. splitting of each fragment into two random amplicons, copying of the fragment and both amplicons to the output;<br>
 2. applying step 1 to each amplicon until both of them are longer than the length of the read.<br>
-PCR: copying each fragment 2^N times, where N denotes a given number of PCR cycles;
+**PCR**: copying each fragment 2^N times, where N denotes a given number of PCR cycles;
 * **'size selection'**: selection of fragments fitted to desirable size. See [Fragments distribution and size selection](#fragments-distribution-and-size-selection);
 * **'sequencing'**: cutting the 5’end of the fragment of desirable length, or the 3’end (by random choice) in SE mode, 
 or both ends in PE mode, and complementary reversing the 3’end read;
@@ -502,13 +502,13 @@ Here are the in silico experiments on sequencing of formal TFBS using MDA, PCR, 
 At the moment, MDA is usually applied to superlong fragments, up to 10 kb. 
 In fact, they provide a fairly massive output, however, the specific density remains low, and the accuracy of binding site positioning decreases drastically. 
 Test 4 is generated on the basis of a distribution with an average fragment length of only 1260 bp, but it already demonstrates unsatisfactory positioning.<br>
-To maintain this issue, tests were performed on short fragments. 
+To maintain this issue, tests were performed on short fragments.<br>
 *Template* consisted of 1000 conditional TFBS with a length of 10. 
 All tests were performing with background level of 1%.
 
 Size selection drastically reduces MDA output, therefore, all tests, except for 1, 
 were performed in the absence of size selection.<br>
-For successful MDA amplification, not only the initial fragment length is critical, but also the read length, which limits further reaction. 
+For successful MDA amplification, not only the initial fragment length is critical, but also the read length, which limits further displacement reaction. 
 Short amplicons should make the greatest contribution. 
 Therefore, tests 7-8 are made for short reads. Indeed, test 8 can be considered quite successful.
 
@@ -523,10 +523,21 @@ Therefore, tests 7-8 are made for short reads. Indeed, test 8 can be considered 
 | 7 | 1 | B | 25 | yes | | **21** |
 | 8 | 1 | B | 25 | yes | 3 | **168** |
 
-* The peak density was calculated as the average at a distance of +/- the average fragment length from the TFBS boundaries. The peak density of test 2 is taken as 100.
-** 100 nominal cells, which corresponds to about 100,000 real cells with a total loss of 99%.
+**cells number**: 100 nominal cells correspond to approximately 100,000 real cells with a total loss of 99%.<br>
+**fragment distributions** are marked according to the table and the figure at the end.<br>
+**rel peak dens** means relative in-peak density. 
+The peak density was calculated as the average at a distance of +/- the average fragment length from the TFBS boundaries. The peak density of test 2 is taken as 100.
 
-Fragments distributions are represented in the figure below.
+Coverages (peak amplitudes are proportional):
+
+![Coverages](https://github.com/fnaumenko/isChIP/blob/master/pict/test_ampl.png) 
+
+Coverages in strands:
+
+![Coverages](https://github.com/fnaumenko/isChIP/blob/master/pict/test_ampl_strand.png) 
+
+
+Fragments distributions:
 
 | distr | ln mean | ln sd  | ss mean | ss sd | mean frag length |
 |:---:|:---:|:---:|:---:|:---:|:---:|
@@ -534,10 +545,11 @@ Fragments distributions are represented in the figure below.
 | B | 5.46 | 0.4 | | | 254 |
 | C | 7.06 | 0.4 | | | 1262 |
 
-ln – initial lognormal distribution, ss – additional size selection
+**ln** – initial lognormal distribution, **ss** – additional size selection
 
-Coverages:<br>
-![Coverages](https://github.com/fnaumenko/isChIP/blob/master/pict/test_ampl.png) 
+The figure of distributions:
+
+![Distribs](https://github.com/fnaumenko/isChIP/blob/master/pict/Distr_small.png)
 
 
 ##
