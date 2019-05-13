@@ -174,7 +174,7 @@ Reference genome library. It is a directory contained nucleotide sequences for e
 First **isChIP** searches .fa files in it. If there are not such files, 
 or the file corresponded to chromosome specified by option `–c|--chr` is absent, **isChIP** searches .fa.gz files.<br>
 In *test* mode the target references are determined by *template*. 
-See [Template](#template) and `--bg-all` and `–c|--chr ` options.<br>
+See [Template](#template) and `--bg-all` and `–c|--chr` options.<br>
 **isChIP** omits  'random' contigs and haplotype sequences.
 One can obtain a genome library in  UCSC: ftp://hgdownload.soe.ucsc.edu/goldenPath/ or in Ensemble: ftp://ftp.ensembl.org/pub/release-73/fasta storage. 
 In the second case please copy genomic sequences with the same masked type only, 
@@ -205,17 +205,10 @@ and a value from 80 to 400 leads to generated simulated data, which is comparabl
 Range: 1-2e6<br>
 Default: 1
 
-`-a|--pcr <int>`<br>
-specifies the number of PCR amplification cycles. 
-See the section [Model: brief description](#model-brief-description).<br>
-Value 0 means the absence of amplification.<br>
-Range: 0-100<br>
-Default: 0 
-
 `-b|--bg <float>`<br>
 specifies the background level: in *test* mode the number of selected fragments, 
-which are not intersected with the template binding sites, as a percentage of the foreground (see the `--fg` option).<br>
-In *control* mode the level of losses is specified by the -f|--fg option, this option is ignored.<br>
+which are not intersected with the template binding sites, as a percentage of the foreground (see the `-f|--fg` option).<br>
+In *control* mode the level of losses is specified by the `-f|--fg` option, this option is ignored.<br>
 In practice a level of 1-3% corresponds with a good experimental data set, 
 while a level of more than 6% leads to generate data with a rather low signal-to-noise ratio.<br>
 Range: 0-100<br>
@@ -228,6 +221,17 @@ In *control* mode the number of selected fragments, as a percentage of the total
 This option is designed to simulate overall loss (see the `-n|--cells` option).<br>
 Range: 0-100<br>
 Default: 100
+
+`-D|--mda`<br>
+applies MDA technique. The amplification model is simplified due to non-essential details: 
+the absence of primer annealing and the fragment debranching into 2 amplicons. 
+When there are no amplicons left over the length of the read, the process stops.
+
+`-a|--pcr <int>`<br>
+specifies the number of PCR amplification cycles. If MDA is applied, PCR performs after it.
+Value 0 means the absence of amplification.
+Range: 0-100
+Default: 0
 
 `--bg-all <OFF|ON>`<br>
 turns off/on generation of background for all chromosomes in *test* mode, whether or not they are presented in *template*.<br>
@@ -365,7 +369,7 @@ provides a read mapping quality in SAM and BED output (in the last case it is al
 Range: 0-255<br>
 Default: 255
 
-`-f|--format <FQ,BED,SAM,WIG,FREQ>`<br>
+`-F|--format <FQ,BED,SAM,WIG,FREQ>`<br>
 specifies output file formats.<br>
 Value `FQ` forces to output the sequence. 
 In paired-end mode two [FQ](https://en.wikipedia.org/wiki/FASTQ_format) files are generated, with suffixes ‘_1’ and ‘_2’.<br>
@@ -378,7 +382,7 @@ In contrast to the utilities that restore the coverage by extending the read to 
 [deepTools bamCoverage](https://deeptools.readthedocs.io/en/develop/content/tools/bamCoverage.html), 
 [peakranger wigpe](http://ranger.sourceforge.net/manual1.18.html)), **isChIP** produces an actual coverage. 
 It is also possible to generate one WIG file per strand (`-S|--strand` option). 
-The difference can be observed in the ![figure](https://github.com/fnaumenko/isChIP/tree/master/pict/formal-actual_coverage_label.png).<br>
+The difference can be observed in the ![figure](https://github.com/fnaumenko/isChIP/tree/master/pict/formal-actual_coverage_legend.png).<br>
 `FREQ` is a conditional format to control the output fragment frequency distribution de facto. 
 This is a plain text file with an extension .freq (.freq.txt in Windows), 
 representing the obtained distribution as a list of pairs \<fragment length\>\<number of repetitions\>. 
@@ -415,7 +419,7 @@ Default: `RT`
 
 
 ### Output info
-An example of the generated output:
+An example of the displayed output:
 
 ```
   chrom      reads sample   ampl  r/kbp      reads   sample  ampl  r/kbp   gaps  g_excl  mm:ss
@@ -428,7 +432,7 @@ t total:  FG: 93156 100%    82.1  55    BG: 944801      1%   70.9   3.54   3.6% 
 total recorded reads:: test: 1037957, control: 993378
 ```
 
-* `t, c` – test, control (only with `-C|--control` option)
+* `t, c` – test, control (displayed only with `-C|--control` option)
 * `FG, BG` – foreground (peak), background data (in test mode, in control mode just one background)
 * `reads` – number of recorded reads
 * `sample` – actual sample: the number of recorded reads relative to the number of selected ones, in percent. 
@@ -436,10 +440,10 @@ Being ‘selected’ means the reads derived from fragments have passed through 
 The actual sample may be reduced because of the next reasons: user-defined and/or scalable sample, different template feature’s score (for the foreground reads), exceeding the maximum number of ambiguous code N in read. 
 Amplified reads are not included in the sample statistics;
 * `ampl` – actual amplification coefficient, calculated as \<amplicons number\>/\<fragments number\>. 
-The coefficient takes into account both amplification techniques; only if amplification is set.
+The coefficient takes into account both amplification techniques; displayed only if amplification is set.
 * `r/kbp` – actual read density, in read per 1000 base pair;
-* `gaps` – total fraction of reference undefined regions (gaps); only in `PAR` and `DBG` verbose mode;
-* `g_excl` – fraction of at each end excluded from treatment; only in the `PAR` and `DBG` verbose modes;
+* `gaps` – total fraction of reference undefined regions (gaps); displayed only in `PAR` and `DBG` verbose mode;
+* `g_excl` – fraction of at each end excluded from treatment; displayed only in the `PAR` and `DBG` verbose modes;
 * `mm:ss` – wall time (only if `–t|--time` option is set)
 
 In the ‘total’ line, the total number of reads is indicated, as well as the average values of the density and the relative number of gaps and excluded from the treatment gaps for the entire genome.
@@ -458,8 +462,8 @@ The basic cycle consists of the next phases:
 *template* sample (defined as *template* features score) and automatically adjusted scaling sample (`--bg-all` and `--rd-lim` options);
 * **'amplification'** the selected fragments if required:<br>
 **MDA**:<br>
-1. splitting of each fragment into two random amplicons, copying of the fragment and both amplicons to the output;<br>
-2. applying step 1 to each amplicon until both of them are longer than the length of the read.<br>
+A. splitting of each fragment into two random amplicons, copying of the fragment and both amplicons to the output;<br>
+B. applying step A to each amplicon until both of them are longer than the length of read.<br>
 **PCR**: copying each fragment 2^N times, where N denotes a given number of PCR cycles;
 * **'size selection'**: selection of fragments fitted to desirable size. See [Fragments distribution and size selection](#fragments-distribution-and-size-selection);
 * **'sequencing'**: cutting the 5’end of the fragment of desirable length, or the 3’end (by random choice) in SE mode, 
@@ -529,13 +533,12 @@ Indeed, test 8 can be considered quite successful.
 | **8** | 1 | B | 25 | yes | 3 | **168** |
 
 **fragment distributions** are marked according to the figure at the bottom of the page.<br>
-**PCR** is applied after MDA.<br>
 **rel peak dens** means **relative in-peak density**. 
 The peak density was calculated as the average at a distance of +/- the average fragment length from the TFBS boundaries. 
 The peak density of test 2 is taken as 100.
 
-Actual coverages in the figure are obtained directly by **isChIP** with the option `–F|--format WIG`. 
-Peak amplitudes are proportional:
+Actual coverages in the figure are obtained directly by **isChIP** with the option `–F|--format WIG`.<br>
+Peak amplitudes are displayed proportional:
 
 ![Coverages](https://github.com/fnaumenko/isChIP/blob/master/pict/test_ampl.png) 
 
