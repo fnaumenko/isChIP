@@ -499,18 +499,23 @@ and allows you to quickly fit the parameters for the desired distribution.
 There are no reasons to prohibit the attempt to apply the formal ChIP-seq protocol to the single cell simulation.<br>
 Here are the *in silico* experiments on sequencing of formal TFBS using MDA, PCR, and both techniques sequentially, as compared to conventional sequencing.
 
+*Template* consisted of 1000 conditional TFBS with a length of 10.<br>
+The first two tests are sequencing 100 nominal cells, which corresponds to 100,000 real cells with a total loss of 99%. 
+At a given background level of 1%, such experimental data can be considered satisfactory (test 1 with size selection) 
+and good (test 2 without size selection). These tests are given for comparison, as a reference.
+
 At the moment, MDA is usually applied to superlong fragments, 10 kb and more. 
-They indeed provide a fairly massive output, however, the specific density remains low, and the accuracy of binding site positioning is far from satisfactory. 
-Test 4 is generated on the basis of a distribution with an average fragment length of only 1260 bp, but it already demonstrates unsatisfactory positioning.<br>
-To maintain this issue, tests were performed on short fragments.<br>
-*Template* consisted of 1000 conditional TFBS with a length of 10. 
-All tests were performing with background level of 1%.
+They indeed provide a fairly massive output, however, the specific density remains low, and the accuracy of narrow binding site locating is far from desired. 
+Test 4 is generated on the basis of a distribution with a mean fragment length of only 1260 bp, 
+which is rather moderate, but it already demonstrates unsatisfactory positioning.<br>
+To maintain this issue, contrary to popular belief tests were performed on short fragments.<br>
 
 Size selection drastically reduces MDA output, therefore, all tests, except for 1, 
 were performed in the absence of size selection.<br>
-For successful MDA amplification, not only the initial fragment length is critical, but also the length of read, which limits further displacement reaction. 
-Short amplicons should make the greatest contribution. 
-To check this assumption, tests 7-8 are made for short reads. Indeed, test 8 can be considered quite successful.
+For successful MDA output, not only the initial fragment length is critical, but also the length of read, which limits further displacement reaction. 
+It seems obvious that short amplicons should make the greatest contribution. 
+To check this assumption, tests 7-8 were performed on short reads.<br>
+Indeed, test 8 can be considered quite successful.
 
 | test | cells | frag distr | read len | MDA | PCR cycles | rel peak dens |
 |:---:|:---:|:---:|:---:|:---:|:---:|---:|
@@ -523,13 +528,14 @@ To check this assumption, tests 7-8 are made for short reads. Indeed, test 8 can
 | **7** | 1 | B | 25 | yes | | **21** |
 | **8** | 1 | B | 25 | yes | 3 | **168** |
 
-**cells number**: 100 nominal cells correspond to approximately 100,000 real cells with a total loss of 99%.<br>
-**fragment distributions** are marked according to the table and the figure at the end.<br>
+**fragment distributions** are marked according to the figure at the bottom of the page.<br>
 **PCR** is applied after MDA.<br>
 **rel peak dens** means **relative in-peak density**. 
-The peak density was calculated as the average at a distance of +/- the average fragment length from the TFBS boundaries. The peak density of test 2 is taken as 100.
+The peak density was calculated as the average at a distance of +/- the average fragment length from the TFBS boundaries. 
+The peak density of test 2 is taken as 100.
 
-Coverages (peak amplitudes are proportional):
+Actual coverages in the figure are obtained directly by **isChIP** with the option `–F|--format WIG`. 
+Peak amplitudes are proportional:
 
 ![Coverages](https://github.com/fnaumenko/isChIP/blob/master/pict/test_ampl.png) 
 
@@ -540,8 +546,8 @@ Coverages in strands (read - positive, blue - negative):
 
 Fragments distributions:
 
-![Distributions](https://github.com/fnaumenko/isChIP/blob/master/pict/distr_small.png "distributions")
+![Distributions](https://github.com/fnaumenko/isChIP/blob/master/pict/distr1_small.png "distributions")
 
 
-##
+---
 If you face to bugs, incorrect English, or have commentary/suggestions, please do not hesitate to write me on fedor.naumenko@gmail.com
