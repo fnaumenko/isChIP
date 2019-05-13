@@ -497,10 +497,10 @@ and allows you to quickly fit the parameters for the desired distribution.
 
 ## Example of single cell simulation
 There are no reasons to prohibit the attempt to apply the formal ChIP-seq protocol to the single cell simulation.<br>
-Here are the in silico experiments on sequencing of formal TFBS using MDA, PCR, and both techniques sequentially, as compared to conventional sequencing.
+Here are the *in silico* experiments on sequencing of formal TFBS using MDA, PCR, and both techniques sequentially, as compared to conventional sequencing.
 
-At the moment, MDA is usually applied to superlong fragments, up to 10 kb. 
-In fact, they provide a fairly massive output, however, the specific density remains low, and the accuracy of binding site positioning decreases drastically. 
+At the moment, MDA is usually applied to superlong fragments, 10 kb and more. 
+They indeed provide a fairly massive output, however, the specific density remains low, and the accuracy of binding site positioning is far from satisfactory. 
 Test 4 is generated on the basis of a distribution with an average fragment length of only 1260 bp, but it already demonstrates unsatisfactory positioning.<br>
 To maintain this issue, tests were performed on short fragments.<br>
 *Template* consisted of 1000 conditional TFBS with a length of 10. 
@@ -508,48 +508,39 @@ All tests were performing with background level of 1%.
 
 Size selection drastically reduces MDA output, therefore, all tests, except for 1, 
 were performed in the absence of size selection.<br>
-For successful MDA amplification, not only the initial fragment length is critical, but also the read length, which limits further displacement reaction. 
+For successful MDA amplification, not only the initial fragment length is critical, but also the length of read, which limits further displacement reaction. 
 Short amplicons should make the greatest contribution. 
-Therefore, tests 7-8 are made for short reads. Indeed, test 8 can be considered quite successful.
+To check this assumption, tests 7-8 are made for short reads. Indeed, test 8 can be considered quite successful.
 
 | test | cells | frag distr | read len | MDA | PCR cycles | rel peak dens |
 |:---:|:---:|:---:|:---:|:---:|:---:|---:|
-| 1 | 100 | A | 50 | | | **33** |
-| 2 | 100 | B | 50 | | | **100** |
-| 3 | 1 | B | 50 | | 5 | **32** |
-| 4 | 1 | C | 50 | yes | | **10** |
-| 5 | 1 | B | 50 | yes | | **11** |
-| 6 | 1 | B | 50 | yes | 3 | **85** |
-| 7 | 1 | B | 25 | yes | | **21** |
-| 8 | 1 | B | 25 | yes | 3 | **168** |
+| **1** | 100 | A | 50 | | | **33** |
+| **2** | 100 | B | 50 | | | **100** |
+| **3** | 1 | B | 50 | | 5 | **32** |
+| **4** | 1 | C | 50 | yes | | **10** |
+| **5** | 1 | B | 50 | yes | | **11** |
+| **6** | 1 | B | 50 | yes | 3 | **85** |
+| **7** | 1 | B | 25 | yes | | **21** |
+| **8** | 1 | B | 25 | yes | 3 | **168** |
 
 **cells number**: 100 nominal cells correspond to approximately 100,000 real cells with a total loss of 99%.<br>
 **fragment distributions** are marked according to the table and the figure at the end.<br>
-**rel peak dens** means relative in-peak density. 
+**PCR** is applied after MDA.<br>
+**rel peak dens** means **relative in-peak density**. 
 The peak density was calculated as the average at a distance of +/- the average fragment length from the TFBS boundaries. The peak density of test 2 is taken as 100.
 
 Coverages (peak amplitudes are proportional):
 
 ![Coverages](https://github.com/fnaumenko/isChIP/blob/master/pict/test_ampl.png) 
 
-Coverages in strands:
+Coverages in strands (read - positive, blue - negative):
 
 ![Coverages](https://github.com/fnaumenko/isChIP/blob/master/pict/test_ampl_strand.png) 
 
 
 Fragments distributions:
 
-| distr | ln mean | ln sd  | ss mean | ss sd | mean frag length |
-|:---:|:---:|:---:|:---:|:---:|:---:|
-| A | 5.46 | 0.4 | 200 | 30 | 200 |
-| B | 5.46 | 0.4 | | | 254 |
-| C | 7.06 | 0.4 | | | 1262 |
-
-**ln** – initial lognormal distribution, **ss** – additional size selection
-
-The figure of distributions:
-
-![Distribs](https://github.com/fnaumenko/isChIP/blob/master/pict/distr_small.png)
+![Distributions](https://github.com/fnaumenko/isChIP/blob/master/pict/distr1_small.png "distributions")
 
 
 ##
