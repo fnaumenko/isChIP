@@ -384,7 +384,7 @@ In contrast to the utilities that restore the coverage by extending the read to 
 [deepTools bamCoverage](https://deeptools.readthedocs.io/en/develop/content/tools/bamCoverage.html), 
 [peakranger wigpe](http://ranger.sourceforge.net/manual1.18.html)), **isChIP** produces an actual coverage. 
 It is also possible to generate one WIG file per strand (`-S|--strand` option). 
-The difference can be observed in the ![figure](https://github.com/fnaumenko/isChIP/tree/master/pict/formal-actual_coverage_legend.png).<br>
+The difference can be observed in the ![figure](https://github.com/fnaumenko/isChIP/tree/master/pict/formal-actual_coverage_label.png).<br>
 `FREQ` is a conditional format to control the output fragment frequency distribution de facto. 
 This is a plain text file with an extension .freq (.freq.txt in Windows), 
 representing the obtained distribution as a list of pairs \<fragment length\>\<number of repetitions\>. 
