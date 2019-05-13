@@ -546,7 +546,7 @@ Coverages in strands (read - positive, blue - negative):
 
 Fragments distributions:
 
-![Distributions](https://github.com/fnaumenko/isChIP/blob/master/pict/distr1_small.png "distributions")
+![Distributions](https://github.com/fnaumenko/isChIP/blob/master/pict/distr_small.png "distributions")
 
 
 ---
