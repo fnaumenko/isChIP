@@ -489,7 +489,7 @@ By default, its *mean* is automatically adjusted so that it coincides with the m
 This provides the least computational loss. Of course the size selection mean can be set by user. 
 But in this case, one should bear in mind a decrease in output, which is the greater, the further the size selection mean is from the lognormal mode 
 (yellow graph):<br>
-![Model Distribution](https://github.com/fnaumenko/isChIP/blob/master/pict/isChIP_fragDistr_label_.png)
+![Model Distribution](https://github.com/fnaumenko/isChIP/blob/master/pict/isChIP_fragDistr_label_0.png)
 
 To facilitate the adjustment of distribution parameters use of a specialized Windows utility [**RandomTest**](https://github.com/fnaumenko/RandomTest-Win) is recommended. 
 It visualizes the initial lognormal as well as the final distribution of fragments after size selection, 
