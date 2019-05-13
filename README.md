@@ -5,7 +5,7 @@ The modelling of the chromatin immunoprecipitaion followed by next generation se
 In addition, extra flexibility is implemented for the isChIP’s options to be straightforwardly re-formulated in other formats, such as Ion Torrent, etc. 
 More details of the model are provided in the section [Model: brief description](#model-brief-description).<br>
 Suitable for single cell simulation 
-(see section [Example of single cell simulation](#example-of-single-cell-simulation)).
+(see [Example of single cell simulation](#example-of-single-cell-simulation)).
 
 ### Performance
 On 2.5 GHz RAID HPC by default values of ground samples, in one-thread mode, within 1 minute **isChIP** records:<br>
@@ -225,12 +225,14 @@ Default: 100
 `-D|--mda`<br>
 applies MDA technique. The amplification model is simplified due to non-essential details: 
 the absence of primer annealing and the fragment debranching into 2 amplicons. 
-When there are no amplicons left over the length of the read, the process stops.
+When there are no amplicons left over the length of the read, the process stops.<br>
+The process applies to all fragments.
 
 `-a|--pcr <int>`<br>
-specifies the number of PCR amplification cycles. If MDA is applied, PCR performs after it.
-Value 0 means the absence of amplification.
-Range: 0-100
+specifies the number of PCR amplification cycles. If MDA is applied, PCR performs after it.<br>
+The process applies to all fragments.<br>
+Value 0 means the absence of amplification.<br>
+Range: 0-100<br>
 Default: 0
 
 `--bg-all <OFF|ON>`<br>
@@ -382,7 +384,7 @@ In contrast to the utilities that restore the coverage by extending the read to 
 [deepTools bamCoverage](https://deeptools.readthedocs.io/en/develop/content/tools/bamCoverage.html), 
 [peakranger wigpe](http://ranger.sourceforge.net/manual1.18.html)), **isChIP** produces an actual coverage. 
 It is also possible to generate one WIG file per strand (`-S|--strand` option). 
-The difference can be observed in the ![figure](https://github.com/fnaumenko/isChIP/tree/master/pict/formal-actual_coverage_label.png).<br>
+The difference can be observed in the ![figure](https://github.com/fnaumenko/isChIP/tree/master/pict/formal-actual_coverage_legend.png).<br>
 `FREQ` is a conditional format to control the output fragment frequency distribution de facto. 
 This is a plain text file with an extension .freq (.freq.txt in Windows), 
 representing the obtained distribution as a list of pairs \<fragment length\>\<number of repetitions\>. 
@@ -463,7 +465,7 @@ The basic cycle consists of the next phases:
 * **'amplification'** the selected fragments if required:<br>
 **MDA**:<br>
 A. splitting of each fragment into two random amplicons, copying of the fragment and both amplicons to the output;<br>
-B. applying step A to each amplicon until both of them are longer than the length of read.<br>
+B. applying step A to each amplicon until it is longer than the length of read.<br>
 **PCR**: copying each fragment 2^N times, where N denotes a given number of PCR cycles;
 * **'size selection'**: selection of fragments fitted to desirable size. See [Fragments distribution and size selection](#fragments-distribution-and-size-selection);
 * **'sequencing'**: cutting the 5’end of the fragment of desirable length, or the 3’end (by random choice) in SE mode, 
@@ -508,11 +510,11 @@ The first two tests are sequencing 100 nominal cells, which corresponds to 100,0
 At a given background level of 1%, such experimental data can be considered satisfactory (test 1 with size selection) 
 and good (test 2 without size selection). These tests are given for comparison, as a reference.
 
-At the moment, MDA is usually applied to superlong fragments, 10 kb and more. 
+At the moment, MDA is usually applied to superlong fragments, tens of kilobase pairs. 
 They indeed provide a fairly massive output, however, the specific density remains low, and the accuracy of narrow binding site locating is far from desired. 
-Test 4 is generated on the basis of a distribution with a mean fragment length of only 1260 bp, 
-which is rather moderate, but it already demonstrates unsatisfactory positioning.<br>
-To maintain this issue, contrary to popular belief tests were performed on short fragments.<br>
+Test 4 is generated on the basis of a distribution with a mean fragment length of only 1300 bp, 
+which is quite moderate, but it already demonstrates unsatisfactory positioning.<br>
+To maintain this issue, contrary to common practice tests were performed on short fragments.<br>
 
 Size selection drastically reduces MDA output, therefore, all tests, except for 1, 
 were performed in the absence of size selection.<br>
