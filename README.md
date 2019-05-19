@@ -1,17 +1,18 @@
 # isChIP
-**I**n **S**ilico **ChIP**-seq is a fast formal ChIP-seq simulator.
+***I**n **S**ilico* **ChIP**-seq is a fast formal ChIP-seq simulator.
 
 The modelling of the chromatin immunoprecipitaion followed by next generation sequencing process is based primarily on Illumina protocol. 
 In addition, extra flexibility is implemented for the isChIP’s options to be straightforwardly re-formulated in other formats, such as Ion Torrent, etc. 
-More details of the model are provided in the section [Model: brief description](#model-brief-description).<br>
-Suitable for single cell simulation 
-(see [Example of single cell simulation](#example-of-single-cell-simulation)).
+More details of the model are provided in the section [Model: brief description](#model-brief-description).
+
+Suitable for [single cell simulation](#example-of-single-cell-simulation).
 
 ### Performance
 On 2.5 GHz RAID HPC by default values of ground samples, in one-thread mode, within 1 minute **isChIP** records:<br>
 in *test* mode up to 2 million reads (33 Kread/sec);<br>
 in *control* mode up to 66 million reads (1.1 Mread/sec).<br>
-The first run is a bit slower because of creating chromosomes sizes and region files.<br>
+Applied amplification increases this values from 1.5 to 3 times.<br>
+The first run is a bit slower because of creating service files.<br>
 The required memory is linearly proportional to the number of threads. For one thread, it does not exceed 300 Mb.
 
 ### Navigation:
@@ -89,10 +90,10 @@ comparable with what is experimentally observed in [Series GSE56098](https://www
 Processing:
   -g|--gen <name>       reference genome library. Required
   -n|--cells <int>      number of nominal cells [1]
-  -b|--bg <float>       number of selected fragments outside binding sites,
-                        in percent of foreground. For the test mode only [1]
-  -f|--fg <float>       number of selected fragments (within binding sites in test mode),
-                        in percent [100]
+  -G|--ground <float;float>     fore- and background level:
+                        number of selected fragments inside | outside binding sites,
+                        in percent of all | foreground.
+                        In control mode background is ignored [100;1]
   -D|--mda              apply MDA technique
   -a|--pcr <int>        number of PCR cycles [0]
   --bg-all <OFF|ON>     turn on/off generation background for all chromosomes.
@@ -100,16 +101,14 @@ Processing:
   -c|--chr <name>       generate output for the specified chromosome only
   -N|--full-size        process the entire reference chromosome (including gaps at each end)
   -m|--smode <SE|PE>    sequencing mode: SE - single end, PE - paired end [SE]
-  -u|--ts-uni           uniform template score. For the test mode only
+  -u|--uni-be           uniform template binding efficiency. For the test mode only
   -P|--threads <int>    number of threads [1]
-  --serv-dir <name>     folder to store service files [-g|--gen]
+  --serv <name>         folder to store service files [-g|--gen]
   --seed <int>          fix random emission with given seed, or 0 if do not fix [0]
 Fragment distribution:
-  --fr-mean <float>     mean of fragment lognormal distribution [5.46]
-  --fr-sd <float>       standard deviation of fragment lognormal distribution [0.4]
-  --ss-mean <int>       mean of size selection normal distribution [auto]
-  --ss-sd <int>         standard deviation of size selection normal distribution [30]
-  --ss <OFF|ON>         turn off/on fragment's size selection [ON]
+  --ln <float;float>    mean and stand deviation of fragment lognormal distribution [5.46;0.4]
+  --ss <int;int>        mean and stand deviation of size selection normal distribution.
+                        Specify '0;' or ';0' to turn off size selection [auto;30]
 Reads:
   -r|--rd-len <int>     length of output read [50]
   -p|--rd-pos           add read position to its name
@@ -119,7 +118,7 @@ Reads:
   --rd-ql-patt <name>   read quality scores pattern 
   --rd-map-ql <int>     read mapping quality in SAM and BED output [255]
 Output:
-  -F|--format <FQ,BED,SAM,WIG,FREQ>     format of output data, in any order  [FQ]
+  -f|--format <FQ,BED,SAM,WIG,FREQ>     format of output data, in any order  [FQ]
   -C|--control          generate control simultaneously with test
   -S|--strand           generate two additional wig files, each one per strand  
   -s|--sep              display reads number thousands separator
@@ -153,11 +152,11 @@ The sites are represented by the set of features stated in a single optional par
 Each data line contains 3 (minimum required) or 5 and more fields. 
 First 3 fields define the binding site. 
 If there are no more fields in the line, all generating significant enriched regions have the same density. 
-If 4th field ('name') and 5th field ('score') are in a line, **isChIP** interprets the value from the 5th field as the extraction efficiency. 
+If 4th field ('name') and 5th field ('score') are in a line, **isChIP** interprets the value from the 5th field as the binding efficiency. 
 The unit is not taken into account, only value ratios are implemented to be meaningful. 
 This property of the algorithm allows the use of BED files generated by peak callers. 
 Most peak callers save in the 5th field the peak p-values or FDR. 
-In both cases, they are directly proportional to the peak amplitude, which makes it possible to treat them as extraction efficiency. 
+In both cases, they are directly proportional to the peak amplitude, which makes it possible to treat them as binding efficiency. 
 At the same time different stated values of efficiency can be ignored by applying the option `-u|--ts-uni`.<br>
 *Template* does not have to be sorted, but the features must be grouped by chromosomes. 
 This means that features belonging to the same chromosome must be arranged sequentially, in a single group. 
@@ -166,6 +165,10 @@ The simplest way to ensure this is to pre-sort the file.
 ### Options description
 
 *Note:*<br>
+For options that take a pair of values, one of them (or both) can be omitted. 
+In this case, it retains the default value. 
+For example, `-G ;5` means foreground level of 100% and background level of 5%. 
+`–G ;` does not change the settings.<br>
 Enumerable option values are case insensitive.<br>
 Compressed input files in gzip format are acceptable.
 
@@ -205,22 +208,22 @@ and a value from 80 to 400 leads to generated simulated data, which is comparabl
 Range: 1-2e6<br>
 Default: 1
 
-`-b|--bg <float>`<br>
-specifies the background level: in *test* mode the number of selected fragments, 
-which are not intersected with the template binding sites, as a percentage of the foreground (see the `-f|--fg` option).<br>
-In *control* mode the level of losses is specified by the `-f|--fg` option, this option is ignored.<br>
-In practice a level of 1-3% corresponds with a good experimental data set, 
-while a level of more than 6% leads to generate data with a rather low signal-to-noise ratio.<br>
-Range: 0-100<br>
-Default: 1
+`-G|--ground <float;float>`<br>
+specifies foreground and background levels.
 
-`-f|--fg <float>`<br>
-specifies the foreground level: in *test* mode the number of selected fragments which are intersected with the *template* binding events, 
-as a percentage of the total number of generated fragments.<br>
-In *control* mode the number of selected fragments, as a percentage of the total number of generated fragments.<br>
-This option is designed to simulate overall loss (see the `-n|--cells` option).<br>
-Range: 0-100<br>
-Default: 100
+**Within *test* mode** foreground is defined as the number of selected fragments, 
+which are intersected with the *template* binding sites, as a percentage of the total number of generated fragments.<br>
+Background is defined as the number of selected fragments, which are not intersected 
+with the *template* binding sites, as a percentage of the foreground.<br>
+In practice a background level of 1-3% corresponds with a good experimental data set, 
+while a level of more than 6% leads to generate data with a rather low signal-to-noise ratio.
+
+**Within *control* mode** foreground is defined as the number of selected fragments, 
+as a percentage of the total number of generated fragments. 
+It should be considered as the level of overall loss.<br>
+Background value is ignored.<br>
+Range: 0-100 for both values<br>
+Default: 100;1
 
 `-D|--mda`<br>
 applies MDA technique. The amplification model is simplified due to non-essential details: 
@@ -266,8 +269,8 @@ generates reads according to stated sequencing mode: `SE` – single end, `PE` �
 (see  the section [Model: brief description](#model-brief-description)).<br>
 Default: `SE`
 
-`-u|--ts-uni`<br>
-forces to ignore extraction efficiency associated with features in *template* within the *test* mode. 
+`-u|--uni-be`<br>
+forces to ignore binding efficiency associated with features in *template* within the *test* mode. 
 All binding sites will be simulated with maximum efficiency.<br>
 In other modes is ignored.
 
@@ -278,7 +281,7 @@ The actual threads number is displayed in `PAR` and `DBG` verbose mode (`-V|--ve
 Range: 1-20<br>
 Default: 0
 
-`--serv-dir <name>`<br>
+`--serv <name>`<br>
 Explicit folder to keep service files. 
 isChIP generate auxiliary chrom.sizes, chrN.regions and sample files. 
 Although it takes no more than 1-2 additional seconds, the program nevertheless saves them for reuse. 
@@ -293,35 +296,20 @@ Value 0 means non-recurring random generation.<br>
 Range: 0-100<br>
 Default: 0
 
-`--fr-mean <float>`<br>
-specifies the mean of fragments’ lognormal distribution. 
+`--ln <float;float>`<br>
+specifies the mean and standard deviation of fragments’ lognormal distribution.<br>
 See [Fragments distribution and size selection](#fragments-distribution-and-size-selection).<br>
-Range: 2.0-9.0<br>
-Default: 5.46
+Range: 2;0.1-9;1<br>
+Default: 5.46;0.4
 
-`--fr-sd <float>`<br>
-specifies the standard deviation of fragments’ lognormal distribution. 
+`--ss <int;int>`<br>
+specifies the mean and standard deviation of size selection normal distribution.<br>
+By default mean value is calculated as the mode of the fragment’s lognormal distribution. 
+In other words, this value is equal to the most frequent value of the lognormal distribution, which for given defaults is 200.<br>
+Setting any of the value to 0, e.g. `--ss 0;` , deactivates size selection (turns it off).<br>
 See [Fragments distribution and size selection](#fragments-distribution-and-size-selection).<br>
-Range: 0.1-1.0<br>
-Default: 0.4
-
-`--ss-mean <int>`<br>
-specifies the mean of size selection normal distribution. 
-See [Fragments distribution and size selection](#fragments-distribution-and-size-selection).<br>
-By default this value is calculated as the mode of the fragment’s lognormal distribution. 
-In other words, option's value is equal to the most frequent value of the lognormal distribution, which for given defaults is 200.<br>
-Range: 50-1000<br>
-Default: `auto`
-
-`--ss-sd <int>`<br>
-specifies standard deviation of fragment's size selection normal distribution. 
-See [Fragments distribution and size selection](#fragments-distribution-and-size-selection).<br>
-Range: 1-200<br>
-Default: 30
-
-`--ss <OFF|ON>`<br>
-turns on/off fragments’ size selection.<br>
-Default:  ON
+Range: 0;0-5000;500<br>
+Default: auto;30
 
 `-r|--rd-len <int>`<br>
 specifies the length of output read.<br>
@@ -371,7 +359,7 @@ provides a read mapping quality in SAM and BED output (in the last case it is al
 Range: 0-255<br>
 Default: 255
 
-`-F|--format <FQ,BED,SAM,WIG,FREQ>`<br>
+`-f|--format <FQ,BED,SAM,WIG,FREQ>`<br>
 specifies output file formats.<br>
 Value `FQ` forces to output the sequence. 
 In paired-end mode two [FQ](https://en.wikipedia.org/wiki/FASTQ_format) files are generated, with suffixes ‘_1’ and ‘_2’.<br>
@@ -384,7 +372,7 @@ In contrast to the utilities that restore the coverage by extending the read to 
 [deepTools bamCoverage](https://deeptools.readthedocs.io/en/develop/content/tools/bamCoverage.html), 
 [peakranger wigpe](http://ranger.sourceforge.net/manual1.18.html)), **isChIP** produces an actual coverage. 
 It is also possible to generate one WIG file per strand (`-S|--strand` option). 
-The difference can be observed in the ![figure](https://github.com/fnaumenko/isChIP/tree/master/pict/formal-actual_coverage_label.png).<br>
+The difference can be observed in the ![figure](https://github.com/fnaumenko/isChIP/tree/master/pict/formal-actual_coverage_legend.png).<br>
 `FREQ` is a conditional format to control the output fragment frequency distribution de facto. 
 This is a plain text file with an extension .freq (.freq.txt in Windows), 
 representing the obtained distribution as a list of pairs \<fragment length\>\<number of repetitions\>. 
