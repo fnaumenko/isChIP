@@ -2,7 +2,7 @@
 ***I**n **S**ilico* **ChIP**-seq is a fast formal ChIP-seq simulator.
 
 The modelling of the chromatin immunoprecipitaion followed by next generation sequencing process is based primarily on Illumina protocol. 
-In addition, extra flexibility is implemented for the isChIP’s options to be straightforwardly re-formulated in other formats, such as Ion Torrent, etc. 
+In addition, extra flexibility is implemented for the isChIP’s options to be straightforwardly re-formulated in other formats, such as Ion Torrent, etc.<br>
 More details of the model are provided in the section [Model: brief description](#model-brief-description).<br>
 Suitable for [single cell simulation](#example-of-single-cell-simulation).
 
@@ -156,12 +156,14 @@ If there are additional fields, isChIP interprets the field indicated by the opt
 Within the framework of the model, binding efficiency is defined as the probability of associating a fragment with a binding site. 
 Just for simplicity, the term 'binding score' is used as a synonym for binding efficiency, although in a strict sense it is debatable. 
 'Relative' means that the units specified in the field are not taken into account, only value ratios are implemented to be meaningful.<br>
-BED format recommends using the 4th field as a name and 5th field as a score in the common sense. 
+BED format recommends using the 4th field as a 'name' and 5th field as a 'score' in the common sense. 
 Many developers of peak callers follow these guidelines and save in the 4th field the peak name, and in the 5th field the peak p-value or local FDR. 
 Both of the values are directly proportional to the peak amplitude, which makes it possible to treat them as binding efficiency. 
+When using another field to store the corresponding values, it can be specified by the `-s|--bscore` option. 
 That allows the use of peak caller output as a **isChIP** *template*, 
 with the necessary replacement of the coordinates of the peaks to the coordinates of the proposed binding sites.<br>
-At the same time different stated values of efficiency in template can be ignored by setting the `-s|--bscore` option to 0.
+Alternatively, the scores can be entered manually.<br>
+At the same time different stated scores in *template* can be ignored by setting the `-s|--bscore` option to 0.
 
 *Template* does not have to be sorted, but the features must be grouped by chromosomes. 
 This means that features belonging to the same chromosome must be arranged sequentially, in a single group. 
@@ -215,14 +217,14 @@ Default: 1
 
 `-G|--ground <float;float>`<br>
 specifies foreground and background levels.<br>
-In *test* mode<br>
+* In *test* mode:<br>
 foreground is defined as the number of selected fragments, which are intersected 
 with the *template* binding sites, as a percentage of the total number of generated fragments.<br>
 Background is defined as the number of selected fragments, which are not intersected 
 with the *template* binding sites, as a percentage of the foreground.<br>
 In practice a background level of 1-3% corresponds with a good experimental data set, 
 while a level of more than 6% leads to generate data with a rather low signal-to-noise ratio.<br>
-In *control* mode<br>
+* In *control* mode:<br>
 foreground is defined as the number of selected fragments, as a percentage of the total number of generated fragments. 
 It should be considered as the level of overall loss.<br>
 Background value is ignored.<br>
@@ -274,12 +276,12 @@ generates reads according to stated sequencing mode: `SE` – single end, `PE` �
 Default: `SE`
 
 `-s|--bscore <int>`<br>
-specifies the index of the field in *template* which is used to score each binding event 
+specifies the 1-based index of the field in *template* which is used to score each binding event 
 (in terms of binding efficiency, see [Template](#template)).<br>
+Setting index to 0 leads to ignoring the specified scores: all binding events will be simulated with maximum efficiency.<br>
 *Note:* specifying a field containing a string (name) or a missing field will result in zero efficiency without any warning.<br>
-Setting the value to 0 leads to ignoring the specified scores: all binding events will be simulated with maximum efficiency.<br>
-In control mode is ignored.<br>
-Range: 4-12 (except zero value)<br>
+In *control* mode is ignored.<br>
+Range: 4-12 (except for the zero value)<br>
 Default: 5
 
 `-P|--threads <int>`<br>
@@ -316,7 +318,7 @@ By default mean value is calculated as the mode of the fragment’s lognormal di
 In other words, this value is equal to the most frequent value of the lognormal distribution, which for given defaults is 200.<br>
 Setting any of the value to 0, e.g. `--ss 0;` , deactivates size selection (turns it off).<br>
 See [Fragments distribution and size selection](#fragments-distribution-and-size-selection).<br>
-Range: 30;2-5000;500 (except zero value)<br>
+Range: 30;2-5000;500 (except for the zero values)<br>
 Default: auto;30
 
 `-r|--rd-len <int>`<br>
@@ -550,6 +552,19 @@ Fragments distributions:
 
 ![Distributions](https://github.com/fnaumenko/isChIP/blob/master/pict/distr_small.png "distributions")
 
+Synopsis:
+```
+test1:  isChIP –g $G –c 19 –o test1 -f wig –tx –n 100 tc19_10x1000-5e3.bed
+test2:  isChIP –g $G –c 19 –o test2 -f wig –tx –ss 0; –n 100 tc19_10x1000-5e3.bed
+test3:  isChIP –g $G –c 19 –o test3 -f wig –txD –ss 0; -a 5 tc19_10x1000-5e3.bed
+test4:  isChIP –g $G –c 19 –o test4 -f wig –txD –ss 0; -ln 7.06; tc19_10x1000-5e3.bed
+test5:  isChIP –g $G –c 19 –o test5 -f wig –txD –ss 0; tc19_10x1000-5e3.bed
+test6:  isChIP –g $G –c 19 –o test6 -f wig –txD –ss 0; -a 3 tc19_10x1000-5e3.bed
+test7:  isChIP –g $G –c 19 –o test7 -f wig –txD –ss 0; -r 25 tc19_10x1000-5e3.bed
+test8:  isChIP –g $G –c 19 –o test8 -f wig –txD –ss 0; -r 25 -a 3 tc19_10x1000-5e3.bed
+```
+where `$G` is initialized by reference genome path,<br>
+`tc19_10x1000-5e3.bed` contains 1000 TFBS for chromosome 19 with a length of 10, evenly distributed in the range of 10,000,000 - 20,000,000
 
 ---
 If you face to bugs, incorrect English, or have commentary/suggestions, please do not hesitate to write me on fedor.naumenko@gmail.com
