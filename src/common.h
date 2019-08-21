@@ -2,13 +2,14 @@
 common.h (c) 2014 Fedor Naumenko (fedor.naumenko@gmail.com)
 All rights reserved.
 -------------------------
-Last modified: 10.04.2019
+Last modified: 22.07.2019
 -------------------------
 Provides common functionality
 ***********************************************************/
 
 #pragma once
 #include "def.h"
+#include <stdint.h>		// uint32_t
 #include <string>
 #include <iostream>	
 #include <sstream>		// for NSTR( x )
@@ -91,15 +92,15 @@ Provides common functionality
 #endif	// _NO_ZLIB
 
 // specific types
-typedef BYTE	thrid;		// type number of thread
-typedef BYTE	chrid;		// type number of chromosome
-typedef USHORT	readlen;	// type length of Read
-typedef int		fraglen;	// type length of fragment
-typedef UINT	chrlen;		// type length of chromosome
-typedef ULONG	genlen;		// type length of genome
-typedef float	readscr;	// type score of Read
+typedef BYTE		thrid;		// type number of thread
+typedef BYTE		chrid;		// type number of chromosome
+typedef USHORT		readlen;	// type length of Read
+typedef uint32_t	chrlen;		// type length of chromosome
+typedef chrlen		fraglen;	// type length of fragment
+typedef ULONG		genlen;		// type length of genome
 
-#define	CHRLEN_UNDEF	UINT_MAX	// undefined length of chromosome
+#define	CHRLEN_UNDEF	-1	// undefined length of chromosome
+#define	CHRLEN_MAX		-1	// max length of chromosome
 #define thrRetValFalse	0
 #define CHRLEN_CAPAC	10	// capacity of max chrom length;
 							// may be count by DigitsCount() every time,
@@ -145,20 +146,22 @@ static const char* UnitDens = "r/kbp";	// unit of density measure
 #define SepGroup	";  "
 #endif	// _ISCHIP
 #if !defined _WIGREG && !defined _FQSTATN
-static const char* Template = "template";
+static const char* sTemplate = "template";
 #endif
 
 /*** COMMON MACROS & FUNCTION ***/
 
 #define vUNDEF	-1	// undefined value
+#define NO_VAL	-1	// option value is prohibited
+#define NO_DEF	-1	// do not print option default value
 
 // Digital to STRing
 // Returns value's string representation. http://rootdirectory.de/wiki/NSTR()
 // Instead of std::to_string(x) [C++11] because of compatibility
-#define NSTR( x ) static_cast<ostringstream&>( ostringstream() << dec << (x) ).str()
+#define NSTR(x) static_cast<ostringstream&>( ostringstream() << dec << (x) ).str()
 
 // Returns two int value's separated by delimiter string representation.
-//#define NNSTR( x, delim, y ) static_cast<ostringstream & >( ostringstream() << dec << int(x) << delim << int(y) ).str()
+#define NNSTR(x, delim, y) static_cast<ostringstream&>(ostringstream()<<dec<<int(x)<<delim<<int(y)).str()
 
 // Byte to STRing
 #define BSTR(x) static_cast<ostringstream & >( ostringstream() << dec << int(x) ).str()
@@ -247,20 +250,29 @@ chrlen AlignPos(chrlen pos, BYTE res, BYTE relative);
 #elif defined _WIGREG
 	#define dout	cerr
 #else
+#include <fstream>
 // 'dostream' duplicates outstream to stdout & file
 class dostream : public std::ostream
 {
-    std::ostream& dupl;
+    //std::ostream& dupl;
+    std::ofstream file;
 public:
-    dostream(std::ostream& s) : dupl(s), std::ostream(cout.rdbuf()) {}
+    //inline dostream(std::ostream& s) : dupl(s), std::ostream(cout.rdbuf()) {}
+    inline dostream() : std::ostream(cout.rdbuf()) {}
+
+	inline ~dostream() { if(file.is_open())	file.close(); }		// in case of holding execution by user
+
+	// Open output file with given name
+	//	return: true if file is open
+	bool OpenFile(const string fname);
 	
 	template <typename T> dostream& operator<< (T val) {
-		//*this << val;
 		cout << val;
-		dupl << val;
+		file << val;
 		return *this;
 	}
 };
+
 //class dostream
 //{
 //    std::ostream &first, &second;
@@ -274,7 +286,6 @@ public:
 //	}
 //};
 
-extern ofstream outfile;	// file ostream duplicated stdout; inizialised by file in code
 extern dostream dout;		// stream's duplicator
 
 #endif	// _NO_DOUT
@@ -313,7 +324,7 @@ static struct Product
 	//inline static const string& Name() { return Title + string(1, HPH) + string(Version); }
 } product;
 
-typedef pair<short,short> pairVal;	// pair of short values
+typedef pair<float,float> pairVal;	// pair of values
 
 // 'Options' implements main() options and parameters treatment.
 static class Options
@@ -322,22 +333,31 @@ private:
 	// types of option values
 	// do not forget to support the correlation with Options::TypeNames []
 	// tVERS option can be absent, so this 'special' group should be started by tHELP
-	enum valType { tUNDEF, tNAME, tCHAR, tINT, tFLOAT, tLONG, tENUM, tCOMB, tPAIR, tHELP, tVERS };
+	enum valType { tUNDEF, tNAME, tCHAR, tINT, tFLOAT, tLONG, tENUM, tCOMB,
+		tPAIR_INT, tPAIR_FL, tHELP, tVERS, tSUMM, };
 	
 	struct Signs {
 	private:
 		BYTE	signs;
 	public:
-		static const BYTE Oblig		= 0x1;	// true if option is obligatory
-		static const BYTE Hidden	= 0x2;	// hidden option (not printed in help)
-		static const BYTE Trimmed	= 0x4;	// true if option has been processed
-		static const BYTE Word		= 0x8;	// true if option is stated as multi-chars
+		static const BYTE Oblig		= 0x01;	// true if option is obligatory
+		static const BYTE EscVal	= 0x02;	// true if opt value is escapable (can be missed)
+		static const BYTE Allow0	= 0x04;	// true if allowed 0 while checking min value
+		static const BYTE Hidden	= 0x08;	// hidden option (not printed in help)
+		static const BYTE Trimmed	= 0x10;	// true if option has been processed
+		static const BYTE Word		= 0x20;	// true if option is stated as multi-chars
 
 		inline Signs(int x)	{ signs = (BYTE)x; }	// to initialize obligatory in main()
 		// Returns true if given sign is set
-		bool inline Is(BYTE mark) const	{ return (signs & mark) != 0; }	// '!= 0' to avoid warning
+		inline bool Is(BYTE mark) const	{ return (signs & mark) != 0; }	// '!= 0' to avoid warning
 		// Sets given sign
-		void inline MarkAs(BYTE mark)	{ signs |= mark; }
+		inline void MarkAs(BYTE mark)	{ signs |= mark; }
+
+#ifdef DEBUG
+		void Print() const {
+			cout << int(Is(Word)) << int(Is(Trimmed)) << int(Is(Hidden)) << int(Is(Oblig));
+		}
+#endif
 	};
 
 	// structure 'Option' keeps options attributes.
@@ -358,14 +378,17 @@ private:
 		const char*	Descr;		// tip string
 		const char*	AddDescr;	// additional tip string
 
+		// Return true if option value is escapable (not obligatory)
+		inline bool IsValEsc() const { return Sign.Is(Signs::EscVal); }
+
 		// Sets option value.
 		//	@opt: option
 		//	@isword: true if option is a word, false if option is a char
 		//	@val: value of option
-		//	@isNextOpt: true if next parameter is option
-		//	@argInd: the current index in argc; increased by 1 if value is required
+		//	@isValLastToken: true if value is the last token
+		//	@argInd: the current index in argc; increased by 1 if value is accepted
 		//	return: 0 if success, -1 if not found, 1 if option or value is wrong
-		int	SetVal(const char* opt, bool isword, char* val, bool isNextOpt, int* argInd);
+		int	SetVal(const char* opt, bool isword, char* val, bool isValLastToken, int* argInd);
 
 		// Check option for obligatory.
 		//	return: -1 if option is obligatory but not stated, otherwise 1
@@ -378,7 +401,7 @@ private:
 		inline void PrintGroup(BYTE g) const { if(OptGroup == g) Print(true); }
 
 		// Returns option name and value
-		string OptToStr() const;
+		string ToStr(bool prVal) const;
 		
 		// Prints option in full or short way.
 		//	@descr: if true, prints in full way: 
@@ -386,12 +409,18 @@ private:
 		//	otherwise signature only
 		void Print(bool descr) const;
 
+#ifdef DEBUG
+		void Print() const;
+#endif
 	private:
 		static const char EnumDelims[];	// specifies delimiter for enum [0] and combi [1] values
 
-		// Return option's name as a string
-		//string ToStr (bool isWord) const;
-		string ToStr () const;
+		// Checks is string represents digital value.  Prints 'wrong val' message in case of failure
+		bool IsValidFloat(const char *str, bool isInt, bool isPair = false);
+
+		// Returns option's signature as a string
+		//	@asPointed: true if returns signature as it was stated by user
+		string NameToStr (bool asPointed) const;
 
 		// Returns string represented pair of value's separated by delimiter.
 		const string PairValsToStr(const pairVal* vals) const;
@@ -402,22 +431,22 @@ private:
 		// Checks limits and set numerical value
 		//	@val: numerical value
 		//	return: 1 if limits are exceeded, otherwise 0
-		int SetTriedFloat(float val);
+		int SetTriedFloat(float val, float min, float max);
 
-		// Checks and sets enum option value.
+		// Checks and sets enum option value. Prints 'wrong val' message in case of failure
 		//	@val: input value as C string
-		//	return: true if success
-		bool SetEnum(const char* val);
+		//	return: 0 if success, 1 if wrong value
+		int SetEnum(const char* val);
 
-		// Checks and sets enum option value.
+		// Checks and sets enum option value. Prints 'wrong val' message in case of failure
 		//	@val: input value as C string
-		//	return: true if success
-		bool SetComb(char* val);
+		//	return: 0 if success, 1 if wrong value
+		int SetComb(char* val);
 
 		// Checks and sets pair option value
-		//	@val: input pair value as C string
-		//	return: true if success
-		bool SetPair(const char* val);
+		//	@vals: pair of values as C string or NULL if value isn't set
+		//	return: 0 if success, 1 if wrong values
+		int SetPair(const char* vals, bool isInt);
 
 		// Prints enum or combi values
 		//	return: number of printed symbols
@@ -425,14 +454,16 @@ private:
 		
 		// Performs a case-insensitive search of given string value among enum values.
 		//	@val: input value as string
-		//	return: index of finded value in enum, or -1 if the value is not present in enum
+		//	return: index of finded value in enum,
+		//	or -1 if the value is not present in enum,
+		//	or -2 if the wrong delimiter is encountered
 		int GetEnumInd (const char* val);
 
 		// Ouptuts option with error message to cerr
 		//	@val: value or NULL
 		//	@msg: error message about value
 		//	@return: always 1
-		int PrintWrongOpt(const char* val, const string& msg=strEmpty) const;
+		int PrintWrong(const char* val, const string& msg=strEmpty) const;
 	};
 
 	// structure 'Usage' is used to output some Usage variants in PrintUsage()
@@ -463,10 +494,13 @@ private:
 	// Set option [with value] or splitted short options
 	//	@opt: option without HYPHEN
 	//	@val: option's value
-	//	@isNextOpt: true if next parameter is option
-	//	@argInd: the current index in argc; increased by 1 if value is required
+	//	@isValLastToken: true if value is the last token
+	//	@argInd: the current index in argc; increased by 1 if value is accepted
 	//	Return: 0 - success, 1 - false
-	static int	SetOption(char* opt, char* val, bool isNextOpt, int *argInd);
+	static int	SetOption(char* opt, char* val, bool isValLastToken, int *argInd);
+
+	// Returns true if long option opt is defined
+	static bool Find(const char* opt);
 
 	// Ouptuts ambiguous option with error message to cerr
 	//	@opt: option
@@ -481,20 +515,42 @@ private:
 	//	return: always 1
 	static int PrintVersion();
 
+	static int PrintSummary(bool prTitle);
+
 public:
+	// 'PairVals' holds pair of values and their min and max limits
+	class PairVals
+	{
+		pairVal vals[3];
+
+	public:
+		enum Type { SET=0, MIN=1, MAX=2 };
+
+		PairVals(float val1, float val2, float min1, float min2, float max1, float max2) {
+			vals[SET] = make_pair(val1, val2);
+			vals[MIN] = make_pair(min1, min2);
+			vals[MAX] = make_pair(max1, max2);
+		}
+
+		// Gets values
+		inline const pairVal& Values(Type t = SET) const { return vals[t]; }
+	};
 
 	// Prints 'usage' information
 	//	@title: if true prints title before information
 	//	return: 1 if title is settinf to true, 0 otherwise
 	static int PrintUsage (bool title);
 
-	// Returns option name and value
-	inline static string OptionToStr(int opt) { return List[opt].OptToStr(); }
+	// Returns option name [and value]
+	inline static string OptionToStr(int opt, bool prVal = false) { return List[opt].ToStr(prVal); }
 	
 	// Returns command line.
 	//	@argc: count of main() parameters
 	//	@argv: array of main() parameters
 	static const string CommandLine(int argc, char* argv[]);
+
+	// Reset int option value to 0
+	inline static void ResetIntVal(int opt) {  List[opt].NVal = 0; }
 
 	// Parses and checks main() parameters and their values.
 	//	Output message if some of them is wrong.
@@ -529,6 +585,12 @@ public:
 	// Gets pointer to the C string contained 'ON' or 'OFF'
 	//inline static const char* BoolToStr(bool val)	{ return Booleans[int(val)]; }
 
+	// Return string value by index: if value is not oblig and is not specified, then defName with given extention
+	static const string GetSVal(int opt, const char* defName, const string& ext="_out.txt");
+
+#ifdef DEBUG
+	static void Print();
+#endif
 } options;
 
 #define ErrWARNING	Err::NONE
@@ -541,6 +603,7 @@ public:
 		NONE,		// warning message
 		MISSED,		// something missed
 		F_NONE,		// no file
+		D_NONE,		// no directory
 		FD_NONE,	// nor file nor directory 
 		F_MEM,		// TxtFile(): memory exceeded
 		F_OPEN,		// TxtFile(): file open error
@@ -556,14 +619,8 @@ public:
 		TF_EMPTY,	// TabFile: none item (should be specified)
 		B_BADEND,	// bed: start is is equal or more than end
 		B_NEGPOS,	// bed: negative position
-#ifdef _BEDR_EXT
-		BR_RNAME,	// bed read: wrong read name format
-#endif
-		OPT_CHROM,	// option: wrong chrom
-#if defined _DENPRO || defined _BIOCC
 		ARR_OUTRANGE,
 		SUM_EXCEED,
-#endif
 #endif
 		EMPTY
 	};
@@ -664,7 +721,6 @@ public:
 // 'FileSystem' implements common file system routines
 static class FS
 {
-private:
 	// Returns true if file system's object exists
 	//	@name: object's name
 	//	@st_mode: object's system mode
@@ -680,16 +736,28 @@ private:
 	static bool CheckExist	(const char* name,  int st_mode, bool throwExcept, Err::eCode ecode);
 
 	// Searches through a file name for the any extention ('/' or '\' insensible).
-	//	@fname: file name
-	//	return: the index of the DOT mathed extention; otherwise npos
-	static size_t GetExtPos	(const string &fname);
+	//	return: the index of the DOT matched extention; otherwise npos
+	static size_t GetLastExtPos	(const string &fname);
+
+	// Returns true if file name has specified extension ignoring zip extension. Case insensitive
+	static bool HasCaseInsExt(const string &fname, const string &ext, bool knownZip, bool composite = true);
+
+	// Returns file name without extention ('/' or '\' insensible)
+	inline static string const FileNameWithoutLastExt (const string& fname) {
+		return fname.substr(0, GetLastExtPos(fname));
+	}
+
 
 public:
+	// === file size
+
 	// Gets size of file or -1 if file doesn't exist
 	static LLONG Size 	(const char*);
 
 	// Gets real size of zipped file  or -1 if file cannot open; limited by UINT
 	static LLONG UncomressSize	(const char*);
+
+	// === check dir/file existing
 
 	// Returns true if file exists
 	inline static bool IsFileExist	 (const char* name) { return IsExist(name, S_IFREG); }
@@ -709,6 +777,15 @@ public:
 		return CheckExist(name, S_IFREG, throwExcept, Err::F_NONE);
 	}
 
+	// Checks if directory doesn't exist
+	//	@name: name of file or directory
+	//	@throwExcept: if true throws excwption,
+	//	otherwise outputs Err message as warning without EOL
+	//	return: true if file or directory doesn't exist
+	inline static bool CheckDirExist	(const char* name, bool throwExcept = true) {
+		return CheckExist(name, S_IFDIR, throwExcept, Err::D_NONE);
+	}
+
 	// Checks if file or directory doesn't exist
 	//	@name: name of file or directory
 	//	@throwExcept: if true throws excwption,
@@ -724,20 +801,14 @@ public:
 	//	@throwExcept: if true throws exception,
 	//	otherwise outputs Err message as warning without EOL
 	//	return: true if file or directory doesn't exist
-	static bool CheckFileDirExist(const char* name, const string & ext, bool throwExcept) 
-	{
-		return HasExt(name, ext) ?
-			CheckFileExist(name, throwExcept) :
-			CheckFileDirExist(name, throwExcept);
-	}
+	static bool CheckFileDirExist(const char* name, const string & ext, bool throwExcept);
+
+	// === check dir/file name
 
 	// Returns a pointer to the file name checked if file exist, otherwise throws exception
 	//	@optsVal: Options char* value
 	//	return: pointer to the checked file name
-	static const char* CheckedFileDirName	(const char* name) {
-		if( !IsFileDirExist(name) )	Err(Err::FD_NONE, name).Throw();
-		return name;
-	}
+	static const char* CheckedFileDirName	(const char* name);
 
 	// Returns a pointer to the file name checked if file exist, otherwise throws exception
 	//	@optVal: Options value
@@ -746,45 +817,62 @@ public:
 		return CheckedFileDirName(Options::GetSVal(optVal));
 	}
 
-	// Returns a pointer to the file name checked if file exist, otherwise throws exception
+	// Returns a pointer to the file name checked if it exist, otherwise throws exception
 	//	@name: pointer to the file name
 	//	return: pointer to the checked file name
-	static const char* CheckedFileName	(const char* name) {
-		if( name && !IsFileExist(name) )	
-			Err(Err::F_NONE, name).Throw();
-		return name;
-	}
+	static const char* CheckedFileName	(const char* name);
+
+	// Returns a pointer to the path checked if it exist, otherwise throws exception
+	//	@opt: Options value
+	//	return: pointer to the checked path
+	static const char* CheckedDirName	(int opt);
 
 	// Returns a pointer to the file name checked if file exist, otherwise throws exception
-	//	@optVal: Options value
+	//	@opt: Options value
 	//	return: pointer to the checked file name
-	inline static const char* CheckedFileName	(int optVal) {
-		return CheckedFileName(Options::GetSVal(optVal));
+	inline static const char* CheckedFileName	(int opt) {
+		return CheckedFileName(Options::GetSVal(opt));
 	}
+
+	// Returns true if directory is open to writing
+	inline static bool IsDirWritable(const char* name) { 
+#ifdef OS_Windows
+		return true;
+#else
+		return !access(name, W_OK); 
+#endif
+	}
+
+	// === check file extension
 
 	// Returns true if file has any extension.
 	//	@fname: file name
-	inline static bool HasExt	(const string &fname) { 
-		return GetExtPos(fname) != string::npos;
+	inline static bool HasExt	(const string &fname) { return GetLastExtPos(fname) != string::npos; }
+
+	// Returns true if file has a specified  extension. Case insensitive search
+	//	@ext: extension includes dot symbol
+	//	@composite: true if extension is (strictly last)
+	inline static bool HasExt	(const string& fname, const string& ext, bool composite = true) {
+		return HasCaseInsExt(fname, ext, HasGzipExt(fname), composite);
 	}
 
-	// Returns true if file has a specified  extension.
-	//	@fname: file name
-	//	@ext: extension includes dot symbol and can be composite
-	static bool HasExt	(const string& fname, const string& ext);
+	// Returns true if file has '.gz' extension. Case insensitive search
+	inline static bool HasGzipExt(const string& fname) { return HasCaseInsExt(fname, ZipFileExt, false); }
 
-	// Returns true if file has '.gz' extension
-	inline static bool HasGzipExt(const string& fname) { return HasExt(fname,ZipFileExt); }
-
-	// Returns string containing real file extension (without zip extention).
+	// Returns string containing real file extension (without gzip).
 	//	@fname: pointer to the file name
 	//	return: string containing real file extension or empty string if no real extention
 	static string const GetExt(const char* fname);
 
+	// === dir/file name transform
+
 	// Returns file name without extention ('/' or '\' insensible)
 	static string const FileNameWithoutExt (const string& fname) {
-		return fname.substr(0, GetExtPos(fname));
+		return FileNameWithoutLastExt( HasGzipExt(fname) ? FileNameWithoutLastExt(fname) : fname );
 	}
+
+	// Returns true if file name is short (without path)
+	static bool IsShortFileName(const string& fname);
 
 	// Returns short file name by long one
 	//	@fname: long file name
@@ -796,23 +884,29 @@ public:
 	static string const DirName (const string& fname, bool addSlash = false);
 
 	// Returns the name of last subdirectory by long file name
-	//	@fname: long file name
-	static string const LastSubDirName (const string& fname);
+	//	@name: long dir name
+	static string const LastSubDirName (const string& name);
 
-	// Returns the name ended by slash without checking the name
+	// Returns the name of last subdirectory
+	//	@name: long dir name
+	static string const LastDirName (const string& fname);
+
+	// Returns the name ended by slash without checking
 	static string const MakePath(const string& name);
 
-#ifndef _WIGREG
+	// === files in dir
+
+#if !defined _WIGREG && !defined _FQSTATN
 	// Fills external vector of strings by file's names found in given directory
 	// Implementation depends of OS.
 	//	@files: external vector of strings that should be filled by file's names
 	//	@dirName: name of directory
-	//	@fileExt: file's extention as a choosing filter
+	//	@ext: file's extention as a choosing filter
 	//	@all: true if all files with given extention should be placed into external vector,
 	//	otherwise only one (any)
 	//	return: true if files with given extention are found
-	static bool GetFiles	(vector<string>& files, const string& dirName, const string& fileExt, bool all = true);
-#endif	// _WIGREG
+	static bool GetFiles (vector<string>& files, const string& dirName, const string& ext, bool all = true);
+#endif	// _WIGREG, _FQSTATN
 
 //	inline static void	Delete		(const char* fname) {
 //#ifdef OS_Windows
@@ -1024,8 +1118,6 @@ public:
 
 #endif	// _MULTITHREAD
 
-#if defined _BIOCC || defined _VALIGN || defined _FQSTATN
-
 template <typename T> class Array
 {
 protected:
@@ -1045,7 +1137,7 @@ private:
 public:
 	// Creates an instance with capacity, initialized by 0.
 	//	@len: capacity
-	Array(ULONG len=0) : _len(0), _data(NULL)	// inline is forbidden because of T& ChromMap::AddEmptyElem()
+	Array(ULONG len=0) : _len(0), _data(NULL)	// inline is forbidden because of T& Chroms::AddEmptyElem()
 	{ Reserve(len); }
 
 	//inline Array(const Array& arr) { Copy(arr); }
@@ -1078,6 +1170,7 @@ public:
 	// CLears an instance: set all members to zero
 	inline void Clear() { if(_len)	memset(_data, 0, _len*sizeof(T)); }
 
+#ifndef _FQSTATN
 	//---------- extended methods
 
 	// Adds array to this instance.
@@ -1088,7 +1181,7 @@ public:
 	void Concat(const Array& src, ULONG start, ULONG startSrc=0, ULONG size=0) {
 		if( !size )	size = src._len - startSrc;
 		if( start + size > _len )
-			Err(Err::ARR_OUTRANGE, "Array.Concat()", NSTR(start + size) + " > " + NSTR(_len)).Throw();
+			Err(Err::ARR_OUTRANGE, "Array.Concat()", NNSTR(start + size, " > ", _len)).Throw();
 		memcpy(_data + start, src._data + startSrc, size*sizeof(T));
 	}
 
@@ -1102,6 +1195,7 @@ public:
 		for(long i=begin; i<=end; i++)
 			_data[i] = val;
 	}
+#endif	// _FQSTATN
 #ifdef DEBUG
 	void Print(long begin=0, long end=0) const {
 		if( !end )	end = _len;
@@ -1111,25 +1205,33 @@ public:
 #endif	// _DEBUG
 };
 
-#endif	// _BIOCC || _VALIGN
-
 // 'Chrom' establishes correspondence between chromosome's ID and it's name.
 static class Chrom
 /**********************************************************************************
-TERMS:
-Mark: chromosome's text ID: 1, ..., Y.
-Abbreviation chromosome's name: chr1, ..., chrY
-Short chromosome's name: chrom 1, ..., chrom Y
-Title chromosome's name: chromosome X, ..., chromosome Y
-Prefix: substring before short chromosome's name: chr, chromosome.
+TERMS.
+MARK: human view of chromo's number:	1, ..., Y
+ABBREVIATION CHROM's NAME:				chr1, ..., chrY
+SHORT CHROM's NAME:						chrom 1, ..., chrom Y
+TITLE CHROM's NAME:						chromosome X, ..., chromosome Y
+PREFIX: substring before chrom's mark:	chr, chromosome.
 
-CHROMOSOME ID CONDITION: as it stated in BamTools API:
-autosomes ID: mark-to-digit - 1 (0-based)
-somatics ID: last autosome ID + 1, + 2 etc
-Last autosome ID is genome-dependent.
-To determine it, chromosomes ID must be extracted by ValidatedID() method.
+CHROM's ID NUMBERING.
+There are two ID numbering discipline: absolute and relative.
 
-Without binding to the genome somatics ID are defined as the ASCII code of the corresponding letter (mark)
+Relative discipline is applied when there is an extern list of chroms.
+This list can be a reference  genome library or chrom.sizes file (explicit or embedded in the SAM format).
+The autosomes' ID correspond to the chrom human number reduced by 1 (0-based numbering)
+The heterosomes' ID start with the last autosomes' ID plus 1, in the next order: X, Y, M
+This discipline is maintained by BamTools API.
+It allows to control the presence in the genome of an user-specified ID.
+
+Absolute discipline is applied when there is no extern list of chroms.
+The autosomes' ID numering is the same as relative.
+The heterosomes' ID is just a code of mark character.
+It doesn't allow to control the presence in the genome of an user-specified ID.
+
+Chrom class distinguishes these disciplines by the value of the 'firstHeteroID' variable:
+a zero value indicates an absolute discipline, a non-zero value indicates a relative one.
 ***********************************************************************************/
 {
 public:
@@ -1145,62 +1247,74 @@ public:
 	static const BYTE	MaxNamedPosLength;	// Maximal length of named chrom's position 'chrX:12345'
 
 private:
-	static const char*	Marks;		// somatic letters
+	static		 BYTE	CustomOpt;	// user chrom option number; used to set custom cID
+	static const char*	Marks;		// heterosome marks
 	static const string	UndefName;	// string not to convert in run-time
 
 	static chrid cID;				// user-defined chrom ID
-	static chrid firstSomaticID;	// maximal digital chrom ID + 1 
+	static chrid firstHeteroID;		// first heterosome (X,Y) ID
 
-	// Gets somatic (letter) ID by mark without control, or undefined ID
-	static chrid SomaticID	(const char cMark);
+	// Gets heterosome ID by mark without control, or undefined ID
+	static chrid HeteroID	(const char cMark);
 
-	// Gets somatic (letter) ID by mark with control, or undefined ID
-	inline static chrid CheckedSomaticID(const char cMark) { return SomaticID( toupper(cMark) ); }
+	// Gets heterosome ID by case insensitive mark, or undefined ID
+	inline static chrid CaseInsHeteroID(const char cMark) { return HeteroID( toupper(cMark) ); }
 
-	// Gets chrom's ID by name with validation
-	//	@cName: chrom's name
-	//  @prefixLen: length of prefix
-	static chrid ValidatedID(const char* cName, size_t prefixLen);
-
-	// Gets chrom's ID by mark with control
-	static chrid CheckedID	(const char* cMark);
+	// Gets chrom ID by case insensitive mark
+	static chrid CaseInsID	(const char* cMark);
 
 public:
-	// Gets chrom's ID by name without control
+	//*** common methods
+
+	// Returns true if chrom is autosome, false for somatic
+	inline static bool IsAutosome(chrid cid) { return cid < firstHeteroID; }
+
+	// Gets the length of prefix, or -1 if name is not finded
+	static short PrefixLength(const char* cName);
+
+	// Sets relative ID numbering
+	inline static void SetRelativeID() { if(!firstHeteroID)	firstHeteroID = 1; }
+	
+	//*** ID getters
+
+	// Gets chrom's ID by name without control of case insensitivity and undefined ID
 	//	@cName: chrom's name
 	//  @prefixLen: length of name prefix
 	static chrid ID(const char* cName, size_t prefixLen=0);
 	
-	// Gets chrom's ID by mark without control
-	inline static chrid ID(const string& cMark) { return ID(cMark.c_str(), 0); }
+	// Gets chrom ID by mark without control of case insensitivity and undefined ID
+	inline static chrid ID(const string& cMark) { return ID(cMark.c_str()); }
 
-	// Gets chrom's ID by abbreviation name without control
+	// Gets chrom ID by abbreviation name without control of case insensitivity and undefined ID
 	inline static chrid IDbyAbbrName(const char* cAbbrName) { return ID(cAbbrName, strlen(Abbr)); }
 
-	// Gets chrom's ID by mark with validation
-	inline static chrid ValidatedID(const string& cMark)	{ return ValidatedID(cMark.c_str(), 0); }
-
-	// Gets chrom's ID by abbreviation name with validation
-	inline static chrid ValidatedIDbyAbbrName(const char* cAbbrName) { 
-		return ValidatedID(cAbbrName, strlen(Abbr));
-	}
-	// Gets chrom's ID by name
+	// Gets chrom's ID by long name without control of case insensitivity and undefined ID
 	inline static chrid IDbyLongName(const char* cName) { return ID(cName, PrefixLength(cName)); }
 
-	// Gets mark length by ID
-	inline static BYTE MarkLength(chrid cid) {
-		return cID == UnID ? UndefName.length() : (cid > firstSomaticID || cid < 9 ? 1 : 2);
-		//return cID != UnID ? (cID < M ? (cID < 10 ? 1 : 2) : 1) : strlen(UndefName);
-	}
+	//*** validation methods
 
-	// Returns mark by ID
-	static string Mark(chrid cid);
+	// Checks chrom ID and returns this ID or undefined ID; used in BamInFile
+	inline static chrid ValidateID(chrid cID) { return cID < firstHeteroID + 3 ? cID : UnID; }
 
-	// Returns 1 if chrom is autosome, 0 for somatic
-	inline static BYTE Autosome(chrid cid) { return cid < firstSomaticID; }
+	// Validates chrom name and returns chrom ID
+	//	@cName: string of arbitrary length containing chrom's name
+	//  @prefixLen: length of prefix before chrom's mark
+	static chrid ValidateID(const char* cName, size_t prefixLen = 0);
 
-	// Gets the length of prefix, or -1 if name is not finded
-	static short PrefixLength(const char* cName);
+	// Validates chrom mark and returns chrom ID
+	//	@cMark: string of arbitrary length, starting with chrom's mark
+	inline static chrid ValidateID(const string& cMark)	{ return ValidateID(cMark.c_str()); }
+
+	// Validates chrom abbreviation name and returns chrom ID
+	//	@cName: string of arbitrary length, starting with chrom's name
+	inline static chrid ValidateIDbyAbbrName(const char* cName) { return ValidateID(cName, strlen(Abbr)); }
+
+#ifdef _FRAGDIST
+	// Validates all chrom ID by SAM header data and sets custom ID
+	static void Validate(const string& samHeader);
+#endif
+
+	//*** custom ID getters, setters
 
 	// Gets custom chrom's ID
 	inline static chrid CustomID()	{ return cID; }
@@ -1211,14 +1325,26 @@ public:
 	// Returns true if no custom chrom chrom is set by user
 	inline static bool IsCustom(chrid cid) { return cID == UnID || cID == cid; }
 
-	// Sets custom chrom without control
+	// Sets custom chrom without control; used in bioCC
 	inline static void SetCustomID(chrid cid) { cID = cid; }
 
-	// Sets custom chrom with control
-	//	return: true if control has passed
-	inline static bool SetCustomID(const char* cMark) { 
-		return cMark ? ((cID = CheckedID(cMark)) != UnID) : true;
+	// Sets custom chrom ID with control
+	//	exception: wrong chrom
+	static void SetCustomID(bool prColon = false);
+
+	// Sets number of 'custom chrom' progr option
+	//	@absID: true if absolute discipline is applied
+	static void SetCustomOption(int opt, bool absID = false);
+
+	//*** work with name
+
+	// Gets mark length by ID; used in WigMap (bioCC)
+	inline static BYTE MarkLength(chrid cid) {
+		return cID == UnID ? UndefName.length() : (cid > firstHeteroID || cid < 9 ? 1 : 2);
 	}
+
+	// Returns mark by ID
+	static const string Mark(chrid cid);
 
 	// Locate chrom's mark in string.
 	//	@str: string checked for chrom number
@@ -1245,23 +1371,15 @@ public:
 } chrom;
 
 #if !defined _WIGREG && !defined _FQSTATN
-// 'Read' represents Read (with name and score in case of _BEDR_EXT) as item
+// 'Read' represents Read (with name and score in case of _VALIGN) as item
 struct Read
 {
-#if defined _ISCHIP || defined _BEDR_EXT
-	enum rNameType {	// defines types of Read's name
-		nmNone	= 1,	// an empty name contained prog title only
-		nmNumb	= 2,	// a unique number stated as name
-		nmPos	= 3,	// a start position stated as name
-		nmAlien = 4		// not an isChIP type
-	};
-
-	static const char	NmDelimiter;		// basic name delimiter
+#if defined _ISCHIP || defined _VALIGN
 	static const char	NmNumbDelimiter;	// delimiter between prog title and number
 	static const char	NmPos1Delimiter;	// delimiter before first position
 	static const char	NmPos2Delimiter;	// delimiter between two positions in pair
 	static const char	Strands[2];			// strand markers: [0] - positive, [1] - negative
-#endif	// _ISCHIP || _BEDR_EXT
+#endif
 	static readlen	Len;					// length of Read
 
 #ifdef _ISCHIP
@@ -1269,30 +1387,19 @@ struct Read
 private:
 	static char		SeqQuality;			// the quality values for the sequence (ASCII)
 	static short	LimitN;				// maximal permitted number of 'N' in Read or vUNDEF if all
-	static rNameType  NameType;			// type of name of Read in output files
+	static bool		PosInName;			// true if Read name includes a position
 	static const char ToUp;				// shift beween lowercase and uppercase characters
 	static const char Complements[];	// template for complementing Read
 
 public:
 	// Initializes static members
 	//	@len: length of Read
-	//	@nmType: type of name
-	//	@defPEnmType: true if default type of name of PE Reads should be stated
+	//	@posInName: true if Read position is included in Read name
 	//	@seqQual: quality values for the sequence
 	//	@limN: maximal permitted number of 'N'
-	static void Init(readlen len, rNameType nmType, bool defPEnmType,  char seqQual, short limN);
+	static void Init(readlen len, bool posInName, char seqQual, short limN);
 
-	// Gets true if Read's name is empty
-	inline static bool IsNameEmpty	() { return NameType == nmNone; }
-
-	// Gets true if Read's name includes start position
-	inline static bool IsNamePos	() { return NameType == nmPos; }
-
-	// Gets true if Read's name includes Read's number
-	inline static bool IsNameNumb	() { return NameType == nmNumb; }
-
-	// Gets delimiter in the Read name following the chromosome name 
-	inline static char GetDelimiter() { return IsNamePos() ? NmPos1Delimiter : NmNumbDelimiter; }
+	inline static bool IsPosInName	() { return PosInName; }
 
 	// Fills external buffer by quality values for the sequence
 	inline static void FillBySeqQual(char* dst) { memset(dst, SeqQuality, Len); }
@@ -1312,46 +1419,37 @@ public:
 	static void Print();
 
 #else
-private:
-	chrlen	_pos;		// Read's actual start position
-
 public:
-	chrlen Centre() const { return _pos + (Len>>1); }
+	chrlen	Pos;		// Read's actual start position
+	ULLONG	Numb;		// read number keeped in name
+	bool	Strand;		// true if strand is positive
 
-	inline chrlen Pos() const { return _pos; }
+	chrlen Centre() const { return Pos + (Len>>1); }
 
-#ifdef _BEDR_EXT
+#ifdef _VALIGN
 	chrid	InitCID;	// initial chrom - owner
-	chrlen	Num;		// Read's number or initial start position
-	bool	PosStrand;	// Read's strand: true for positive, false for negative
-	readscr	Score;		// Read's score
+	float	Score;		// Read's score
 
 	// Cobstructs extended Read
-	//	@pos: position
 	//	@cid: chrom ID
 	//	@num: uniq number within chrom or initial position
-	//	@strand: strand
-	//	@score: score
-	Read(chrlen pos, chrid cid, chrlen num, char strand, readscr score)
-		: _pos(pos), InitCID(cid), Num(num), PosStrand(strand), Score(score) {}
-#elif defined _FRAGPRO
-	chrlen	Numb;				// read number keeped in name
-	bool	Strand;			// true if strand is positive
+	Read(chrlen pos, chrid cid, ULLONG numb, char strand, float score)
+		: Pos(pos), InitCID(cid), Numb(numb), Strand(strand), Score(score) {}
+#elif defined _FRAGDIST
 
-	Read(chrlen pos, chrlen numb, bool strand) : _pos(pos), Numb(numb), Strand(strand) {}
+	Read(chrlen pos, ULLONG numb, bool strand) : Pos(pos), Numb(numb), Strand(strand) {}
 #else
-	inline Read(chrlen pos) : _pos(pos) {}
+	inline Read(chrlen pos) : Pos(pos) {}
 #endif
-
 	// Compares two Reads by position. For sorting a container.
-	inline static bool CompareByStartPos(const Read& r1, const Read& r2) { return r1._pos < r2._pos; }
+	inline static bool CompareByStartPos(const Read& r1, const Read& r2) { return r1.Pos < r2.Pos; }
 
 	//inline static bool CompareByNum(const Read& r1, const Read& r2) {	return r1.Num < r2.Num; }
 
 	void inline Print() const {
-		cout << _pos 
-#ifdef _BEDR_EXT
-			 << TAB << Num << TAB << int(Score)
+		cout << Pos  << TAB << Numb
+#ifdef _VALIGN
+			 << TAB << int(Score)
 #endif
 			 << EOL;
 	}

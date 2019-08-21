@@ -2,7 +2,7 @@
 TxtFile.h (c) 2014 Fedor Naumenko (fedor.naumenko@gmail.com)
 All rights reserved.
 -------------------------
-Last modified: 06.04.2019
+Last modified: 19.06.2019
 -------------------------
 Provides read|write text file functionality
 ***********************************************************/
@@ -17,7 +17,8 @@ Provides read|write text file functionality
 typedef short rowlen;	// type: length of row in TxtFile
 
 // 'TabFilePar' keeps basic parameters for TabFile
-struct TabFilePar {
+struct TabFilePar 
+{
 	const BYTE MinFieldCnt;	// minimum number of feilds in file line; checked during initialization
 	const BYTE MaxFieldCnt;	// maximum possible number of feilds in data line; checked by a call
 	const char Comment;		// char indicates that line is comment
@@ -32,70 +33,59 @@ struct TabFilePar {
 		LineSpec(lSpec)
 		{}
 };
+
 // 'File Type' implements bioinformatics file type routines 
 static class FT
 {
 private:
-	struct fType {
+	struct fTypeAttr {
 		const char* Extens;			// file extension
 		const string Item;			// item title
 		const string ItemPl;		// item title in plural
 		TabFilePar FileParam;		// TabFile parameters, defined feilds
 	};
-	static const fType	Types[];
+	static const fTypeAttr	TypeAttrs[];
 	static const BYTE	Count;
 
 	// Validates file format
 	//	@fName: file name (with case insensitive extension and [.gz])
 	//	@t: file type
 	//	return: true if file extension correspondes to file type
-	//static bool CheckType(const char* fName, eTypes t) { 
+	//static bool CheckType(const char* fName, fType t) { 
 	//	return GetType(fName) == (t == ABED ? BED : t); 
 	//}
 
 public:
-	enum eTypes {
+	enum fType {
 		UNDEF,	// undefined type
 		ABED,	// alignment bed
 		BED,	// ordinary bed
-		WIG,	// wiggle
 		SAM,	// sam
 		BAM,	// bam
+		WIG,	// wiggle
 		FQ,		// fastQ
-		FA		// fasta
+		FA,		// fasta
+		DIST	// my own dist type
 	};
 
 	// Gets file format
 	//	@fName: file name (with case insensitive extension)
-	static eTypes GetType(const char* fName);
-
-	// Validates file extension
-	//	@fName: file name (with case insensitive extension and [.gz])
-	//	@t: file type
-	//	@printfName: true if file name should be ptinted
-	//	@throwExc: true if throw exception, otherwise throw warning
-	//	return: true if file extension correspondes to file type
-	static bool CheckType(const char* fName, eTypes t, bool printfName=true, bool throwExc=true);
-
-	// Gets file extension
-	//	@t: file type
-	//	@isZip: true if add ".gz"
-	static const string Ext(eTypes t, bool isZip = false)	{ return Types[t].Extens; }
+	static fType GetType(const char* fName);
 
 	// Gets file extension, beginning at DOT and adding .gz if needed
 	//	@t: file type
 	//	@isZip: true if add ".gz"
-	static const string RealExt(eTypes t, bool isZip = false);
+	static const string Ext(fType t, bool isZip = false);
 
 	// Gets an item's title
 	//	@t: file type
 	//	@pl: true if plural form
-	static const string& ItemTitle(eTypes t, bool pl = true)
-	{ return pl ? Types[t].ItemPl : Types[t].Item; }
+	static const string& ItemTitle(fType t, bool pl = true)
+	{ return pl ? TypeAttrs[t].ItemPl : TypeAttrs[t].Item; }
 
 	// Gets TabFile params
 	//	@t: file type
-	static inline TabFilePar FileParams(eTypes t) { return Types[t].FileParam; }
+	static inline TabFilePar FileParams(fType t) { return TypeAttrs[t].FileParam; }
 
 } fformat;
 
@@ -123,9 +113,7 @@ public:
 		READ_ANY	// creates file if it not exist and reads it
 	};
 
-//private:
-//protected:
-public:
+protected:
 	enum eFlag {			// signs of file
 		// The first two right bits are reserved for storing the length of the EOL marker: 1 or 2 
 		// The first bit is set to 1 in the constructor.
@@ -227,12 +215,12 @@ protected:
 	// Returns current error code.
 	//inline Err::eCode ErrCode() const	{ return _errCode; }
 
+	// Gets conditional file name: name if it's printable, otherwise empty string.
+	inline const string& CondFileName() const { return IsFlag(PRNAME) ? _fName : strEmpty; }
+
 public:
 	// Gets file name.
 	inline const string& FileName() const { return _fName; }
-
-	// Gets conditional file name: name if it's printable, otherwise empty string.
-	inline const string& CondFileName() const { return IsFlag(PRNAME) ? _fName : strEmpty; }
 
 	// Gets size of uncompressed file,
 	// or size of compressed file if its uncompressed length is more than UINT_MAX.
@@ -250,6 +238,7 @@ public:
 	}
 };
 
+// 'TxtInFile' represents TxtFile for reading
 class TxtInFile : public TxtFile
 {
 private:
@@ -299,10 +288,6 @@ protected:
 	// Gets current record.
 	inline const char* Record() const { return IsFlag(ENDREAD) ? NULL : RealRecord(); }
 
-	// Gets next record
-	//	return: point to the next record in a buffer.
-	inline const char* NextRecord() const { return _buff + _currRecPos; }
-
 	// Reads record
 	//	return: pointer to line or NULL if no more lines
 	const char*	GetRecord();
@@ -318,11 +303,14 @@ protected:
 	//	return: pointer to line or NULL if no more lines
 	char*	GetRecord(short* const tabPos, const BYTE tabCnt);
 
-	// Gets string containing file name and current line number.
-	//	@lineInd: index of line in a record; if 0, then first line
-	const string LineNumbToStr(BYTE lineInd = 0) const;
+	// Returns the read pointer to the beginning of the last read line and decreases line counter
+	inline void RollBackLastRecord() {	_currRecPos -= _recLen,  _recCnt--; }
 
 #ifdef _FQSTATN
+	// Gets next record
+	//	return: point to the next record in a buffer.
+	inline const char* NextRecord() const { return _buff + _currRecPos; }
+
 	// Gets length of line.
 	//	@lineInd: index of line in a record
 	//	@withoutEOL: if true then without EOL marker length, otherwise without it
@@ -338,24 +326,29 @@ protected:
 #endif
 
 public:
+	// Gets string containing file name and current line number.
+	//	@code: code of error occurs
+	//	@lineInd: index of line in a record; if 0, then first line
+	const string LineNumbToStr(Err::eCode code = Err::EMPTY, BYTE lineInd = 0) const;
+
 	// Throws exception occurred in the current reading line 
 	//	@code: exception code
-	inline void ThrowLineExcept(Err::eCode code) const {
-		Err(_errCode=code, LineNumbToStr().c_str()).Throw();
-	}
+	//inline void ThrowLineExcept(Err::eCode code) const {
+	//	Err(_errCode=code, LineNumbToStr().c_str()).Throw();
+	//}
 
 	// Throws exception occurred in the current reading line 
 	//	@msg: exception message
-	inline void ThrowLineExcept(const string& msg) const {
-		Err(msg, LineNumbToStr().c_str()).Throw();
-	}
+	//inline void ThrowLineExcept(const string& msg) const {
+	//	Err(msg, LineNumbToStr().c_str()).Throw();
+	//}
 
 	// Throws warning occurred in the current reading line 
 	//	@msg: exception message
 	//	@warnMsg: warning message
-	inline void ThrowLineWarning(const string& msg, const string& warnMsg) const {
-		Err(msg, LineNumbToStr().c_str()).Warning(warnMsg);
-	}
+	//inline void ThrowLineWarning(const string& msg, const string& warnMsg) const {
+	//	Err(msg, LineNumbToStr().c_str()).Warning(warnMsg);
+	//}
 	
 	// Gets length of current line without EOL marker: only for single-line record!
 	inline chrlen LineLength()	const { return RecordLength() - EOLSize(); }
@@ -528,11 +521,10 @@ public:
 
 #ifndef _FQSTATN
 
+// 'TabFile' represents TxtInFile consisting of lines with tab-separated filds
 class TabFile : public TxtInFile
 /*
- * Class 'TabFile' is a common class for reading/writing text files, 
- * each line of which is composed of number of fields splitted by TAB markers.
- * Only defined in constructor number of fields is processed.
+ * Only number of fields defined in constructor is processed.
  * Number of fields can be equal 1, in that case ordinary plain text can be processed.
  */
 {
@@ -552,7 +544,7 @@ private:
 	void Init(eAction mode);
 
 public:
-	// Creates new instance.
+	// Creates new instance for reading or writing
 	//	@fName: name of file
 	//	@minCntFields: obligatory number of fields separated by TAB; these fields are checked during initialization 
 	//	@maxCntFields: maximum number of fields separated by TAB; these fields are checked by a call
@@ -577,18 +569,16 @@ public:
 
 	// Creates new instance for reading
 	//	@fName: name of file
-	//	@params: TabFile params
+	//	@type: file type
 	//	@abortInvalid: true if invalid instance should be completed by throwing exception
 	//	@rintName: true if file name should be printed in exception's message
 	TabFile(
 		const string& fName,
-		const TabFilePar& params,
+		FT::fType type,
 		bool abortInvalid=true,
 		bool printName=true
-	) : _params(params),
-		TxtInFile(fName, TxtFile::READ, 1, abortInvalid, printName)
+	) : _params(FT::FileParams(type)), TxtInFile(fName, TxtFile::READ, 1, abortInvalid, printName)
 	{	Init(TxtFile::READ); }
-
 
 #if defined _ISCHIP && defined  _MULTITHREAD
 	// Creates a clone of TabFile class.
@@ -604,12 +594,15 @@ public:
 
 	inline ~TabFile()	{ if( _fieldPos ) delete [] _fieldPos; }
 
-	// Gets count of lines.
+	// Gets count of readed lines
 	inline ULONG Count() const { return RecordCount(); }
 
 	// Returns true if invalid instance should completed by throwing exception.
 	//	Used in WigMap (bioCC) only
 	inline bool IsAborting() const	{ return IsFlag(ABORTING); }
+
+	// Skip commented lines and returns estimated number of uncommented lines
+	ULONG GetUncommLineCount();
 
 	// Reads first line and set it as current.
 	// Throws exception if invalid
@@ -629,6 +622,7 @@ public:
 	const char* StrFieldValid	(BYTE fInd)	const {
 		return IsFieldValid(fInd) ? StrField(fInd) : NULL;
 	}
+	
 	// Reads checked integer by field's index from current line without check up.
 	inline int IntField	(BYTE fInd)	const {	return atoi(StrField(fInd)); }
 
@@ -636,6 +630,7 @@ public:
 	int	 IntFieldValid	(BYTE fInd)	const {
 		return IsFieldValid(fInd) ? IntField(fInd) : vUNDEF;
 	}
+	
 	// Reads float by field's index from current line without check up.
 	inline float FloatField	(BYTE fInd)	const {	return float(atof(StrField(fInd))); }
 
@@ -643,6 +638,7 @@ public:
 	float FloatFieldValid	(BYTE fInd)	const {
 		return IsFieldValid(fInd) ? FloatField(fInd) : vUNDEF;
 	}
+	
 	// Reads long by field's index from current line without check up.
 	inline long LongField	(BYTE fInd)	const {	return long(atol(StrField(fInd))); }
 
@@ -650,13 +646,181 @@ public:
 	long LongFieldValid	(BYTE fInd)	const {
 		return IsFieldValid(fInd) ? LongField(fInd) : vUNDEF;
 	}
+};
+
+// 'DataFile' is almost the program interface (PI) of bed/bam file
+class DataFile
+{
+protected:
+	ULONG _itemCnt;	// estimated number of items; the only member that makes interface 'almost'
+
+public:
+	inline DataFile() : _itemCnt(-1) {}
+
+	// Returns estimated number of items
+	inline ULONG ItemCount() const { return _itemCnt; }
 	
-	// Gets pointer to the chrom mark in current line without check up; for BED-file only
+	//Returns true if next chrom starts reading
+	virtual bool IsNextChrom() const = 0;
+	
+	// Sets next chrom as currently reading and returns its ID
+	virtual chrid SetNextChrom() = 0;
+	
+	// Retrieves next item's record
+	virtual bool GetNextItem() = 0;
+	
+	// Returns current item start position
+	virtual chrlen ItemStart() const = 0;
+	
+	// Returns current item end position
+	virtual chrlen ItemEnd() const = 0;
+	
+	// Returns true if alignment part of paired-end read
+	virtual bool ItemIsPaired() const  = 0;
+	
+	// Returns current item score
+	virtual float ItemScore() const  = 0;
+
+	// Returns current item name
+	virtual const char* ItemName() const = 0;
+	
+	// Gets string containing file name and current line number.
+	//	@code: code of error occurs
+	virtual const string LineNumbToStr(Err::eCode code = Err::EMPTY) const = 0;
+
+	// Gets conditional file name: name if it's printable, otherwise empty string.
+	virtual const string CondFileName() const = 0;
+
+	// Returns current item strand: true - positive, false - negative
+	virtual bool  ItemStrand() const = 0;
+};
+
+// 'BedInFile' represents unified PI for reading bed file
+class BedInFile : public DataFile, public TabFile
+{
+	char _cMark[Chrom::MaxMarkLength + 1];	// chrom mark buffer
+	BYTE _scoreInd;							// index of 'score' filed; is set for FBED only
+
+	// Gets pointer to the chrom mark in current line without check up
 	inline const char* ChromMark()	const {	return StrField(0) + strlen(Chrom::Abbr); }
 
-	// Returns chrom ID extracted from current line; for BED-file only
-	inline chrid ChromID()	const {	return Chrom::ID(StrField(0) + strlen(Chrom::Abbr)); }
+public:
+	// Creates new instance for reading and open file
+	//	@fName: name of file
+	//	@type: file type; not used
+	//	@scoreInd: index of 'score' filed; is set for FBED only
+	//	@abortInval: true if invalid instance should be completed by throwing exception
+	//	@prName: true if file name should be printed in exception's message
+	BedInFile(const string& fName, FT::fType type, BYTE scoreInd, bool abortInval, bool prName);
+
+	// Returns true if next chrom starts reading
+	inline bool IsNextChrom() const { return strcmp(_cMark, ChromMark()); }
+
+	// Sets next chrom as currently reading and returns its ID
+	inline chrid SetNextChrom() { return Chrom::ValidateID(strcpy(_cMark, ChromMark())); }
+
+	// Retrieves next item's record
+	inline bool GetNextItem()	{ return GetLine(); }
+
+	// Returns current item start position
+	inline chrlen ItemStart()	const { return LongField(1); }
+
+	// Returns current item end position
+	inline chrlen ItemEnd()		const { return LongField(2); }
+
+	// Returns true if alignment part of paired-end read
+	inline bool ItemIsPaired()	const { return strrchr(ItemName(), '/'); }
+
+	// Returns current item score
+	inline float ItemScore()	const { return FloatFieldValid(_scoreInd); }
+
+	// Returns current item name
+	inline const char* ItemName() const { return StrFieldValid(3); }
+
+	// Gets string containing file name and current line number.
+	//	@code: code of error occurs
+	inline const string LineNumbToStr(Err::eCode code = Err::EMPTY) const {
+		return TxtInFile::LineNumbToStr(code);
+	}
+
+	// Gets conditional file name: name if it's printable, otherwise empty string.
+	inline const string CondFileName() const { return TxtFile::CondFileName(); }
+
+	// Returns current item strand: true - positive, false - negative
+	inline bool  ItemStrand() const	{ return *StrFieldValid(5) == PLUS; }
 };
+
+#ifdef _BAM
+#ifdef _BIOSTAT
+#include "../bam/BamReader.h"	// path in bioStat package
+#else
+#include "bam/BamReader.h"
+#endif	// _BIOSTAT
+#include <algorithm>
+using namespace BamTools;
+
+// 'BamInFile' represents unified PI for reading bam file
+class BamInFile : public DataFile
+{
+	int		_cID;			// current readed chrom ID
+	bool	_prFName;
+	BamReader		_reader;
+	BamAlignment	_read;
+	mutable string	_rName;
+
+public:
+	// Creates new instance for reading and open file
+	//	@fName: name of file
+	//	@prName: true if file name should be printed in exception's message
+	BamInFile(const string& fName, bool prName);
+
+	inline ~BamInFile() { if(_itemCnt != -1) _reader.Close(); }	// IsClose() is absent in 2010 version
+
+	// returns chroms count
+	inline chrid ChromCount() const { return _reader.GetReferenceCount(); }
+
+	// Returns true if next chrom starts reading
+	inline bool IsNextChrom() const { return _read.RefID != _cID && _read.RefID != -1; }
+
+	// Sets next chrom as currently reading and returns its ID
+	inline chrid SetNextChrom()	{ return _cID = Chrom::ValidateID(_read.RefID); }
+
+	// Retrieves next item's record
+	inline bool GetNextItem()	{ 
+	return _reader.GetNextAlignmentCore(_read)
+		&& _read.Position >= 0;	// additional check because of stupid bag: GetNextAlignment() doesn't
+								// return false after last read while reading the whole genome
+	}
+
+	// Returns current item start position
+	inline chrlen ItemStart()	const { return _read.Position; }
+
+	// Returns current item end position
+	inline chrlen ItemEnd()		const { return _read.Position + _read.Length; }
+
+	// Returns true if alignment part of paired-end read
+	inline bool ItemIsPaired()	const { return _read.IsPaired(); }
+
+	// Returns current item score
+	inline float ItemScore()	const { return _read.MapQuality; }
+
+	// Returns current item name
+	inline const char* ItemName() const { return (_rName = _read.Name).c_str(); }
+
+	// Gets string containing file name and current line number.
+	//	@code: code of error occurs
+	inline const string LineNumbToStr(Err::eCode code = Err::EMPTY) const {	return strEmpty; }
+
+	// Gets conditional file name: name if it's printable, otherwise empty string.
+	inline const string CondFileName() const { return _prFName ? _reader.GetFilename() : strEmpty; }
+
+	// Returns current item strand: true - positive, false - negative
+	inline bool  ItemStrand() const	{ return !_read.IsReverseStrand(); }
+
+	// Returns SAM header data
+	inline const string GetHeaderText() const { return _reader.GetHeaderText(); }
+};
+#endif	// _BAM
 
 #ifndef _WIGREG
 
@@ -728,7 +892,7 @@ public:
 	// Iterator to region End position
 	inline const Iter End()		const { return _regions.end(); }
 
-	// Default (empty) constructor to form ChromMap collection
+	// Default (empty) constructor to form Chroms collection
 	inline Regions() {}
 	
 	// Single region constructor
@@ -737,17 +901,20 @@ public:
 	// Copying constructor
 	//inline Regions(const Regions& rgns) { _regions = rgns._regions;	}
 	
-	// Gets count of regions.
-	inline chrlen Count()	const { return chrlen(_regions.size()); }
-	
-	// Geta total length of regions.
+	// Gets total length of regions.
 	//chrlen Length() const;
+	
+	// Gets count of regions.
+	inline chrlen Count()		const { return chrlen(_regions.size()); }
 	
 	// Gets first start position.
 	inline chrlen FirstStart()	const { return _regions.front().Start; }
 	
 	// Gets last end position.
 	inline chrlen LastEnd()		const { return _regions.back().End; }
+
+	// Gets conditionally defined length: distance between first start and last end
+	inline chrlen DefLength()	const { return LastEnd() - FirstStart(); }
 
 	//Regions& operator=(const Regions& rgn);
 
@@ -767,7 +934,7 @@ public:
 		_regions = vector<Region>(source.begin() + start, source.begin() + stop + 1);
 	}
 
-#if defined _DENPRO || defined _BIOCC
+#if defined _READDENS || defined _BIOCC
 
 	// Returns an iterator referring to the past-the-end element, where end is external
 	//	@curr_it: region's const iterator, from which the search is started
@@ -788,7 +955,7 @@ public:
 	
 	inline void Add(chrlen start, chrlen end){ Add(Region(start, end)); }
 
-#endif	// _DENPRO, _BIOCC
+#endif	// _READDENS, _BIOCC
 #ifdef DEBUG
 	void Print() const;
 #endif
@@ -824,6 +991,8 @@ class ChromDefRegions : public Regions
 	mutable bool _new;
 
 public:
+	static const string Ext;	// regions file extension
+
 	// Creates new instance and initializes it from file if one exist
 	//	@cfName: chrom file name without extension
 	//	@minGapLen: length, gaps less than which are ignored when reading; if 0 then read all regions 
@@ -846,11 +1015,12 @@ public:
 	// Saves new instance
 	void Write() const;
 
-#if defined _DENPRO || defined _BIOCC
+#if defined _READDENS || defined _BIOCC
 	// Combines regions with a gap less than a specified value
 	void Combine(chrlen minGapLen);
 #endif
 };
+
 
 // 'FaFile' supports reading/writing chromosomes in FA format
 class FaFile : public TxtInFile

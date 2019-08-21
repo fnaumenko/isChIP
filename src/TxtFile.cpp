@@ -2,7 +2,7 @@
 TxtFile.cpp (c) 2014 Fedor Naumenko (fedor.naumenko@gmail.com)
 All rights reserved.
 -------------------------
-Last modified: 06.04.2019
+Last modified: 19.06.2019
 -------------------------
 Provides read|write text file functionality
 ***********************************************************/
@@ -15,49 +15,36 @@ Provides read|write text file functionality
 
 /************************ class FT ************************/
 
-const FT::fType FT::Types[] = {
+const FT::fTypeAttr FT::TypeAttrs[] = {
 	{ "",	 strEmpty,	strEmpty,	TabFilePar() },		// undefined type
-	{ "bed", "read",	"reads",	TabFilePar( 6, 6, HASH, Chrom::Abbr) },	// alignment bed
-	{ "bed", "feature", "features",	TabFilePar( 3, 6, HASH, Chrom::Abbr) },	// ordinary bed
-	{ "wig", "interval","intervals",TabFilePar( 2, 2) },
-	{ "sam", strEmpty,	strEmpty,	TabFilePar( 0, 0) },
-	{ "bam", strEmpty,	strEmpty,	TabFilePar() },
+	{ "bed", "read",	"reads",	TabFilePar(6, 6, HASH, Chrom::Abbr) },	// alignment bed
+	{ "bed", "feature", "features",	TabFilePar(3, 6, HASH, Chrom::Abbr) },	// ordinary bed
+	{ "sam", strEmpty,	strEmpty,	TabFilePar(0, 0) },
+	{ "bam", "read",	"reads",	TabFilePar() },
+	{ "wig", "interval","intervals",TabFilePar(2, 2) },
 	{ "fq",	 strEmpty,	strEmpty,	TabFilePar() },
-	{ "fa",  strEmpty,	strEmpty,	TabFilePar() }
+	{ "fa",  strEmpty,	strEmpty,	TabFilePar() },
+	{ "dist",strEmpty,	strEmpty,	TabFilePar(2, 2) },
 };
-const BYTE FT::Count = sizeof(FT::Types)/sizeof(FT::fType);
+const BYTE FT::Count = sizeof(FT::TypeAttrs)/sizeof(FT::fTypeAttr);
 
 // Returns file format
 //	@fName: file name (with case insensitive extension)
-FT::eTypes FT::GetType(const char* fName)
+FT::fType FT::GetType(const char* fName)
 {
 	const string ext = FS::GetExt(fName);
 	const char* c_ext = ext.c_str();
-	for(int i = 2; i<Count; i++)	// start from ordinary bed
-		if(!_stricmp(c_ext, Types[i].Extens))	return eTypes(i);
+	for(int i = BED; i<Count; i++)	// start from ordinary bed
+		if(!_stricmp(c_ext, TypeAttrs[i].Extens))	return fType(i);
 	return UNDEF;
-}
-
-// Validates file extension
-//	@fName: file name (with case insensitive extension and [.gz])
-//	@t: file type
-//	@printfName: true if file name should be ptinted
-//	@throwExc: true if throw exception, otherwise throw warning
-//	return: true if file extension correspondes to file type
-bool FT::CheckType(const char* fName, eTypes t, bool printfName, bool throwExc) { 
-	if( GetType(fName) != (t == ABED ? BED : t) ) {
-		Err("wrong extension", printfName ? fName : NULL).Throw(throwExc);
-		return false;
-	}
-	return true;
 }
 
 // Gets file extension, beginning at DOT and adding .gz if needed
 //	@t: file type
 //	@isZip: true if add ".gz"
-const string FT::RealExt(eTypes t, bool isZip)
+const string FT::Ext(fType t, bool isZip)
 {
-	string ext = string(1, DOT) + Types[t].Extens;
+	string ext = string(1, DOT) + TypeAttrs[t].Extens;
 	if(isZip)	ext += ZipFileExt;
 	return ext;
 }
@@ -284,8 +271,7 @@ const char* TxtInFile::GetRecord()
 					currPos++; blanklCnt++;		// skip empty line
 					continue;
 				}
-				if(IsEOLundef())	
-					SetEOL(_buff[i-1]);		// define EOL size
+				if(IsEOLundef())	SetEOL(_buff[i-1]);		// define EOL size
 				//_flag |= !bool(_buff[i-1]-CR);
 				_recLen += (_linesLen[rec] = ++i - currPos);
 				currPos = i;
@@ -380,13 +366,15 @@ char* TxtInFile::GetRecord(short* const tabPos, const BYTE tabCnt)
 }
 
 // Gets string containing file name and current line number.
+//	@code: code of error occurs
 //	@lineInd: index of line in a record; if 0, then first line
-const string TxtInFile::LineNumbToStr(BYTE lineInd) const
+const string TxtInFile::LineNumbToStr(Err::eCode code, BYTE lineInd) const
 {
-	string str;
-	if(IsFlag(PRNAME))	str = FileName();
-	//str += SepCl;
-	return str + ": line " + NSTR(LineNumber(lineInd));
+	_errCode = code;
+	ostringstream s;
+	if(IsFlag(PRNAME))	s << FileName();
+	s << ": line " << LineNumber(lineInd);
+	return s.str();
 }
 
 /************************ TxtInFile: end ************************/
@@ -622,7 +610,7 @@ bool TabFile::IsFieldValid	(BYTE ind) const
 	if(_fieldPos[ind] == vUNDEF) {		// vUNDEF was set in buff if there was no such field in the line
 	//|| !StrField(ind)[0]) {			// empty field
 		if(ind < _params.MinFieldCnt)
-			ThrowLineExcept(Err::TF_FIELD);
+			Err(Err::TF_FIELD, LineNumbToStr(Err::TF_FIELD).c_str()).Throw();
 		return false;
 	}
 	return true;
@@ -638,6 +626,23 @@ void TabFile::Init(eAction mode)
 		_fieldPos = new short[_params.MaxFieldCnt];
 		if(_params.LineSpec)	_lineSpecLen = strlen(_params.LineSpec);
 	}
+}
+
+// Skip commented lines and returns estimated number of uncommented lines
+ULONG TabFile::GetUncommLineCount()
+{
+	const char*	currLine;
+	ULONG	cnt = 0;
+	
+	for(USHORT pos=0; currLine = GetRecord(); pos=0) {
+		while( *(currLine+pos)==BLANK )	pos++;			// skip blanks at the beginning of line
+		if(*(currLine+pos) != _params.Comment)	break;	// skip comment line
+	}
+	if(currLine) {
+		cnt = Length() / RecordLength();
+		RollBackLastRecord();
+	}
+	return cnt;
 }
 
 // Reads first line and set it as current.
@@ -707,7 +712,38 @@ const char*	TabFile::GetLine()
 	return _currLine = currLine;
 }
 
-/************************ end of class TabFile ************************/
+/************************ end of TabFile ************************/
+
+/************************ BedInFile ************************/
+
+// Creates new instance for reading and open file
+//	@fName: name of file
+//	@type: file type; not used
+//	@scoreInd: index of 'score' filed; is set for FBED only
+//	@abortInval: true if invalid instance should be completed by throwing exception
+//	@prName: true if file name should be printed in exception's message
+BedInFile::BedInFile(const string& fName, FT::fType type, BYTE scoreInd, bool abortInval, bool prName)
+	: _scoreInd(scoreInd ? scoreInd-1 : 4), TabFile(fName, type, abortInval, prName)
+{
+	*_cMark = 0;
+	_itemCnt = GetUncommLineCount();
+}
+
+/************************ end of BedInFile ************************/
+#ifdef _BAM
+/************************ BamInFile ************************/
+
+// Creates new instance for reading and open file
+//	@fName: name of file
+//	@prName: true if file name should be printed in exception's message
+BamInFile::BamInFile(const string& fName, bool prName) : _cID(-1), _prFName(prName)
+{
+	_reader.Open(fName);
+	_itemCnt = _reader.GetReferenceCount() * 10000;	// very crude estimation
+}
+
+/************************ end of BamInFile ************************/
+#endif
 
 #ifndef _WIGREG
 
@@ -743,7 +779,7 @@ void Region::Extend(chrlen extLen, chrlen cLen)
 //	return *this;
 //}
 
-#if defined _DENPRO || defined _BIOCC
+#if defined _READDENS || defined _BIOCC
 
 // Returns an iterator referring to the past-the-end element, where end is external
 //	@curr_it: region's const iterator, from which the search is started
@@ -813,7 +849,7 @@ void Regions::FillInvert(const Regions &regn, chrlen maxEnd)
 	}
 }
 
-#endif	// _DENPRO, _BIOCC
+#endif	// _READDENS, _BIOCC
 
 #ifdef DEBUG
 void Regions::Print () const
@@ -831,6 +867,8 @@ void Regions::Print () const
 /************************ end of class Regions ************************/
 
 /************************ ChromDefRegions ************************/
+
+const string ChromDefRegions::Ext = ".region";	// regions file extension
 
 // Returns false if the next region is separated from the current one
 // by a value less than the established minimum gap.
@@ -850,7 +888,7 @@ bool ChromDefRegions::Combiner::ExceptRegion(Region& rgn)
 //	@minGapLen: length, gaps less than which are ignored when reading; if 0 then read all regions 
 ChromDefRegions::ChromDefRegions(const string& cfName, chrlen minGapLen) : _gapLen(0), _new(true)
 {
-	_fName = cfName + ".region";
+	_fName = cfName + Ext;
 	if(FS::IsFileExist(_fName.c_str())) {
 		TabFile file(_fName, TxtFile::READ, 2, 2);
 		Combiner comb(minGapLen);
@@ -886,7 +924,7 @@ void ChromDefRegions::AddRegion(const Region& rgn, chrlen minGapLen)
 
 void ChromDefRegions::Write() const
 {
-	if(!_new)	return;
+	if(!_new || FS::IsShortFileName(_fName))	return;
 	ofstream file;
 
 	file.open (_fName.c_str(), ios_base::out);
@@ -897,7 +935,7 @@ void ChromDefRegions::Write() const
 	_new = false;
 }
 
-#if defined _DENPRO || defined _BIOCC
+#if defined _READDENS || defined _BIOCC
 // Combines regions with a gap less than minGapLen
 void ChromDefRegions::Combine(chrlen minGapLen)
 {
@@ -1010,7 +1048,7 @@ FaFile::FaFile(const string& fName, ChromDefRegions* rgns) : TxtInFile(fName, RE
 
 /************************ end of class FaFile ************************/
 
-#endif	// _ISCHIP, _DENPRO, _BIOCC
+#endif	// _ISCHIP, _READDENS, _BIOCC
 #endif	// _FQSTATN
 
 #ifdef _FQSTATN
@@ -1029,7 +1067,6 @@ const char* FqFile::GetCurrRead() const
 { 
 	//CheckGettingRecord();
 	return NextRecord() - RecordLength() + LineLengthByInd(HEADER1); 
-	//return NextRecord() - LineLength() + LineLengthByInd(HEADER1); 
 }
 
 // Returns checked Sequence
@@ -1038,9 +1075,9 @@ const char* FqFile::GetSequence()
 	const char* record = GetRecord();
 	if(record != NULL) {
 		if(*record != AT)
-			Err("non '@' marker; missed header line", LineNumbToStr(0).c_str()).Throw();
+			Err("non '@' marker; missed header line", LineNumbToStr()).Throw();
 		if( *(record + LineLengthByInd(HEADER1, false) + LineLengthByInd(READ, false)) != PLUS )
-			Err("non '+' marker; missed second header line", LineNumbToStr(2).c_str()).Throw();
+			Err("non '+' marker; missed second header line", LineNumbToStr()).Throw();
 	}
 	return record;
 }
