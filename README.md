@@ -29,7 +29,7 @@ The required memory is linearly proportional to the number of threads. For one t
 [Download Linux version](https://github.com/fnaumenko/isChIP/releases/download/v1.0/isChIP-Linux-x64.gz)<br>
 [Download Windows version](https://github.com/fnaumenko/isChIP/releases/download/v1.0/isChIP-Windows-x64.zip)
 
-Alterative download in Linux:<br>
+Alternative download in Linux:<br>
 `wget -O isChIP.gz https://github.com/fnaumenko/isChIP/releases/download/v1.0/isChIP-Linux-x64.gz`
 
 Then type<br>
