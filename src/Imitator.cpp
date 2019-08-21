@@ -2,7 +2,7 @@
 Imitator.cpp (c) 2014 Fedor Naumenko (fedor.naumenko@gmail.com)
 All rights reserved.
 -------------------------
-Last modified: 10.04.2019
+Last modified: 21.08.2019
 -------------------------
 Provides chip-seq imitation functionality
 ***********************************************************/
@@ -74,77 +74,31 @@ double Imitator::ChromCutter::FragDistr::Normal()
 /************************ end of FragDistr ************************/
 
 /************************  Amplification ************************/
-a_cycle Imitator::ChromCutter::MDA::Coeff = 0;
 
-// Recursively fills _fracts by splitted fragments (segments).
-//  @firstCall: true if it is a first call
-//	@fragLenMin: current minimum fragment length
-void Imitator::ChromCutter::MDA::Split(bool firstCall, fraglen fragLenMin)
+void Imitator::ChromCutter::MDA::Split(fraglen shift, fraglen len)
 {
-	fraglen leftFrac, rightFrac;
-	_iterCnt = _currCnt;
-	for(fraglen i=(_initCnt+_currCnt)/2; i<_iterCnt; i++)	// start from second half of added fractions
-	{	// temporary use rightFrac as a Current Fragment Length
-		if( firstCall )
-			rightFrac = _fragLen;
-		else if((rightFrac=_fracts[i].Length) < 0)	// skip "hole"
-			continue;
-		leftFrac = fraglen(_rng.Range(rightFrac));
-		rightFrac -= leftFrac;						// use rightFrac as Right Fraction Length
-		if(leftFrac >= fragLenMin) {				// save left fraction on the same position
-			_fracts[i].Length = leftFrac;			// shift doesn't change for left fraction
-			if(rightFrac >= fragLenMin) {			// save right fraction on the new position
-				if(_currCnt+1 >= _memFactor*Coeff) {
-					// increase memory for array if necessary
-					Fraction* tmp = _fracts;
-					_fracts = new Fraction[(++_memFactor) * Coeff];
-					memset(_fracts, 0, FractionsSize());		// clear new block
-					memcpy(_fracts, tmp, sizeof(struct Fraction)*(_memFactor-1)*Coeff);
-					delete [] tmp;
-					if( Imitator::Verbose(vDBG) ) {
-						Mutex::Lock(Mutex::OUTPUT);
-						cout << "Amplification's buffer was increased; new memFactor = "
-							 << (int)_memFactor << endl;
-						Mutex::Unlock(Mutex::OUTPUT);
-					}
-				}
-				// save right fraction on the new position
-				_fracts[_currCnt++].Set(rightFrac, _fracts[i].Shift + leftFrac);	
-			}
-		}
-		else			// discard left fraction
-			if( rightFrac >= fragLenMin)
-				// save right fraction on the same position
-				_fracts[i].Set(rightFrac, _fracts[i].Shift + leftFrac);	
-			else
-				// discard right fraction: position should be free (a "hole" is created)
-				// mark "hole" and clear shift for case saving right fraction in the future
-				_fracts[i].Set(-1, 0);	
-	}
-	if( !firstCall )
-		_initCnt = _iterCnt;
-	if( _currCnt > _initCnt )
-		Split(false, fragLenMin);
+	if(len < _minLen)		return;
+	_fracs.push_back(make_pair(shift, len));
+	if(!Imitator::IsMDA)	return;
+	fraglen len1 = fraglen(_rng.Range(len));	// new right fraction relative position
+	Split(shift + len1, len - len1);			// split right fraction
+	Split(shift, len1 - 1);						// split left fraction
 }
 
-// Prepare instance to the new generate cycle
+// Prepare instance to the new generating cycle
 //	@fragLen: current fragment length
 //	@fragLenMin: current minimal fragment length
 void Imitator::ChromCutter::MDA::Reset(fraglen fragLen, fraglen fragLenMin)
 {
-	_fragLen = fragLen;
-	_initCnt = -(Coeff>>1);
-	if(_fracts) {
-		// fill the array by amplified fractions
-		_currCnt = -_initCnt;
-		memset(_fracts, 0, FractionsSize());	// clear shifts
-		Split(true, fragLenMin);
-		_currCnt = -(Coeff>>1) - 1;		// clear current index to prepare for reading
-	}
-	else {
-		_currCnt = -2;
-		_iterCnt = 0;
-	}
+	_fracs.clear();
+	_minLen = fragLenMin;
+	Split(0, fragLen);
+	_it = _fracs.begin();
+	
+	//cout << "total " << _fracs.size() << EOL;
+	//for(vector<Frac>::const_iterator it=_fracs.cbegin(); it!=_fracs.cend(); it++)
+	//	cout << it->Shift << TAB << it->Len << EOL;
+	//cout << EOL;
 }
 
 // Gets length and shift of amplificated fraction (MDA)
@@ -153,18 +107,9 @@ void Imitator::ChromCutter::MDA::Reset(fraglen fragLen, fraglen fragLenMin)
 //	or 0 if fractions are ended
 fraglen Imitator::ChromCutter::MDA::GetFraction	(fraglen* shift)
 {
-	if( ++_currCnt < 0 ) {				// "virtual" part of array: return initial fragment
-		_iterCnt++;
-		*shift = 0;
-		return _fragLen;
-	}
-	if(_currCnt == _initCnt)	return 0;		// end of records
-		
-	while(_fracts[_currCnt].Length < 0)			// skip "holes"
-		_currCnt++;
-	_iterCnt++;
-	*shift = _fracts[_currCnt].Shift;
-	return _fracts[_currCnt].Length;			// return current fraction
+	if(_it == _fracs.end())	return 0;
+	*shift = _it->first;
+	return _it++->second;
 }
 
 /************************  Amplification: end ************************/
@@ -182,136 +127,115 @@ class AvrFrags
  *   field 4:	comment
  */
 {
-private:
+public:
 	struct AvrFrag {
-		a_cycle	aCoeff;		// coefficient of amplification
-		float	fLen;		// first average length
-		float	sLen;		// second average length
+		int		ReadLen;
+		float	SelLen;
+		float	RecLen;
+		float	MdaLen;
 
-		inline AvrFrag(a_cycle coeff, float flen, float slen) : aCoeff(coeff), fLen(flen), sLen(slen) {}
+		inline AvrFrag(int readLen=0, float selLen=0, float recLen=0, float mdaLen=0) 
+			: ReadLen(readLen), SelLen(selLen), RecLen(recLen), MdaLen(mdaLen)  {}
 
 		// for sorting by ascent
-		inline bool operator < (const AvrFrag& avr) const {	return (avr.aCoeff > aCoeff); }
+		inline bool operator < (const AvrFrag& avr) const {	return (avr.ReadLen > ReadLen); }
 	};
 	//static const BYTE	Fl_capacity = 6;	// Number of significant float digits stored
 
+private:
 	bool	_isChanged;
-	string	_fileName;
-	vector<AvrFrag> _avrLens;
+	string	_fName;
+	vector<AvrFrag> _avrs;
+	vector<AvrFrag>::iterator _it;	// iterator to record for current Read length
 
 public:
-	static const BYTE SelMIN = 0;				// values array index of selected min frag length
-	static const BYTE SelMAX = SelMIN + 1;		// values array index of selected max frag length
-	static const BYTE SelAVR = SelMIN + 2;		// values array index of selected average frag length
-	static const BYTE GenAVR = SelMIN + 3;		// values array index of generated average frag length
-	static const BYTE RecAVR = SelMIN + 4;		// values array index of recorded average frag length
-												// for given MDA, PCR ampl coeff
-	static const BYTE Capacity = RecAVR + 2;	// values array capacity
-
-	// Creates a new instance of AvrFrags from given path;
+	// Creates a new instance of AvrFrags from given service path;
 	// a file name will be constructed.
 	// If file does not exist, the instance is empty.
-	AvrFrags	(const string path) : _isChanged(false)
+	AvrFrags(const string& path) : _isChanged(false)
 	{
-		ostringstream oss;
-		oss << path
-			<< Options::GetFVal(oFRAG_MEAN)	<< HPH
-			<< Options::GetFVal(oFRAG_SIGMA) << HPH;
+		if(!path.length())	{ _fName = strEmpty; return; }	// empty path means don't save file
+
+		ostringstream ss;
+		ss << path << DistrParams::lnMean << HPH << DistrParams::lnSigma;
 		if(DistrParams::IsSS())
-			oss	<< setprecision(5) << DistrParams::ssMean << HPH
-				<< DistrParams::ssSigma;
+			ss << HPH << int(DistrParams::ssMean) << HPH << DistrParams::ssSigma;
 	#ifdef OS_Windows	
-		oss << ".txt";
+		ss << ".txt";
 	#else
-		oss << ".ini";
+		ss << ".ini";
 	#endif
 	
-		TabFile file(_fileName = oss.str(), TxtFile::READ_ANY, 3);
-		_avrLens.reserve(RecAVR/2 + 2);	// 2 items for coefficients
-		while( file.GetLine() )
-			_avrLens.push_back(AvrFrag(a_cycle(file.IntField(0)), 
-				file.FloatField(1), file.FloatField(2)));
+		TabFile file(_fName = ss.str(), TxtFile::READ_ANY, 4);
+		_avrs.reserve(3);		// with a margin
+		while(file.GetLine())
+			_avrs.push_back(AvrFrag(
+				file.IntField(0), file.FloatField(1), file.FloatField(2), file.FloatField(3)));
 	}
 	
 	// Writes instance to a file if it's changed.
 	~AvrFrags()
 	{
-		if(!_isChanged)		return;
+		if(!_isChanged || !_fName.length())		return;
+
 		const char* comms[] = { 
-			"[1]:unused; selected frag len: [2]:min, [3]:max",
-			"[1]:unused; frag avrg len: [2]:selected, [3]:generated",
-			"[1]:unused; [2]:recorded frag avrg len; [3]:unused",
-			"[1]:ampl coeff; recorded frag avrg len for: [2]:MDA, [3]:PCR"
+			"[1][2]:unused; generated: [3]:min, [4]:max",
+			"[1]:read len; avr: [2]:selected, [3]:recorded; [4]:mda recorded"
 		};
 		const BYTE commsCnt = sizeof(comms)/sizeof(char*);
 		BYTE i = 0;
 		ofstream file;
 
-		file.open (_fileName.c_str(), ios_base::out);
-		file << "# sampling generated by isChIP; do not change\n";
-		for(vector<AvrFrag>::iterator it = _avrLens.begin(); it != _avrLens.end(); it++) {
-			file << it->aCoeff << TAB << it->fLen << TAB << it->sLen;
+		file.open (_fName.c_str(), ios_base::out);
+		file << "# info for sampling generated by isChIP; do not change. Fragment length:\n";
+		//for(vector<AvrFrag>::iterator it = _avrs.begin(); it != _avrs.end(); it++) {
+		sort(_avrs.begin() + 1, _avrs.end());
+		for(_it = _avrs.begin(); _it != _avrs.end(); _it++) {
+			file << _it->ReadLen << TAB << _it->SelLen << TAB << _it->RecLen << TAB << _it->MdaLen;
 			if(i < commsCnt)	file << TAB << comms[i++];
 			file << setprecision(2) << fixed << EOL;
 		}
 		file.close();
 	}
-	
-	// Gets size Factor and fragment length average values.
-	//	@isPCR: true if PCR is established
-	//	@coeff: user-defined coefficient of amplification
-	//	@avrs: extern array to return values; first RecAVR values are always returned,
-	//	last 2 only for given coefficient
-	//	return: true if values for given coefficient of amplification are returned successfully
-	bool Get(bool isPCR, BYTE coeff, float avrs[]) const
+
+	// Returns records for current Read len
+	AvrFrag& Get()
 	{
-		short i = 0;
-		for(vector<AvrFrag>::const_iterator it=_avrLens.begin(); it!=_avrLens.end(); it++)
-			if(i < RecAVR) {
-				avrs[i++] = it->fLen;
-				avrs[i++] = it->sLen;
-			}
-			else if(it->aCoeff == coeff) {
-				avrs[i++] = it->fLen;
-				avrs[i++] = it->sLen;
-				return isPCR ? it->sLen : it->fLen;		// return false if coeff for given ampl is 0
-			}
-		return false;
+		if(_avrs.size()) {
+			for(_it=_avrs.begin() + 1; _it<_avrs.end(); _it++)
+				if(_it->ReadLen == Read::Len)
+					return *_it;
+			_avrs.push_back(AvrFrag());
+			_isChanged = true;
+			return *(_it = _avrs.end() - 1);
+		}
+		else {		// empty container
+			_avrs.push_back(AvrFrag());
+			_avrs.push_back(AvrFrag());
+			_isChanged = true;
+			return *(_it = _avrs.begin() + 1);
+		}
 	}
 
-	// Adds size Factor and fragment length average values.
-	//	@amplCoeff: coefficient pf amplification
-	//	@avrs: array of values
-	void Add(BYTE coeff, float avrs[])
+	void SetMinMax(fraglen min, fraglen max)
 	{
-		if(_avrLens.size()) {	// existed instance
-			for(vector<AvrFrag>::iterator it = _avrLens.begin() + RecAVR/2; it != _avrLens.end(); it++)
-				if( _isChanged = it->aCoeff == coeff ) {
-					it->fLen = avrs[RecAVR];
-					it->sLen = avrs[RecAVR+1];
-					break;
-				}
-			if( !_isChanged ) {	// add new coefficient
-				_avrLens.push_back(AvrFrag(coeff, avrs[RecAVR], avrs[RecAVR+1]));
-				sort(_avrLens.begin() + RecAVR/2, _avrLens.end());
-			}
-			// do average with new frag average length
-			_avrLens[SelAVR/2].fLen = (_avrLens[SelAVR/2].fLen + avrs[SelAVR]) / 2;
-		}
-		else {					// new instance
-			short i = 0;
-			for(; i<RecAVR; i+=2)
-				_avrLens.push_back(AvrFrag(-1, avrs[i], avrs[i+1]));
-			_avrLens.push_back(AvrFrag(coeff, avrs[i], avrs[i+1]));
-		}
-		_isChanged = true;
+		AvrFrag& avr = *_avrs.begin();
+		if(!avr.RecLen)
+			avr.RecLen = min,
+			avr.MdaLen = max;
 	}
+
+	void SetMDAlen(float len) {	_it->MdaLen = len; _isChanged = true; }
+
+	inline fraglen Min() const { return  _avrs.begin()->RecLen; }
+
+	inline fraglen Max() const { return  _avrs.begin()->MdaLen; }
 
 #ifdef DEBUG
 	void Print() const
 	{
-		for(vector<AvrFrag>::const_iterator it=_avrLens.begin(); it<_avrLens.end(); it++)
-			cout << it->aCoeff << TAB << it->fLen << TAB << it->sLen << EOL;
+		for(vector<AvrFrag>::const_iterator it=_avrs.begin(); it<_avrs.end(); it++)
+			cout << it->ReadLen << TAB << it->SelLen << TAB << it->RecLen << TAB << it->MdaLen << EOL;
 	}
 #endif
 };
@@ -397,8 +321,8 @@ int Imitator::ChromView::PrintHeader(bool FgHeader)
 	lineW += PrFittedStr("sample", marg_S + SampleW);		// "sample"
 	// now we should compensate extention to 1:
 	// if MDA is set then shrink "MDAc" to 1, otherwhise shrink "unit densuty" field to 1
-	if(ChromCutter::IsMDA())
-		lineW += PrFittedStr("MDAc", marg_A + AmplW - 1);	// MDA coefficient 
+	if(Imitator::IsMDA || AmplCoeff)
+		lineW += PrFittedStr("ampl", marg_A + AmplW);	// amplification coefficient 
 	lineW += PrFittedStr(UnitDens, marg_D + DensW);			// unit density
 	if(FgHeader)	PrintMarg(margD_), lineW += margD_;		// empty space
 	
@@ -435,7 +359,7 @@ void Imitator::ChromView::PrintReads(GM::Mode gMode, const FragCnt fragCnt, chrl
 			cout << right << Gr::Title(GrType) << COLON;	// print Gr title
 	PrFittedInt(rCnt, marg_R + CountW);												// count of Reads
 	PrFittedFloat(true, fragCnt.Sample(), SamplePr, marg_S + SampleW, SampleWRP);	// sample
-	if(ChromCutter::IsMDA())
+	if(Imitator::IsMDA || AmplCoeff)
 		PrFittedFloat(false, fragCnt.RealAmplCoeff(), AmplPr, marg_A + AmplW);		// MDA coef
 	PrFittedFloat(false, ReadDens(rCnt, densLen), DensPr, marg_D + DensW, DensWRP);	// density
 	if(GrType == Gr::FG)		PrintMarg(margD_);
@@ -498,7 +422,6 @@ Imitator::FragCnt::pSelAdd	Imitator::FragCnt::pSelAddSaved;
 
 fraglen	Imitator::ChromCutter::_SsDev;			// deviation of frag size selection
 a_cycle	Imitator::ChromCutter::_PCRdcycles = 1;	// PCR cycles: read doubling cycles
-a_coeff	Imitator::ChromCutter::_amplCoeff = 0;	// user-stated amplification coefficient
 
 // Sets global mode
 void Imitator::ChromCutter::SetGMode(GM::Mode gmode)
@@ -525,15 +448,6 @@ void Imitator::ChromCutter::IncrTotalSelFragCount()
 		GlobContext[_gMode].fCnts[i].SelAddSaved(_fragCnt[i].SelCnt());
 }
 
-// Set amplification
-//	@isPCR: true if PCR set
-//	@coeff: amplification coefficient; 0 if no amplification
-void Imitator::ChromCutter::SetAmpl(bool isPCR, a_coeff coeff) {
-	if(isPCR)	_PCRdcycles = 1<<coeff;
-	else		MDA::Coeff = coeff<<1;
-	_amplCoeff = coeff;
-}
-
 // Creates instance
 //	@imitator: the owner
 //	@avr: recorded frags average (trial for sampling), or NULL
@@ -545,10 +459,10 @@ Imitator::ChromCutter::ChromCutter(const Imitator* imitator, Average* avr, bool 
 	_slave(slave),
 	_gMode(GM::Test)
 {
-	OutFiles::SetSeqMode(avr);
+	Output::SetSeqMode(avr);
 	_fragCnt.Clear();
 	_fragCnt.SetGMode(GM::Test);
-	_output = slave ? new OutFiles(imitator->_oFile) : &(imitator->_oFile);
+	_output = slave ? new Output(imitator->_oFile) : &(imitator->_oFile);
 }
 
 // Prints thread-safe info about treated chroms and stops timer
@@ -566,17 +480,16 @@ void Imitator::ChromCutter::PrintChrom (
 	Mutex::Lock(Mutex::OUTPUT);
 
 	PrintChromInfo(cID, _gMode, _fragCnt.GetFragCnts(), rgnLens, !IsSingleThread());
-	if(Verbose(vPAR)) {
+	if(Verbose(vPAR))
 		if(_gMode == GM::Test) {
 			const GenomeSizes s(seq);
 			ChromView::PrintGaps(s);
 		}
-		else ChromView::PrintGapsMarg();
-	}
+		else if(Timer::Enabled)	ChromView::PrintGapsMarg();
 	timer.Stop(ChromView::marg_T);		// print time
 	if(excLimit) {
 		cout << " exceeded limit";
-		if(!Verbose(vDBG))	
+		if(!Verbose(vPAR))	
 			cout << " of " << Seq::ReadsLimit() << BLANK << FT::ItemTitle(FT::ABED, true);
 	}
 	cout << endl;
@@ -587,9 +500,9 @@ void Imitator::ChromCutter::PrintChrom (
 ULLONG Imitator::ChromCutter::PrepareCutting(GM::Mode gm, chrid cID, Timer& timer)
 {
 	SetGMode(gm);
-	PrintChromName(cID, gm, IsSingleThread());		// print chrom name before cutting
+	PrintChromName(cID, gm, IsSingleThread());			// print chrom name before cutting
 	timer.Start();
-	return CellCnt(gm) << _cSizes.Autosome(cID);	// multiply twice for autosomes
+	return CellCnt(gm) << int(_cSizes.IsAutosome(cID));	// multiply twice for autosomes
 }
 
 // Treats chromosomes given for current thread
@@ -597,47 +510,40 @@ ULLONG Imitator::ChromCutter::PrepareCutting(GM::Mode gm, chrid cID, Timer& time
 thrRetValType Imitator::ChromCutter::Execute(const effPartition::Subset& cIDSet)
 {
 	chrid	cID;
-	BedF::cIter	cit;				// template chrom's iterator
+	Features::cIter	cit;			// template chrom's iterator
 	ULONG	n, cellCnt;				// count of cells, length of enriched regions
 	chrlen	currPos, k, fCnt;		// count of features
 	chrlen*	pCurrPos = &currPos;	// pointer to current position
 	chrlen	enrRegLen;				// length of enriched regions
-	short	lineW = 0;
+	int		res = 0;				// result of cutting
 	Timer	timer(Verbose(vRT));	// print local time on Verbose 'runtime info and above'
 
 	try {
 		for(effPartition::numb_id_cit it=cIDSet.NumbIDs().begin(); it!=cIDSet.NumbIDs().end(); it++) {
-			cID = *it;
 			_fragCnt.Clear();
+			_output->BeginWriteChrom(cID = *it);
 			cellCnt = PrepareCutting(GM::Test, cID, timer);
-			_output->BeginWriteChrom(cID);
 
-			if(Bed && (cit=Bed->GetIter(cID)) != Bed->cEnd()) {
-				fCnt = Bed->FeatureCount(cit);
-				enrRegLen = Bed->EnrRegLength(cit, 0, SelFragAvr);
+			if(Templ && (cit=Templ->GetIter(cID)) != Templ->cEnd()) {
+				fCnt = Templ->Count(cit);
+				enrRegLen = Templ->EnrRegLength(cit, 0, SelFragAvr);
 			}
 			else	enrRegLen = fCnt = 0;
-			RefSeq seq(_cSizes.RefName(cID));
+			RefSeq seq(cID, _cSizes);
 			
 			for(n = 0; n < cellCnt; n++) {
 				currPos = seq.Start() + _fragDistr.RandFragLen();	// random shift from the beginning
 				for(k=0; k < fCnt; k++)
-					if(lineW = CutChrom(seq, pCurrPos, Bed->Feature(cit, k), false))
+					if(res = CutChrom(seq, pCurrPos, Templ->Feature(cit, k), false))
 						goto A;			// achievement of Reads limit
 				// add background after last 'end' position
-				if((lineW = CutChrom(seq, pCurrPos, seq.DefRegion(), true)) < 0 && All) {
-					_output->EndWriteChrom(cID);
+				if((res = CutChrom(seq, pCurrPos, seq.DefRegion(), true)) < 0)
 					break;				// achievement of Reads limit
-				}
 			}
-A:			PrintChrom(cID, seq, enrRegLen, timer, lineW < 0);		// timer stops and printed in here
+A:			PrintChrom(cID, seq, enrRegLen, timer, res < 0);		// timer stops and printed in here
 			IncrTotalSelFragCount();
 			// collect total enriched regions length to calculate total density
 			IncrementTotalLength(seq, enrRegLen);
-			if(lineW < 0) {
-				_output->EndWriteChrom(cID);
-				break;			// achievement of Reads limit
-			}
 			if(MakeControl) {
 				cellCnt = PrepareCutting(GM::Control, cID, timer);
 				for(n = 0; n < cellCnt; n++) {
@@ -648,6 +554,7 @@ A:			PrintChrom(cID, seq, enrRegLen, timer, lineW < 0);		// timer stops and prin
 				IncrTotalSelFragCount();
 			}
 			_output->EndWriteChrom(cID);
+			if(res < 0)		break;			// achievement of Reads limit
 		}
 	}
 	catch(const Err &e)			{ Terminate(cIDSet.ID(), e.what()); }
@@ -663,7 +570,7 @@ A:			PrintChrom(cID, seq, enrRegLen, timer, lineW < 0);		// timer stops and prin
 
 // Cuts chromosome until reaching end position of current treated feature
 //	@seq: cutted reference chromosome
-//	@currPos: cutting start position
+//	@fragStart: fragment start position
 //	@feature: current treated feature
 //	@bg: if true then generate background (swap foreground and background)
 //	@fragStat: statistics of selected fragments average counter, or NULL under work mode
@@ -672,33 +579,35 @@ A:			PrintChrom(cID, seq, enrRegLen, timer, lineW < 0);		// timer stops and prin
 //		-1 if Reads limit is achieved (cancel treatment)
 int Imitator::ChromCutter::CutChrom	(
 	const RefSeq& seq,
-	chrlen* const currPos,
+	chrlen* const pfragStart,
 	const Featr& feature,
 	bool bg,
 	FragLenStat* fragStat
 	)
 {
 	const chrlen cLen = seq.End();	// chrom defined end position
-	const readscr featScore[] = { UniformScore ? 1 : feature.Score, 1 };	// FG, BG feature's score
+	const float featScore[] = { UniformScore ? 1 : feature.Score, 1 };	// FG, BG feature's score
 	bool	select;			// selection by corrected bounds; always true for BG
-	bool	inDarkZone;
 	bool	primer;			// true for the primer (not amplified) frag
 	Gr::Type	g;			// ground: 0 - FG, 1 - BG
-	fraglen fragLen,		// fragment's length
+	fraglen fragStart,		// fragment's start position
+			fragLen,		// fragment's length
 			fragLenMin = Read::Len,		// minimal fragment's length after size selection
 			fragLenMax = FRAG_MAX,		// maximal fragment's length after size selection
 			fracLen,		// fraction's length
-			fracShift,		// fraction's start position within fragment
-			ssLen;			// fragment's size selection random length
-	fraglen darkZone;		// uncertain zone, with increasing probability of frag binding
-	//fraglen	flatLen = FlatLen > 0 ? FlatLen : 0;	// positive flattering length
+			fracShift;		// fraction's start position within fragment
+	short	uZone;			// ustable zone, with increasing probability of frag binding
 	chrlen	fragEnd;		// fragment's end position
 	a_cycle	i;				// PCR amplification counter
-	int	res;				// result of AddRead() method
+	//int	res;				// result of AddRead() method
 
-	for(; *currPos<=feature.End; *currPos += fragLen) {	// ChIP: control right mark
+	for(; *pfragStart<=feature.End; *pfragStart += fragLen) {	// ChIP: control right mark
 		fragLen = _fragDistr.LognormNext();
-		if(*currPos + fragLen > cLen)	return 1;		// end of chrom
+		fragStart = *pfragStart;
+		fragEnd = fragStart + fragLen;
+		if(fragEnd > cLen)	
+			if(fragStart >= cLen - Read::Len)	return 1;	// end of chrom
+			else	fragLen = (fragEnd = cLen) - fragStart;	// cut last fragment
 		if(DistrParams::IsSS())
 			_fragDistr.SizeSelLimNext(fragLenMin, fragLenMax);
 		/*
@@ -713,23 +622,19 @@ int Imitator::ChromCutter::CutChrom	(
 		 * for other chromosomes background (g==0) is inside feature==chrom's length.
 		 * ControlMode: foreground (g==0) is always inside feature==chrom's length
 		 */
-		res = 0;
-		fragEnd = *currPos + fragLen;
+		//res = 0;
 		fracLen = fragLen;
 		g = Gr::Type(!bg ^ (fragEnd >= feature.Start));
 		
 		if(PerSample(g)) {	// ground sampling
-			if(!(select = bool(g))) {		// foreground; for background select always true
-				select = fragEnd >= feature.Start;
-				if(select && FlatLen) {		// flattening is ON
-					darkZone = feature.End - *currPos;
-					inDarkZone = darkZone < FlatLen;		// frag's start is in uncertain zone
-					if(!inDarkZone) {
-						darkZone = fragEnd - feature.Start;
-						inDarkZone = darkZone < FlatLen;	// frag's end is in uncertain zone
-					}
-					if(inDarkZone)	select = _fragDistr.Sample( float(darkZone) / FlatLen );
-				}
+			if(!(select = bool(g))					// foreground; for background select always true
+			&& (select = fragEnd >= feature.Start)	// fragment captures feature?
+			&& FlatLen) {							// flattening is ON?
+				uZone = short(fragEnd - feature.Start);		// is frags end in unstable zone?
+				if(uZone > FlatLen)
+					uZone = short(feature.End - fragStart);	// is frags start in unstable zone?
+				if(uZone <= FlatLen)						// is frags start or end in unstable zone?
+					select = _fragDistr.Sample(float(uZone) / FlatLen);	// new unstable select
 			}
 			if(select && _fragDistr.Sample(featScore[g]))	// selection by bounds & feature score
 				// MDA amplification
@@ -741,8 +646,8 @@ int Imitator::ChromCutter::CutChrom	(
 						for(i=0; i<_PCRdcycles; i++) {	// _PCRdcycles is number of read doubling cycles 
 							if(i)	primer=false;
 							// while BG or without MDA fracShift is always 0
-							if(!_output->AddRead(seq, *currPos+fracShift, fragLen, g)
-							&& IncrRecFragCount(g, primer))
+							if(!_output->AddRead(seq, fragStart+fracShift, fracLen, g)
+							&& IncrRecFragCount(g, primer))		// recorded reads
 								return -1;						// Reads limit is exceeded
 						}
 		}
@@ -766,16 +671,18 @@ Imitator::ChromView Imitator::ChrView[] = {Gr::FG,Gr::BG};
 ULONG	Imitator::TreatedLen[] = {0,0};	// FG, BF genome treated length
 float	Imitator::AutoSample = 1;		// adjusted FG sample to stay in limit
 //readlen	Imitator::BindLen;
-short	Imitator::FlatLen = 0;
+short	Imitator::FlatLen = 0;		// BS edge flattening length
+a_coeff	Imitator::AmplCoeff = 0;	// user-stated amplification coefficient
 BYTE	Imitator::Verb;
 BYTE	Imitator::ThrCnt;			// actual number of threads
+bool	Imitator::IsMDA;
 bool	Imitator::MakeControl;		// true if control file (input) should be produced
 bool	Imitator::UniformScore;
 bool	Imitator::All;
 eMode	Imitator::TMode;			// Current task mode
 float	Imitator::SelFragAvr;		// mean length of selected fragments
 Imitator	*Imitator::Imit = NULL;
-const BedF	*Imitator::Bed = NULL;
+const Features	*Imitator::Templ = NULL;
 
 // Prints chromosome's name
 //	@cID: chromosomes ID, or CHRID_UNDEF to print "total" instead chrom name
@@ -831,7 +738,7 @@ void Imitator::PrintHeader(bool header)
 // Prints total outcome
 void Imitator::PrintTotal()
 {
-	cout << Total << " recorded "; OutFiles::PrintItemTitle();
+	cout << Total << " recorded "; Output::PrintItemTitle();
 	if(MakeControl)
 		cout << SepCl << GM::Title(GM::Test) << COLON;
 	cout << BLANK << GlobContext[GM::Test].RecCnt();
@@ -841,13 +748,15 @@ void Imitator::PrintTotal()
 }
 
 // Print amplification info
-void Imitator::PrintAmpl(const char* ampls[])
+void Imitator::PrintAmpl()
 {
 	cout << SignPar << "Amplification" << SepCl;
-	if( ChromCutter::AmplCoeff() )
-		cout << ampls[ChromCutter::IsPCR()]
-				<< SepSCl << "coefficient" << Equel << int(ChromCutter::AmplCoeff());
-	else	cout << Options::BoolToStr(false);
+	if(IsMDA)	cout << "MDA";
+	if(AmplCoeff) {
+		if(IsMDA)	cout << SepSCl;
+		cout << "PCR cycles" << Equel << int(AmplCoeff);
+	}
+	else if(!IsMDA)	cout << Options::BoolToStr(false);
 	cout << EOL;
 }
 
@@ -860,9 +769,9 @@ void Imitator::IncrementTotalLength(const RefSeq& seq, chrlen enrRgnLen)
 }
 
 // Runs task in current mode and write result to output files
-void Imitator::Execute(BedF* templ)
+void Imitator::Execute(Features* templ)
 {
-	Bed = templ;
+	Templ = templ;
 	CutGenome();
 
 	// print statistics
@@ -877,7 +786,7 @@ void Imitator::Execute(BedF* templ)
 	}
 }
 
-// Curs genome into fragments and generate output
+// Cuts genome into fragments and generate output
 void Imitator::CutGenome	()
 {
 	effPartition cSets(_cSizes, thrid(ThrCnt));
@@ -918,48 +827,52 @@ ULONG Imitator::GetReadsCnt(Gr::Type g, chrlen densLen, float factor,
 	return cnt;
 }
 
+// Imitates cutting chromosome to reach statistics
+ULLONG Imitator::CutForSample(Average& genFrAvr, FragLenStat* frLenStat)
+{
+	chrlen		pos = 0;
+	ChromCutter cCutter(this, &genFrAvr, false);
+	const RefSeq seq(_cSizes[0]);
+	
+	// generate statistics based on first chrom; Reads are not recorded
+	GlobContext[GM::Test].SetSample(1.0);
+	for(int i=0; i<4; pos=0, i++)
+		cCutter.CutChrom(seq, &pos, seq.DefRegion(), false, frLenStat);
+	GlobContext[GM::Test].ClearFragCounters();
+	return cCutter.RecFgFragCnt();
+}
+
 // Sets adjusted Sample and clear all counter and means.
 // Sample are needed for the control of BF&FG levels by percent (given by user),
 // and to prorate number of written reads for each chromosome depending on reads limit.
 void Imitator::SetSample()
 {
-	float avr[AvrFrags::Capacity];
-	AvrFrags avrgs(_cSizes.Path());
-
-	memset(avr, 0, sizeof(avr));
 	// *** Get averages from file if it exists, otherwise calculate and save ones
-	if(!avrgs.Get(ChromCutter::IsPCR(), ChromCutter::AmplCoeff(), avr)) {
-		chrlen pos = 0;
-		Average genFrAvr;					// generated frags average length
-		FragLenStat frLenStat;
-		ChromCutter cCutter(this, &genFrAvr, false);
-		const RefSeq seq(_cSizes);
-	
-		// generate statistics based on first chrom; Reads are not recorded
-		GlobContext[GM::Test].SetSample(1.0);
-		for(int i=0; i<2; i++) {
-			pos = 0;
-			cCutter.CutChrom(seq, &pos, seq.DefRegion(), false, &frLenStat);
-		}
-		GlobContext[GM::Test].ClearFragCounters();
-		
-		avr[AvrFrags::SelMIN] = frLenStat.Min;
-		avr[AvrFrags::SelMAX] = frLenStat.Max;
-		avr[AvrFrags::SelAVR] = frLenStat.SelAvr.Mean();	// selected frags average length
-		avr[AvrFrags::GenAVR] = genFrAvr.Mean();			// generated frags average length
-		avr[AvrFrags::RecAVR + ChromCutter::IsPCR()] = float(genFrAvr.Sum()) / cCutter.RecFgFragCnt();
-		avrgs.Add(ChromCutter::AmplCoeff(), avr);	// avrgs is saved in destructor
+	AvrFrags avrs(_cSizes.ServPath());
+	AvrFrags::AvrFrag& avr = avrs.Get();
 
-		//avrgs.Print();
-		//if( Verbose(vDBG) ) {
-		//	cout << SignDbg << "Generate by " << Chrom::ShortName(_cFiles.FirstChromID()) << ":\n";
-		//	cout << SignDbg << "frags" << SepCl << FragDistr::CallsCnt()
-		//		 //<< "  reads" << SepCl << cCutter._recFragCnt[0] << EOL;
-		//		 << "  reads" << SepCl << cCutter._fragCnt[0].Rec << EOL;
-		//	cout << SignDbg << "coeff of ampl" << SepCl << MDA::SimpleMean() << EOL;
-		//}
+	if(!avr.ReadLen) {
+		Average		genFrAvr;					// generated frags average length
+		FragLenStat frLenStat;
+		bool isMDA = IsMDA;
+		IsMDA = false;
+		ULLONG recCnt = CutForSample(genFrAvr, &frLenStat);	// cut without MDA
+
+		avrs.SetMinMax(frLenStat.Min, frLenStat.Max);
+		avr.ReadLen = Read::Len;
+		avr.SelLen	= frLenStat.SelAvr.Mean();	// selected frags average length
+		avr.RecLen	= float(genFrAvr.Sum()) / recCnt;
+		IsMDA = isMDA;							// restore MDA
 	}
-	SelFragAvr = avr[AvrFrags::SelAVR];
+	// *** MDA accounting
+	if(IsMDA && !avr.MdaLen) {
+		Average		genFrAvr;
+		ULLONG recCnt = CutForSample(genFrAvr, NULL);
+
+		avrs.SetMDAlen(float(genFrAvr.Sum()) / recCnt);
+	}
+	//avrs.Print();
+	SelFragAvr = avr.SelLen;
 	
 	// *** Set Test samples and Control number of cells and sample
 	GlobContext[GM::Test].SetSample(SAMPLE_FG()/100);
@@ -975,21 +888,25 @@ void Imitator::SetSample()
 	chrlen	enRgnLen;		// length of enriched regions
 	// coefficient in formula: fragCnt_onLen = CellCnt * Sample * Len / recordedAvrLen
 	// constant countFactor = CellCnt / recordedAvrLen
-	const float	countFactor = float(GlobContext[GM::Test].CellCnt) /
-		avr[AvrFrags::RecAVR+ChromCutter::IsPCR()];
+	const float	countFactor = float(GlobContext[GM::Test].CellCnt) / (IsMDA ? avr.MdaLen : avr.RecLen);
 
 	// *** estimate total number of frags
 	for(ChromSizes::cIter it=_cSizes.cBegin(); it!=_cSizes.cEnd(); it++) {
 		if( !_cSizes.IsTreated(it) )	continue;
 		// count is estimated according to diploid (numerical) sign,
 		//	but density not, because basic length is single!
-		if( Bed && Bed->FindChrom(CID(it)) ) {
-			enRgnLen = Bed->EnrRegLength(CID(it), 0, SelFragAvr);
+		if( Templ && Templ->FindChrom(CID(it)) ) {
+			enRgnLen = Templ->EnrRegLength(CID(it), 0, SelFragAvr);
 			totalCnt += GetReadsCnt(Gr::FG, enRgnLen, countFactor, 0, maxCnt, maxDens);
 		}
 		else	enRgnLen = 0;
 		totalCnt += GetReadsCnt(Gr::BG,	_cSizes.DefEffLength(it) - enRgnLen,
-			countFactor, _cSizes.Autosome(CID(it)), maxCnt, maxDens);
+			countFactor, _cSizes.IsAutosome(CID(it)), maxCnt, maxDens);
+	}
+	//if(IsMDA)	totalCnt *= 1.1;	// empirical coefficient
+	if(AmplCoeff) {
+		ChromCutter::SetAmpl();
+		totalCnt *= pow(2.f, int(AmplCoeff));
 	}
 	// *** Estimate adjusted Sample
 	if(totalCnt > Seq::ReadsLimit())
@@ -997,9 +914,9 @@ void Imitator::SetSample()
 	// *** print debug info
 	if(Verbose(vPAR)) {
 		cout << SignPar << "Selected fragments size" << SepCl
-			 << sActual << "mean" << Equel << SelFragAvr
-			 << SepSCl << "minimum ~ " << avr[AvrFrags::SelMIN]
-			 << SepSCl << "maximum ~ " << avr[AvrFrags::SelMAX]
+			 << sActual << "Mean" << Equel << SelFragAvr
+			 << SepSCl << "minimum ~ " << avrs.Min()
+			 << SepSCl << "maximum ~ " << avrs.Max()
 			 << EOL;
 		if(MakeControl)
 			cout << SignPar << "Generated " << GM::Title(GM::Control) << SepDCl	
@@ -1007,7 +924,7 @@ void Imitator::SetSample()
 				 << "sample" << Equel << sPercent(Sample(GM::Control, Gr::BG)*100, 2) << EOL;
 	}
 	if(Verbose(vDBG))
-		cout << SignDbg << "Total recorded reads initial estimate" << SepCl << totalCnt << EOL;
+		cout << SignDbg << "Total recorded reads number estimate" << SepCl << totalCnt << EOL;
 	if(AutoSample < 1 && Verbose(vRES))
 		cout << "Added recovery sample = " << setprecision(3) << (AutoSample * 100)
 			<< "% due to reads limit of " << Seq::ReadsLimit() << endl;

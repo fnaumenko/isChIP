@@ -2,7 +2,7 @@
 Imitator.h (c) 2014 Fedor Naumenko (fedor.naumenko@gmail.com)
 All rights reserved.
 -------------------------
-Last modified: 10.04.2019
+Last modified: 21.08.2019
 -------------------------
 Provides chip-seq imitation functionality
 ***********************************************************/
@@ -14,6 +14,10 @@ using namespace std;
 
 typedef	short	a_cycle;	// type amplification cycles
 typedef	BYTE	a_coeff;	// type coefficient of amplification
+
+#define FRAG_MAX	UINT32_MAX		// maximum fragment length
+
+extern const Options::PairVals grounds;
 
 // Task modes
 enum eMode { TEST, CONTROL };
@@ -34,7 +38,7 @@ enum eVerb {	// verbose level
 // 'Imitator' implements main algorithm of simulation.
 class Imitator
 {
-// 'Average' encapsulates average counting
+	// 'Average' encapsulates average counting
 	class Average
 	{
 	private:
@@ -46,12 +50,14 @@ class Imitator
 		inline Average() : _summator(0), _count(0), _keep(true)	{}
 		// Gets arithmetic average.
 		inline float Mean()	 const { return (float)_summator/_count; }
-		inline ULLONG Sum()	 const { return _summator; }
+		inline ULLONG Sum()	 const { 
+			return _summator; }
 		inline ULONG Count() const { return _count; }
 		// Returns parameter val
 		UINT operator+=(UINT val);
 	};
 
+//public:
 	// 'FragLenStat' keeps statistics of selected frag length; used in SetSample()
 	struct FragLenStat
 	{
@@ -70,6 +76,7 @@ class Imitator
 		}
 	};
 
+//private:
 	// 'FragCnt' - Fragment's Counter - keeps statistics for selected and recorded Reads
 	struct FragCnt {
 	private:
@@ -178,6 +185,7 @@ class Imitator
 		inline float UndefInPers() const { return 100.f * (Total - Defined) / Total; }
 	};
 
+	//public:
 	// 'ChromCutter' encapsulates thread context and methods to cut chromosomes.
 	class ChromCutter
 	{
@@ -250,46 +258,26 @@ class Imitator
 		};
 
 	private:
-		// 'MDA' implements Multiple Displacement Amplification (MDA).
+		// 'MDA' implements Multiple Displacement Amplification
 		class MDA
 		{
 		private:
-			struct Fraction {
-				fraglen Length;
-				fraglen Shift;
+			typedef pair<fraglen,fraglen> Fraction;
 
-				// Saves fraction
-				//	@frac: fraction's length
-				//	@shift: fraction's shift
-				inline void Set(fraglen frac, fraglen shift) { Length = frac; Shift = shift; }
-			};
+			vector<Fraction> _fracs;
+			fraglen		 _minLen;
+			Random&		_rng;		// used to invoke Range() only
+			//a_cycle	_iterCnt;	// number of iteration (displacement reaction)
+			vector<Fraction>::const_iterator _it;
 
-			Fraction*_fracts;	// array of Fraction structures
-			a_cycle	_iterCnt;	// number of iteration, i.e. the real number of amplifications
-			fraglen	_fragLen;	// length of fragment
-			fraglen	_initCnt;	// initial number of selected fragments in _fracts
-			fraglen	_currCnt;	// current number of added selected fragments in _fracts
-			BYTE	_memFactor;	// coeff of memory allocation, i.e. ratio possible_needed/allocated memory
-			Random& _rng;		// used to invoke Range() only
-
-			// Recursively fills array _fracts by splitted fragments (segments).
-			//  @firstCall: true if it is a first call
-			//	@fragLenMin: current minimal fragment length
-			void	Split	(bool firstCall, fraglen fragLenMin);
-
-			inline UINT	FractionsSize() { return sizeof(struct Fraction)*_memFactor*Coeff; }
+			void	Split	(fraglen shift, fraglen len);
 
 		public:
-			// The coefficient (formal number) of amplifications
-			static a_cycle Coeff;
-	
-			inline MDA(Random& rng) : _memFactor(3), _rng(rng) {
-				_fracts = Coeff > 1 ? new Fraction[_memFactor*Coeff] : NULL;
+			inline MDA(Random& rng) :_rng(rng) {
+				_fracs.reserve(Imitator::IsMDA ? 2*Imitator::SelFragAvr / Read::Len : 1);
 			}
 
-			inline ~MDA() { if( _fracts ) delete [] _fracts; }
-
-			// Prepare instance to the new generate cycle
+			// Prepare instance to the new generating cycle
 			//	@fragLen: current fragment length
 			//	@fragLenMin: current minimal fragment length
 			void  Reset (fraglen fragLen, fraglen fragLenMin);
@@ -303,11 +291,10 @@ class Imitator
 
 		static fraglen	_SsDev;			// deviation of frag size selection
 		static a_cycle	_PCRdcycles;	// PCR cycles: read doubling cycles
-		static a_coeff	_amplCoeff;		// user-stated amplification coefficient
 		
 		bool		_slave;		// if true then this instance is slave
 		GM::Mode	_gMode;		// generating mode: 0 - Test, 1 - Control
-		OutFiles*	_output;	// partial output files
+		Output*	_output;	// partial output files
 		FragCnts	_fragCnt;	// numbers of selected/recorded fragments for FG & BG, for both Teat & Input
 		FragDistr	_fragDistr;	// normal & lognormal random number generator
 		MDA			_ampl;
@@ -347,19 +334,11 @@ class Imitator
 		}
 
 	public:
-		// Returns amplification coefficient
-		static inline a_coeff AmplCoeff()	{ return _amplCoeff; }
-
-		// Returns true if MDA amplification is established
-		static inline bool IsMDA()	{ return MDA::Coeff; }
-
 		// Returns true if PCR amplification is established
-		static inline bool IsPCR()	{ return _PCRdcycles > 1; }
+		inline static bool IsPCR()	{ return _PCRdcycles > 1; }
 
 		// Set amplification
-		//	@isPCR: true if PCR set
-		//	@coeff: amplification coefficient; 0 if no amplification
-		static void SetAmpl(bool isPCR, a_coeff coeff);
+		inline static void SetAmpl() { _PCRdcycles = 1<<AmplCoeff; }
 
 		// Creates instance
 		//	@imitator: the owner
@@ -381,14 +360,14 @@ class Imitator
 		
 		// Cuts chromosome until reaching end position of current treated feature
 		//	@seq: cutted reference chromosome
-		//	@currPos: cutting start position
+		//	@fragStart: fragment start position
 		//	@feature: current treated feature
 		//	@bg: if true then generate background (swap foreground and background)
 		//	@fragStat: statistics of selected fragments average counter, or NULL under work mode
 		//	return: 0 if success,
 		//		1 if end chromosome is reached (continue treatment),
 		//		-1 if limit is achieved (cancel treatment)
-		int	CutChrom (const RefSeq& seq, chrlen* const currPos, const Featr& feature,
+		int	CutChrom (const RefSeq& seq, chrlen* const fragStart, const Featr& feature,
 			bool bg, FragLenStat* fragStat = NULL);
 	};
 
@@ -517,15 +496,15 @@ class Imitator
 	static Context	GlobContext[];	// TM, CM global generation context
 	static float	AutoSample;		// adjusted FG sample to stay in limit
 	static float	SelFragAvr;		// mean length of selected fragments
+	static a_coeff	AmplCoeff;		// user-stated amplification coefficient
 	static BYTE	Verb;				// verbose level
 	static bool	MakeControl;		// true if control file (input) should be produced
-	static bool	UniformScore;		// true if template features scores are ignored
 	static Imitator	*Imit;			// singletone instance: to call threads only
-	static const BedF *Bed;			// template bed-file (test mode) or NULL (control mode)
+	static const Features *Templ;	// template features or NULL (control mode)
 	//static readlen	BindLen;	// binding length
 
 	const ChromSizesExt& _cSizes;	// ref genome library
-	OutFiles& _oFile;				// output file
+	Output& _oFile;				// output file
 
 	// Returns stated count of cells
 	//	@gm: generated mode
@@ -585,7 +564,7 @@ class Imitator
 	//static bool IncrementRecFragCount(Gr::Type g, bool primer) {
 	//	ULLONG cnt = ChromCutter::IsAmpl() ?
 	//		TotalFragCnt[g].InterlockedIncrRec(primer):
-	//		OutFiles::SingleThread ?
+	//		Output::SingleThread ?
 	//			TotalFragCnt[g].PrimerRec++:
 	//			InterlockedIncrement(&(TotalFragCnt[g].PrimerRec));
 	//	return cnt + TotalFragCnt[!g].Rec() >= Seq::FragsLimit();
@@ -626,17 +605,27 @@ class Imitator
 		StatCutChrom(void* arg)	// arg should be void*
 		{	return Imit->CutChrom(*(effPartition::Subset*)arg, true); }
 
+	// Imitates cutting chromosome to reach statistics
+	ULLONG CutForSample(Average& genFrAvr, FragLenStat* frLenStat);
+
+	// Sets adjusted Sample and clear all counter and means.
+	// Sample are needed for the control of BF&FG levels by percent (given by user),
+	// and to prorate number of written reads for each chromosome depending on reads limit.
+	void SetSample	();
+
 public:
+	static bool	UniformScore;	// true if template features scores are ignored
 	static BYTE	ThrCnt;			// actual number of threads
+	static bool	IsMDA;
 	static eMode TMode;			// current task mode
-	static short FlatLen;		// Boundary flattening length
+	static short FlatLen;		// BS edge flattening length
 	static fraglen FragLenMin;	// minimal length of selected fragments:
 								// established by --frag-dev or Read::Len if size filter is OFF
 	static bool All;	// true if total genome is treated
 						// false only in Test mode if custom chrom and BG_ALL is false.
 	
 	// Print amplification info
-	static void PrintAmpl(const char* ampls[]);
+	static void PrintAmpl();
 
 	// Returns true if control is set
 	static inline bool IsControl()			{ return MakeControl; }
@@ -650,7 +639,7 @@ public:
 	// Set number of threads
 	static void SetThreadNumb(BYTE numb) { 
 		FragCnt::Init((ThrCnt=numb) == 1);
-		OutFiles::MultiThread = numb > 1;
+		ReadName::MultiThread = numb > 1;
 	}
 
 	// Initializes static values
@@ -660,38 +649,37 @@ public:
 		eMode	tmode,
 		bool	input,
 		ULONG	cellsCnt,
-		bool	ampl,		// false - MDA, true - PCR
+		bool	isMDA,
 		a_coeff	amplCoeff,
 		UINT	verb,
 		bool	allBg,
 		bool	uniformScore,
 		//readlen bindLen,
-		pairVal& flattens
+		//const pairVal& flattens
+		UINT	unstBindLen		// unstable binding length
 	) {
 		TMode = tmode;
 		MakeControl = TestMode ? input : false;
 		GlobContext[GM::Test].CellCnt = cellsCnt;
-		ChromCutter::SetAmpl(ampl, amplCoeff);
+		IsMDA = isMDA;
+		AmplCoeff = amplCoeff;	// the actual ChromCutter ampl coeff will be set in Sample()
 		ChromCutter::FragDistr::Init();
 		Verb = verb;
 		All = (tmode == CONTROL) || allBg;
 		UniformScore = uniformScore;
 		//BindLen = bindLen;
-		FlatLen = flattens.first + flattens.second;
+		//FlatLen = flattens.first + flattens.second;
+		FlatLen = unstBindLen;
+		SelFragAvr = DistrParams::LnMean();	// for the Sample(), before set actual ln mean
 	}
 
 	// Creates singleton instance.
 	//  @cFiles: list of chromosomes as fa-files
 	//	@ocSizes: chrom sizes
-	inline Imitator(const ChromSizesExt& cSizes, OutFiles& oFile)
+	inline Imitator(const ChromSizesExt& cSizes, Output& oFile)
 		: _cSizes(cSizes), _oFile(oFile) { Imit = this; }
 
 	// Runs task in current mode and write result to output files
 	//	@templ: input template or NULL
-	void Execute(BedF* templ);
-
-	// Sets adjusted Sample and clear all counter and means.
-	// Sample are needed for the control of BF&FG levels by percent (given by user),
-	// and to prorate number of written reads for each chromosome depending on reads limit.
-	void	SetSample	();
+	void Execute(Features* templ);
 };

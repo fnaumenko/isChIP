@@ -2,7 +2,7 @@
 OutTxtFile.cpp (c) 2014 Fedor Naumenko (fedor.naumenko@gmail.com)
 All rights reserved.
 -------------------------
-Last modified: 03.04.2019
+Last modified: 21.08.2019
 -------------------------
 Provides output text files functionality
 ***********************************************************/
@@ -111,7 +111,7 @@ const char* GM::title[] = {"test","control"};	// title: printed member's name
 float DistrParams::lnMean;	// mean of initial lognormal distribution
 float DistrParams::lnSigma;	// sigma of initial lognormal distribution
 float DistrParams::ssMean;	// mean of size selection normal distribution
-float DistrParams::ssSigma;	// sigma of size selection normal distribution
+int	  DistrParams::ssSigma;	// sigma of size selection normal distribution
 
 /************************ class ReadQualPattern ************************/
 
@@ -142,47 +142,67 @@ void ReadQualPattern::Fill(char* templ)
 
 /************************ end of class ReadQualPattern ************************/
 
-/************************ struct ReadName ************************/
+/************************ ReadName ************************/
 
-BYTE ReadName::MaxLen = 0;	// Initialized in ExtOutFile::Init();
-							// if initialize by declaration, seg fault by compiling with gcc 4.1.2
+const char	ReadName::NmDelimiter = ':';
 
-void ReadName::Init()
+ReadName::tpAddRInfo	ReadName::pAddInfo;
+ULLONG	ReadName::rCnt = 0;		// total Read counter
+BYTE	ReadName::len = 0;		// Initialized in ExtOutFile::Init();
+								// if initialize by declaration, seg fault by compiling with gcc 4.1.2
+bool	ReadName::MultiThread;	// true if program is executed in a multi thread
+
+void ReadName::AddNumb	(chrlen, fraglen)
 {
-	MaxLen =
-		Product::Title.length() + 1 +	// + 1 delimiter
-		Chrom::MaxAbbrNameLength + 1 +	// length of chrom's name + 1 delimiter
-		2*CHRLEN_CAPAC + 1 +			// length of PE Read name + 1 delimiter
-		ExtOutFile::MateLen;			// length of Mate suffix
+	_len = _chrLen + sprintf(_name + _chrLen, "%c%d", Read::NmNumbDelimiter, CountIncr());
+}
+
+void ReadName::AddPos	(chrlen pos, fraglen)
+{
+	_len = _chrLen + sprintf(_name + _chrLen, "%d%c%d", pos, Read::NmNumbDelimiter, CountIncr());
+}
+
+void ReadName::Add2Pos	(chrlen pos, fraglen len)
+{
+	_len = _chrLen + sprintf(_name + _chrLen, "%d%c%d%c%d", pos, Read::NmPos2Delimiter, pos + len,
+		Read::NmNumbDelimiter, CountIncr());
+}
+
+void	ReadName::Init()
+{
+	len =	Product::Title.length() + 1 +	// + delimiter
+			Chrom::MaxAbbrNameLength + 1 +	// chrom's name + delimiter
+			20 + ExtOutFile::MateLen;		// number + Mate suffix
+
+	if(Read::IsPosInName())
+		if(Seq::IsPE())		pAddInfo = &ReadName::Add2Pos,	len += 2*CHRLEN_CAPAC + 1;
+		else				pAddInfo = &ReadName::AddPos,	len += CHRLEN_CAPAC;
+	else					pAddInfo = &ReadName::AddNumb;
 }
 
 // Creates instance and filles it by constant part of Read name
 ReadName::ReadName() : _headLen(Product::Title.length()), _len(0)
 {
-	_name = new char[Read::IsNameEmpty() ? _headLen : MaxLen];
-	memcpy(_name, Product::Title.c_str(), _headLen);
-	if(!Read::IsNameEmpty())
-		_headLen += sprintf(_name + _headLen, "%c%s", Read::NmDelimiter, Chrom::Abbr);
-	_len = _headLen;
+	_name = new char[len];
+	_headLen = sprintf(_name, "%s%c%s", Product::Title.c_str(), NmDelimiter, Chrom::Abbr);
 }
 
 // Copy constructor
-ReadName::ReadName(const ReadName& hrName) : _headLen(hrName._headLen)
+ReadName::ReadName(const ReadName& hrName) : _headLen(hrName._headLen), _len(0)
 {
-	_name = new char[Read::IsNameEmpty() ? Product::Title.length() : MaxLen];
+	_name = new char[len];
 	memcpy(_name, hrName._name, _headLen);
 }
 
 // Sets current chrom's mark
-//	@cID: chrom's ID
 void ReadName::SetChrom(chrid cID)
 {
-	if(!Read::IsNameEmpty())
-		_chrLen = _headLen + 
-			sprintf(_name + _headLen, "%s%c", Chrom::Mark(cID).c_str(), Read::GetDelimiter());
+	_chrLen = _headLen + sprintf(_name + _headLen, "%s", Chrom::Mark(cID).c_str());
+	if(Read::IsPosInName())
+		memset(_name + _chrLen++, Read::NmPos1Delimiter, 1);
 }
 
-/************************ struct ReadName: end ************************/
+/************************ ReadName: end ************************/
 
 
 /************************ class ExtOutFile ************************/
@@ -221,23 +241,10 @@ void ExtOutFile::LineAddReadName(BYTE mate)
 	if(mate)	LineAddChars(Mate[mate-1], MateLen, true);
 }
 
-// Copies default Read name and pos extention  before current position in the line write buffer,
-//	and decreases current position.
-//	@mate: mate number for PE Reads, or 0 for SE Read
-//	@addDelim: if true then adds delimiter after Read Name and decreases current position
-void ExtOutFile::LineAddReadNameBack(BYTE mate, bool addDelim )
-{
-	if(mate)
-		LineAddCharsBack(Mate[mate-1], MateLen, addDelim), addDelim = false;
-	LineAddStrBack(_rName.Name(), _rName.Length(), addDelim);
-}
-
 /************************ class ExtOutFile: end ************************/
-
 
 Seq::sMode	Seq::mode;		// sequence mode
 ULLONG	Seq::maxFragCnt;	// up limit of saved fragments
-
 
 /************************ class BedROutFile ************************/
 
@@ -246,15 +253,15 @@ ULLONG	Seq::maxFragCnt;	// up limit of saved fragments
 //	@rName: Read's name
 //	@commLine: command line to add as a comment in the first line
 BedROutFile::BedROutFile(const string& fName, const ReadName& rName, const string& commLine)
-	: ExtOutFile(fName + FT::RealExt(FT::BED, ExtOutFile::Zipped), rName)
+	: ExtOutFile(fName + FT::Ext(FT::BED, ExtOutFile::Zipped), rName)
 {
 	CommLineToIOBuff(commLine);
-	if(OutFiles::MultiThread)		Write();
+	if(ReadName::MultiThread)	Write();
 	SetLineBuff(
 		Chrom::MaxAbbrNameLength +		// length of chrom name
 		ReadName::MaxLength() + 		// length of Read name
 		2 * CHRLEN_CAPAC +				// start + stop positions
-		OutFiles::MapQual.length() +	// score
+		Output::MapQual.length() +	// score
 		1 + 2 + 6);						// strand + HASH + BLANK + 5 TABs + EOL
 }
 
@@ -273,7 +280,7 @@ void BedROutFile::AddRead(chrlen pos, bool reverse, BYTE mate)
 {
 	LineAddInts(pos, pos + Read::Len);			// start, end
 	LineAddReadName(mate);						// Read name
-	LineAddStr(OutFiles::MapQual);				// score
+	LineAddStr(Output::MapQual);				// score
 	LineAddChar(Read::Strands[int(reverse)]);	// strand
 	LineToIOBuff(_offset);
 }
@@ -289,7 +296,7 @@ rowlen FqOutFile::ReadStartPos = 0;	// Read field constant start position
 //	@rName: Read's name
 //	@qPatt: external Read quality pattern
 FqOutFile::FqOutFile(const string& fName, const ReadName& rName, ReadQualPattern& qPatt)
-	: ExtOutFile(fName + FT::RealExt(FT::FQ, ExtOutFile::Zipped), rName, EOL) 
+	: ExtOutFile(fName + FT::Ext(FT::FQ, ExtOutFile::Zipped), rName, EOL) 
 {
 	if(!ReadStartPos)								// if not initialized yet
 		ReadStartPos = ReadName::MaxLength() + 2;	// Read name + AT + EOL
@@ -304,13 +311,12 @@ FqOutFile::FqOutFile(const string& fName, const ReadName& rName, ReadQualPattern
 // Forms Read from fragment and adds it to the file.
 //	@read: valid read
 //	@reverse: if true then complement added read 
-//	@mate: mate number for PE Reads, or 0 for SE Read
-void FqOutFile::AddRead(const char* read, bool reverse, BYTE mate)
+void FqOutFile::AddRead(const char* read, bool reverse)
 {
 	LineSetOffset(ReadStartPos);
 	if(reverse)		Read::CopyComplement(LineCurrPosBuf(), read);
 	else			LineCopyChars(read, Read::Len);
-	LineAddReadNameBack(mate);
+	LineAddReadNameBack();
 	LineAddCharBack(AT);
 	LineBackToBuffer();
 }
@@ -383,26 +389,26 @@ const char* SamOutFile::FLAG[2];
 //	@qPatt: external Read quality pattern
 SamOutFile::SamOutFile(const string& fName, const ReadName& rName,
 	const string& cmLine, const ChromSizes& cSizes, ReadQualPattern& qPatt)
-	: ExtOutFile(fName + FT::RealExt(FT::SAM, ExtOutFile::Zipped), rName)
+	: ExtOutFile(fName + FT::Ext(FT::SAM, ExtOutFile::Zipped), rName)
 {
 	if(Seq::IsPE())	{ FLAG[0] = "99";	FLAG[1] = "147"; }
 	else			{ FLAG[0] = "0";	FLAG[1] = "16";	 }
 	
 	//== preset Fields5_6
 	ostringstream ss;
-	ss << OutFiles::MapQual << TAB << Read::Len << 'M';	// MAPping Quality + CIGAR: Read length
+	ss << Output::MapQual << TAB << Read::Len << 'M';	// MAPping Quality + CIGAR: Read length
 	Fields5_6 = ss.str();
 
 	//== write header
 	StrToIOBuff("@HD\tVN:1.0\tSO:unsorted");
 	for(ChromSizes::cIter it=cSizes.cBegin(); it!=cSizes.cEnd(); it++) {
 		ss.str(strEmpty);	// clear stream
-		ss << it->second.Size();
+		ss << cSizes[CID(it)];
 		StrToIOBuff("@SQ\tSN:" + Chrom::AbbrName(CID(it)) + "\tLN:" + ss.str());
 	}
 	StrToIOBuff("@PG\tID:" + Product::Title + "\tPN:" + Product::Title + 
 		"\tVN:" + Product::Version + "\tCL:" + cmLine);
-	if(OutFiles::MultiThread)		Write();
+	if(ReadName::MultiThread)	Write();
 
 	//== maximal length of write line buffer without Read & Quality fields, with delimiters
 	ReadStartPos =				
@@ -433,21 +439,19 @@ SamOutFile::SamOutFile(const string& fName, const ReadName& rName,
 }
 
 // Adds Read with prepared to the line's write buffer.
-//	@mate: suffix of PE Read's name; NULL for SE Read
 //	@fields7_9: prepared 7-9 fields (RNEXT,PNEXT,TLEN)
 //	@len7_9: lengths of 7-9 fields string
 //	@read: valid Read
 //	@flag: FLAG field value
 //	@mate: mate number for PE Reads, or 0 for SE Read
-void SamOutFile::AddRead(BYTE mate, const char* fields7_9,
-	int len7_9, const char* read, const char* flag, chrlen pos)
+void SamOutFile::AddRead(const char* fields7_9, int len7_9, const char* read, const char* flag, chrlen pos)
 {
 	LineSetOffset(ReadStartPos);
 	LineCopyChars(read, Read::Len);		// SEQ: Read
 	LineAddStrBack(fields7_9, len7_9);	// RNEXT + PNEXT + TLEN
 	LineAddStrBack(Fields5_6);			// MAPQ + CIGAR
 	LineAddStrBack(_POS, sprintf(_POS, "%s\t%s\t%d", flag, _cName.c_str(), pos));	// FLAG,RNAME,POS
-	LineAddReadNameBack(mate);			// QNAME: Read name
+	LineAddReadNameBack();				// QNAME: Read name
 
 	LineBackToBuffer();
 }
@@ -460,8 +464,8 @@ void SamOutFile::AddRead(BYTE mate, const char* fields7_9,
 //	@fLen: fragment's length
 void SamOutFile::AddTwoReads(const char* read1, const char* read2, chrlen pos1, chrlen pos2, int fLen)
 {
-	AddRead(1, _POS, AddFields7_9(++pos2, fLen), read1, FLAG[0], ++pos1);
-	AddRead(2, _POS, AddFields7_9(pos1, -fLen),  read2, FLAG[1], pos2);
+	AddRead(_POS, AddFields7_9(++pos2, fLen), read1, FLAG[0], ++pos1);
+	AddRead(_POS, AddFields7_9(pos1, -fLen),  read2, FLAG[1], pos2);
 }
 
 /************************ class SamOutFile: end ************************/
@@ -529,7 +533,7 @@ void WigOutFiles::WigOutFile::Init(const string& fName, const string& cl, const 
 	SetLineBuff(Chrom::MaxAbbrNameLength + 3 * CHRLEN_CAPAC);
 	CommLineToIOBuff(cl);
 	StrToIOBuff("track type=bedGraph name=\"" + 
-		fName + FT::RealExt(FT::WIG, ExtOutFile::Zipped) + 
+		fName + FT::Ext(FT::WIG, ExtOutFile::Zipped) + 
 		"\" description=\"" + Product::Title + " actual coverage" +
 		(strand.length() ? ": " + strand + " strand": "") +
 		"\" color=50,130,190 autoScale=on");
@@ -541,7 +545,7 @@ void WigOutFiles::WigOutFile::Init(const string& fName, const string& cl, const 
 //	@cSizes: chrom sizes
 WigOutFiles::WigOutFile::WigOutFile(
 	const string& fName, const string& cmLine, const ChromSizesExt& cSizes)
-	: TxtOutFile(fName + FT::RealExt(FT::WIG, ExtOutFile::Zipped), TAB)
+	: TxtOutFile(fName + FT::Ext(FT::WIG, ExtOutFile::Zipped), TAB)
 {
 	Init(fName, cmLine);
 	for(ChromSizes::cIter it=cSizes.cBegin(); it!=cSizes.cEnd(); it++)
@@ -556,7 +560,7 @@ WigOutFiles::WigOutFile::WigOutFile(
 //	@wig: pattern replacing basic Chrom container
 WigOutFiles::WigOutFile::WigOutFile(
 	const string& fName, const string& cmLine, const string& strand, const WigOutFile& wig)
-	: TxtOutFile(fName + FT::RealExt(FT::WIG, ExtOutFile::Zipped), TAB)
+	: TxtOutFile(fName + FT::Ext(FT::WIG, ExtOutFile::Zipped), TAB)
 {
 	Init(fName, cmLine, strand);
 	Assign(wig);
@@ -566,8 +570,8 @@ WigOutFiles::WigOutFile::~WigOutFile()
 {
 	// save unsaved coverages
 	for(Iter it=Begin(); it!=End(); it++)
-		if(it->second.IsUnsaved())
-			WriteCover(CID(it), it->second);
+		if(Data(it).IsUnsaved())
+			WriteCover(CID(it), it->second.Data);
 }
 
 // Writes coverage for given chrom to file
@@ -600,13 +604,13 @@ void WigOutFiles::WigOutFile::CloseCover(chrid cID, BYTE i)
 	// each time the next coverage is completed.
 	// If previous coveraged are filled without gups, they are recorded and removed from the pool.
 	Iter itThis = GetIter(cID);
-	CoverProxy& proxy = itThis->second;
+	CoverProxy& proxy = itThis->second.Data;
 	Mutex::Lock(Mutex::eType(Mutex::OTHER1+i));	// diferent mutexes for different WIG files
 	proxy.Closed = true;
 	bool save = true;
 
 	for(Iter it=Begin(); it!=itThis; it++) {
-		CoverProxy& proxy0 = it->second;
+		CoverProxy& proxy0 = it->second.Data;
 		if(!proxy0.Saved)
 			if(save = proxy0.Closed)
 				WriteCover(CID(it), proxy0);
@@ -650,7 +654,7 @@ WigOutFiles::~WigOutFiles()
 void WigOutFiles::StartChrom(chrid cID, Coverages& covrs)
 {
 	for(BYTE i=!IsStrands*(Count-1); i<Count; i++)	// last item or all ones
-		covrs.SetCover(_files[i]->At(cID).CreateCover(), i);
+		covrs.SetCover(_files[i]->At(cID).Data.CreateCover(), i);
 }
 
 // Stops accumalating coverage for given chrom
@@ -675,18 +679,16 @@ void WigOutFiles::PrintNames() const
 
 /************************ class OutFile ************************/
 
-OutFiles::OutFile::tpAddRead	OutFiles::OutFile::pAddRead = &OutFiles::OutFile::AddReadSE;
-OutFiles::OutFile::tpAddRInfo	OutFiles::OutFile::pAddReadInfo;
+Output::OutFile::tpAddRead	Output::OutFile::pAddRead = &Output::OutFile::AddReadSE;
 
-ULLONG	OutFiles::OutFile::rCnt = 0;		// total Read counter within instance
-float	OutFiles::OutFile::StrandErrProb;	// the probability of strand error
+float	Output::OutFile::StrandErrProb;	// the probability of strand error
 
 // Creates and initializes new instance for writing.
 //	@fName: common file name without extention
 //	@cSizes: chrom sizes
 //	@rqPatt: external Read quality pattern
 //	@cmLine: command line
-OutFiles::OutFile::OutFile(const string& fName, const ChromSizesExt& cSizes,
+Output::OutFile::OutFile(const string& fName, const ChromSizesExt& cSizes,
 	ReadQualPattern& rqPatt, const string& cmLine) :
 	_bedFile(NULL), _samFile(NULL), _wigFile(NULL), _primer(true)
 {
@@ -708,7 +710,7 @@ OutFiles::OutFile::OutFile(const string& fName, const ChromSizesExt& cSizes,
 // Clone constructor for multithreading
 //	@file: original instance
 //	@threadNumb: number of thread
-OutFiles::OutFile::OutFile(const OutFile& file) : _primer(false)
+Output::OutFile::OutFile(const OutFile& file) : _primer(false)
 {
 	_fqFile1 = file._fqFile1 ? (FqOutFile*)new ExtOutFile(*file._fqFile1) : NULL;	// non own members
 	_fqFile2 = file._fqFile2 ? (FqOutFile*)new ExtOutFile(*file._fqFile2) : NULL;	// non own members
@@ -717,7 +719,7 @@ OutFiles::OutFile::OutFile(const OutFile& file) : _primer(false)
 	_wigFile = file._wigFile;		// wigFile is common for all clones
 }
 
-OutFiles::OutFile::~OutFile()
+Output::OutFile::~OutFile()
 {
 	if(_fqFile1)	delete _fqFile1;
 	if(_fqFile2)	delete _fqFile2;
@@ -728,7 +730,7 @@ OutFiles::OutFile::~OutFile()
 }
 
 // Start recording chrom
-void OutFiles::OutFile::BeginWriteChrom(chrid cID)
+void Output::OutFile::BeginWriteChrom(chrid cID)
 {
 	_rName.SetChrom(cID);
 	if(_bedFile) _bedFile->SetChrom(cID);			// set chrom's name for writing.
@@ -744,7 +746,7 @@ void OutFiles::OutFile::BeginWriteChrom(chrid cID)
 //	return:	1: fragment is out of range (end of chrom)
 //			0: Read is added successfully
 //			-1: N limit is exceeded
-int OutFiles::OutFile::AddReadSE(const RefSeq& seq, chrlen pos, fraglen len, Gr::Type g)
+int Output::OutFile::AddReadSE(const RefSeq& seq, chrlen pos, fraglen len, Gr::Type g)
 {
 	//if(RandomReverse && !primer)	// for amplified frag _reverse is the same
 	//	_reverse = _rng.Boolean();	// true if read is reversed (neg strand)
@@ -759,9 +761,8 @@ int OutFiles::OutFile::AddReadSE(const RefSeq& seq, chrlen pos, fraglen len, Gr:
 	int ret = Read::CheckNLimit(read);
 	if(ret)		return ret;			// 1: NULL read, -1: N limit is exceeded
 
-	(this->*pAddReadInfo)(rPos, 0);	// add additional info to the Read name
-
 	if(RandomReverse && g==Gr::FG && _rng.Sample(OutFile::StrandErrProb) ) {
+		reverse = !reverse;
 		//short diff = ftr->Centre() - rPos - (Read::Len>>1);
 		//short halfDiffPeak = (200 - ftr->Length())>>1;
 		//if(reverse)		diff += halfDiffPeak;
@@ -770,9 +771,11 @@ int OutFiles::OutFile::AddReadSE(const RefSeq& seq, chrlen pos, fraglen len, Gr:
 		//short diff = short( reverse ? (rPos + Read::Len - ftr->Start) : ftr->End - rPos);
 		//if(!_rng.Sample(float(diff) / fLen)) {
 			//if(diff/10 < _freq.Length()) _freq[diff/10]++;
-			reverse = !reverse;			// imitate strand error
+			//reverse = !reverse;			// imitate strand error
 		//}
 	}
+	_rName.AddInfo(pos);
+
 	if(_fqFile1)	_fqFile1->AddRead(read, reverse);
 	if(_bedFile)	_bedFile->AddRead(rPos, reverse);
 	if(_samFile)	_samFile->AddRead(read, rPos, reverse);
@@ -787,7 +790,7 @@ int OutFiles::OutFile::AddReadSE(const RefSeq& seq, chrlen pos, fraglen len, Gr:
 //	return:	1: fragment is out of range (end of chrom)
 //			0: Reads are added successfully
 //			-1: N limit is exceeded
-int OutFiles::OutFile::AddReadPE(const RefSeq& seq, chrlen pos, fraglen len, Gr::Type g)
+int Output::OutFile::AddReadPE(const RefSeq& seq, chrlen pos, fraglen len, Gr::Type g)
 {
 	if(_wigFile) {
 		_covers.AddFrag(pos, len);
@@ -800,10 +803,10 @@ int OutFiles::OutFile::AddReadPE(const RefSeq& seq, chrlen pos, fraglen len, Gr:
 	const char* read2 = seq.Read(pos2);
 	if(ret = Read::CheckNLimit(read2))	return ret;	// 1: NULL read, -1: N limit is exceeded
 
-	(this->*pAddReadInfo)(pos, len);		// add additional info to the Read name
+	_rName.AddInfo(pos, len);
 
-	if(_fqFile1)	_fqFile1->AddRead(read1, false, 1),
-					_fqFile2->AddRead(read2, true,  2);
+	if(_fqFile1)	_fqFile1->AddRead(read1, false),
+					_fqFile2->AddRead(read2, true);
 	if(_bedFile)	_bedFile->AddRead(pos, false, 1),
 					_bedFile->AddRead(pos2, true, 2);
 	if(_samFile)	_samFile->AddTwoReads(read1, read2, pos, pos2, len);
@@ -813,7 +816,7 @@ int OutFiles::OutFile::AddReadPE(const RefSeq& seq, chrlen pos, fraglen len, Gr:
 // Prints output file formats and sequencing mode
 //	@signOut: output marker
 //	@predicate: 'output' marker
-void OutFiles::OutFile::PrintFormat(const char* signOut, const char* predicate) const
+void Output::OutFile::PrintFormat(const char* signOut, const char* predicate) const
 {
 	if(HasFormat(ofFQ)) {
 		cout << signOut << predicate << "sequence: " << _fqFile1->FileName();
@@ -838,15 +841,14 @@ void OutFiles::OutFile::PrintFormat(const char* signOut, const char* predicate) 
 
 /************************ class OutFile: end ************************/
 
-/************************ class OutFiles ************************/
+/************************ class Output ************************/
 
-string	OutFiles::MapQual;				// the mapping quality
-bool	OutFiles::MultiThread;			// true if program is executed in a  multi thread
-bool	OutFiles::RandomReverse = true;	// true if Read should be reversed randomly
-OutFiles::oFormat OutFiles::Format;		// output formats
+string	Output::MapQual;				// the mapping quality
+bool	Output::RandomReverse = true;	// true if Read should be reversed randomly
+Output::oFormat Output::Format;			// output formats
 
 // Prints item title ("reads|fragments") accordingly file formats
-void OutFiles::PrintItemTitle()
+void Output::PrintItemTitle()
 {
 	const char* frags = "fragments";
 	if(HasWigOnly())			cout << frags;
@@ -861,9 +863,9 @@ void OutFiles::PrintItemTitle()
 //	@wigStrand: true if wigs with different strands should be generated
 //	@strandErrProb: the probability of strand error
 //	@zipped: true if output files should be zipped
-void OutFiles::Init(oFormat fFormat, BYTE mapQual, bool wigStrand, float strandErrProb, bool zipped)
+void Output::Init(int fFormat, BYTE mapQual, bool wigStrand, float strandErrProb, bool zipped)
 {
-	Format = fFormat;
+	Format = oFormat(fFormat);
 	MapQual = BSTR(mapQual);
 	WigOutFiles::IsStrands = !Seq::IsPE() && wigStrand;
 	ExtOutFile::Zipped = zipped;
@@ -878,7 +880,7 @@ void OutFiles::Init(oFormat fFormat, BYTE mapQual, bool wigStrand, float strandE
 //	@cFiles: chrom files
 //	@rqPattFName: name of valid file with Read quality pattern, or NULL
 //	@cmLine: command line
-OutFiles::OutFiles(
+Output::Output(
 	const string& fName, bool control, const ChromSizesExt& cSizes,
 	const char* rqPattFName, const string& cmLine)
 	: _freq(NULL), _gMode(GM::Test)
@@ -903,13 +905,13 @@ OutFiles::OutFiles(
 
 // Clone constructor for multithreading.
 //	@file: original instance
-OutFiles::OutFiles(const OutFiles& file) : _freq(NULL), _gMode(file._gMode)
+Output::Output(const Output& file) : _freq(NULL), _gMode(file._gMode)
 {
 	_oFiles[0] = new OutFile(*file._oFiles[0]);
 	_oFiles[1] = file._oFiles[1] ? new OutFile(*file._oFiles[1]) : NULL;
 }
 	
-OutFiles::~OutFiles()
+Output::~Output()
 {
 	for(int i=0; i<2; i++)
 		if(_oFiles[i])	delete _oFiles[i];
@@ -930,14 +932,14 @@ OutFiles::~OutFiles()
 }
 
 // Starts recording chrom
-void OutFiles::BeginWriteChrom(chrid cID)
+void Output::BeginWriteChrom(chrid cID)
 {
 	_oFiles[0]->BeginWriteChrom(cID);
 	if(_oFiles[1])	_oFiles[1]->BeginWriteChrom(cID);
 }
 
 // Stops recording chrom
-void OutFiles::EndWriteChrom(chrid cID)
+void Output::EndWriteChrom(chrid cID)
 {
 	_oFiles[0]->EndWriteChrom(cID);
 	if(_oFiles[1])	_oFiles[1]->EndWriteChrom(cID);
@@ -945,7 +947,7 @@ void OutFiles::EndWriteChrom(chrid cID)
 
 // Prints output file formats and sequencing mode
 //	@signOut: output marker
-void OutFiles::PrintFormat	(const char* signOut) const
+void Output::PrintFormat	(const char* signOut) const
 {
 	const char* output = "Output ";
 
@@ -957,7 +959,7 @@ void OutFiles::PrintFormat	(const char* signOut) const
 
 // Prints Read quality settins
 //	@signOut: output marker
-void OutFiles::PrintReadQual (const char* signOut) const 
+void Output::PrintReadQual (const char* signOut) const 
 {
 	if(HasWigOnly() || Format == ofFREQ)	return;
 	cout << signOut << "Read quality" << SepDCl;
@@ -974,4 +976,4 @@ void OutFiles::PrintReadQual (const char* signOut) const
 	cout << EOL;
 }
 
-/************************ class OutFiles: end ************************/
+/************************ class Output: end ************************/

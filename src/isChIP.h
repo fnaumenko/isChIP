@@ -2,41 +2,35 @@
 isChIP.h (c) 2014 Fedor Naumenko (fedor.naumenko@gmail.com)
 All rights reserved.
 -------------------------
-Last modified: 02.04.2019
+Last modified: 21.08.2019
 -------------------------
 Provides option emum
 ***********************************************************/
 #pragma once
 #include "def.h"
 
-#define	SAMPLE_FG()		Options::GetFVal(oFG_VEVEL)
-#define	SAMPLE_BG()		Options::GetFVal(oBG_LEVEL)
-
-//enum eVerb {	// verbose level
-//	vCRIT,		// print critical messages only
-//	vRES,		// print vCRIT + results
-//	vRT,		// print vRES + runtime info
-//	vPAR,		// print vRT + parameters
-//	vDBG		// print vPAR + additional info
-//};
+#define	SAMPLE_FG()		grounds.Values().first
+#define	SAMPLE_BG()		grounds.Values().second
 
 enum optValue {
-	oGFILE,
+	oGEN,
 	oNUMB_CELLS,
-	oAMPL,
-	oAMPL_COEF,
-	oBG_LEVEL,
-	oFG_VEVEL,
-	oBG_ALL,
+	oGR_LEVEL,
+	oMDA,
+	oPCR_CYCLES,
 	oCHROM,
-	oFRAG_MEAN,
-	oFRAG_SIGMA,
-	oSS_MEAN,
-	oSS_SIGMA,
-	oSS,
-	oLET_GAPS,
+	oBG_ALL,
 	//oBS_LEN,
+	oSMODE,
+	oBS_SCORE,
 	oFLAT_LEN,
+	oSTRAND_ERR,
+	oLET_GAPS,
+	oNUMB_THREAD,
+	oSERV,
+	oSEED,
+	oFRAG_DIST,
+	oSS_DIST,
 	oRD_LEN,
 	oRD_NAME,
 	oRD_LIMIT_N,
@@ -44,12 +38,6 @@ enum optValue {
 	oRD_QUAL,
 	oRD_QUAL_PATT,
 	oMAP_QUAL,
-	//oSTDOUT,
-	oSMODE,
-	oSTRAND_ERR,
-	oTS_UNIFORM,
-	oNUMB_THREAD,
-	oSEED,
 	oFORMAT,
 	oMAKE_INPUT,
 	oSTRAND,
