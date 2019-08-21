@@ -592,14 +592,14 @@ Fragments distributions:
 
 Synopsis:
 ```
-test1:  isChIP –g $G –c 19 -f wig –o test1 –tx –n 100 tc19_10x1000-1e4.bed
-test2:  isChIP –g $G –c 19 -f wig –o test2 –tx  –S :30 –n 100 tc19_10x1000-1e4.bed
-test3:  isChIP –g $G –c 19 -f wig –o test3 –txD –S :30 -a 5 tc19_10x1000-1e4.bed
-test4:  isChIP –g $G –c 19 -f wig –o test4 –txD –S :30 --ln 7.06: tc19_10x1000-1e4.bed
-test5:  isChIP –g $G –c 19 -f wig –o test5 –txD –S :30 tc19_10x1000-1e4.bed
-test6:  isChIP –g $G –c 19 -f wig –o test6 –txD –S :30 -a 3 tc19_10x1000-1e4.bed
-test7:  isChIP –g $G –c 19 -f wig –o test7 –txD –S :30 -r 25 tc19_10x1000-1e4.bed
-test8:  isChIP –g $G –c 19 -f wig –o test8 –txD –S :30 -r 25 -a 3 tc19_10x1000-1e4.bed
+test1:  isChIP –g $G –c 19 -f wig –o test1 –tx –n 100 –S :30 tc19_10x1000-1e4.bed
+test2:  isChIP –g $G –c 19 -f wig –o test2 –tx –n 100 tc19_10x1000-1e4.bed
+test3:  isChIP –g $G –c 19 -f wig –o test3 –txD -a 5 tc19_10x1000-1e4.bed
+test4:  isChIP –g $G –c 19 -f wig –o test4 –txD --ln 7.06: tc19_10x1000-1e4.bed
+test5:  isChIP –g $G –c 19 -f wig –o test5 –txD tc19_10x1000-1e4.bed
+test6:  isChIP –g $G –c 19 -f wig –o test6 –txD -a 3 tc19_10x1000-1e4.bed
+test7:  isChIP –g $G –c 19 -f wig –o test7 –txD -r 25 tc19_10x1000-1e4.bed
+test8:  isChIP –g $G –c 19 -f wig –o test8 –txD -r 25 -a 3 tc19_10x1000-1e4.bed
 ```
 where `$G` is initialized by reference genome path,<br>
 `tc19_10x1000-1e4.bed` contains 1000 TFBS for chromosome 19 with a length of 10, evenly distributed in the range of 10,000,000 - 20,000,000
