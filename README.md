@@ -76,7 +76,7 @@ rm -r hgdownload.soe.ucsc.edu
 ```
 Unplaced (chr\*\_random) and unlocalized (chrUn_\*\) sequences are not involved in modelling, 
 so you can delete them by typing<br>
-`rm mm9/*_*`<br>
+`rm mm9/*_*`<br><br>
 **in Windows**<br>
 copy and paste the string *ftp://hgdownload.soe.ucsc.edu/goldenPath/mm9/chromosomes/* into Windows browser address bar, 
 then copy *.fa.gz files to your local directory.<br>
@@ -299,7 +299,7 @@ For various reasons, this connection may be unstable.
 This option specifies the length of the intersection of the fragment with the site, 
 at which the probability of binding increases from 0 to 1 in direct proportion to the number of intersected nucleotides.<br>
 When the option value is more than half the length of the minimum site, it decreases to this half.<br>
-In control mode is ignored.<br>
+In *control* mode is ignored.<br>
 Range: 0-10<br>
 Default: 0
 
@@ -599,13 +599,7 @@ test8:  isChIP –g $G –c 19 -f wig –o test8 –txD –S :30 -r 25 -a 3 tc19
 ```
 where `$G` is initialized by reference genome path,<br>
 `tc19_10x1000-1e4.bed` contains 1000 TFBS for chromosome 19 with a length of 10, evenly distributed in the range of 10,000,000 - 20,000,000
-<br><br>
-
+<br>
 ---
+<br><br>
 If you face to bugs, incorrect English, or have commentary/suggestions, please do not hesitate to write me on fedor.naumenko@gmail.com
-
-
-
-[![Build Status](https://travis-ci.org/samtools/samtools.svg?branch=develop)](https://travis-ci.org/samtools/samtools)
-[![Build status](https://ci.appveyor.com/api/projects/status/enujqi06jlqw493t/branch/develop?svg=true)](https://ci.appveyor.com/project/samtools/samtools/branch/develop)
-[![Github All Releases](https://img.shields.io/github/downloads/samtools/samtools/total.svg)](https://github.com/samtools/samtools/releases/latest)
