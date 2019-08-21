@@ -1,5 +1,5 @@
 # isChIP
-***I**n **S**ilico* **ChIP**-seq is a fast formal ChIP-seq simulator.
+***I**n **S**ilico* **ChIP**-seq is a fast realistic ChIP-seq simulator.
 
 The modelling of the chromatin immunoprecipitaion followed by next generation sequencing process is based primarily on Illumina protocol. 
 In addition, extra flexibility is implemented for the isChIP’s options to be straightforwardly re-formulated in other formats, such as Ion Torrent, etc.<br>
@@ -8,9 +8,10 @@ Suitable for [single cell simulation](#example-of-single-cell-simulation).
 
 ### Performance
 On 2.5 GHz RAID HPC by default values of ground samples, in one-thread mode, within 1 minute **isChIP** records:<br>
-in *test* mode up to 2 million reads (33 Kread/sec);<br>
+in *test* mode up to 2 million reads (33 Kread/sec) with size selection, 
+up to 10 million reads (167 Kread/sec) without size selection (both values by default background level);<br>
 in *control* mode up to 66 million reads (1.1 Mread/sec).<br>
-Applied amplification increases this values from 1.5 to 3 times.<br>
+Applied amplification increases these values from 1.5 to 3 times.<br>
 The first run is a bit slower because of creating service files.<br>
 The required memory is linearly proportional to the number of threads. For one thread, it does not exceed 300 Mb.
 
@@ -25,13 +26,17 @@ The required memory is linearly proportional to the number of threads. For one t
 ## Installation
 ### Executable file
 
-[Download Linux version](https://github.com/fnaumenko/isChIP/releases/download/1.0/isChIP-Linux-x64.gz)<br>
-[Download Windows version](https://github.com/fnaumenko/isChIP/releases/download/1.0/isChIP-Windows-x64.zip)
+[Download Linux version](https://github.com/fnaumenko/isChIP/releases/download/v1.0/isChIP-Linux-x64.gz)<br>
+[Download Windows version](https://github.com/fnaumenko/isChIP/releases/download/v1.0/isChIP-Windows-x64.zip)
 
-Alterative for Linux: type in the desired directory:<br>
-`wget -O isChIP.gz https://github.com/fnaumenko/isChIP/releases/download/1.0/isChIP-Linux-x64.gz`<br>
-`gzip -d isChIP.gz`<br>
-`chmod +x isChIP`
+Alterative download in Linux:<br>
+`wget -O isChIP.gz https://github.com/fnaumenko/isChIP/releases/download/1.0/isChIP-Linux-x64.gz`
+
+Then type<br>
+```
+gzip -d isChIP.gz
+chmod +x isChIP
+```
 
 ### Compiling in Linux
 Required libraries:<br>
@@ -39,26 +44,36 @@ g++<br>
 pthread<br>
 zlib (optionally)
 
-Type in the desired directory:<br>
-`wget -O isChIP.zip https://github.com/fnaumenko/isChIP/archive/1.0.zip`<br>
-`unzip isChIP.zip`<br>
-`cd isChIP-1.0`<br>
-`make`
-
+To compile from Git, type:
+```
+git clone https://github.com/fnaumenko/isChIP
+cd isChIP
+make
+```
+Alternative:
+```
+wget -O isChIP.zip https://github.com/fnaumenko/isChIP/archive/1.0.zip
+unzip isChIP.zip
+cd isChIP-1.0
+make
+```
 If **zlib** is not installed on your system, the program will be compiled without the ability to read/write compressed files.
 
 ### Prepare reference genome
 Download the required reference genome from UCSC: *ftp://hgdownload.soe.ucsc.edu/goldenPath/*<br>
 For example, to download mouse library **mm9**:<br>
-**in Linux**<br>
-type commands:<br>
-`mkdir mm9`<br>
-`cd mm9`<br>
-`rsync -a -P rsync://hgdownload.soe.ucsc.edu/goldenPath/mm9/chromosomes/ ./`<br>
-The alternative way:<br>
-`wget -r ftp://hgdownload.soe.ucsc.edu/goldenPath/mm9/chromosomes/`<br>
-`mv hgdownload.soe.ucsc.edu/goldenPath/mm9/chromosomes mm9`<br>
-`rm -r hgdownload.soe.ucsc.edu`<br>
+**in Linux**:<br>
+```
+mkdir mm9
+cd mm9
+rsync -a -P rsync://hgdownload.soe.ucsc.edu/goldenPath/mm9/chromosomes/ ./
+```
+Alternative:<br>
+```
+wget -r ftp://hgdownload.soe.ucsc.edu/goldenPath/mm9/chromosomes/
+mv hgdownload.soe.ucsc.edu/goldenPath/mm9/chromosomes mm9
+rm -r hgdownload.soe.ucsc.edu
+```
 Unplaced (chr\*\_random) and unlocalized (chrUn_\*\) sequences are not involved in modelling, 
 so you can delete them by typing<br>
 `rm mm9/*_*`<br>
@@ -95,21 +110,22 @@ Processing:
                         In control mode background is ignored [100;1]
   -D|--mda              apply MDA technique
   -a|--pcr <int>        number of PCR cycles [0]
+  -c|--chr <name>       generate output for the specified chromosome only
   --bg-all <OFF|ON>     turn on/off generation background for all chromosomes.
                         For the test mode only [ON]
-  -c|--chr <name>       generate output for the specified chromosome only
-  -N|--full-size        process the entire reference chromosome (including gaps at each end)
   -m|--smode <SE|PE>    sequencing mode: SE - single end, PE - paired end [SE]
   -s|--bscore <int>     index of the template field used to score each binding event.
                         Specify '0' to ignore individual scores.
                         For the test mode only [5]
+  --edge-len <int>      unstable binding length (BS edge effect). For the test mode only [0]
+  -N|--full-size        process the entire reference chromosome (including gaps at each end)
   -P|--threads <int>    number of threads [1]
   --serv <name>         folder to store service files [-g|--gen]
   --seed <int>          fix random emission with given seed, or 0 if do not fix [0]
 Fragment distribution:
-  --ln <float;float>    mean and stand deviation of fragment lognormal distribution [5.46;0.4]
-  --ss <int;int>        mean and stand deviation of size selection normal distribution.
-                        Specify '0;' or ';0' to turn off size selection [auto;30]
+  -L|--ln <[float]:[float]>     mean and stand dev of fragment lognormal distribution [5.46:0.4]
+  -S|--ss [<[int]:[int]>]       mean and stand dev of size selection normal distribution.
+                        If not specified, then disabled [auto:30]
 Reads:
   -r|--rd-len <int>     length of output read [50]
   -p|--rd-pos           add read position to its name
@@ -122,7 +138,7 @@ Output:
   -f|--format <FQ,BED,SAM,WIG,FREQ>     format of output data, in any order  [FQ]
   -C|--control          generate control simultaneously with test
   -x|--strand           generate two additional wig files, each one per strand  
-  -S|--sep              display reads number thousands separator
+  -T|--sep              display number thousands separator
   -o|--out <name>       location of output files or existing directory
                         [Test mode: mTest.*, Control mode: mInput.*]
   -z|--gzip             compress the output
@@ -174,8 +190,8 @@ The simplest way to ensure this is to pre-sort the file.
 *Notes:*<br>
 For options that take a pair of values, one of them (or both) can be omitted. 
 In this case, it retains the default value. 
-For example, `-G ;5` means foreground level of 100% and background level of 5%; 
-`–G ;` does not change the settings.<br>
+For example, `-G :5` means foreground level of 100% and background level of 5%; 
+`–G :` does not change the settings.<br>
 Enumerable option values are case insensitive.<br>
 Compressed input files in gzip format are acceptable.
 
@@ -186,7 +202,7 @@ or the file corresponded to chromosome specified by option `–c|--chr` is absen
 In *test* mode the target references are determined by *template*. 
 See [Template](#template) and `--bg-all` and `–c|--chr` options.<br>
 **isChIP** omits  'random' contigs and haplotype sequences.
-One can obtain a genome library in  UCSC: ftp://hgdownload.soe.ucsc.edu/goldenPath/ or in Ensemble: ftp://ftp.ensembl.org/pub/release-73/fasta storage. 
+One can obtain a genome library in UCSC: ftp://hgdownload.soe.ucsc.edu/goldenPath/ or in Ensemble: ftp://ftp.ensembl.org/pub/release-73/fasta storage. 
 In the second case please copy genomic sequences with the same masked type only, 
 e.g. unmasked (‘dna'), since program does not recognise mask’s types.<br>
 This option is required.
@@ -217,14 +233,14 @@ Default: 1
 
 `-G|--ground <float;float>`<br>
 specifies foreground and background levels.<br>
-* In *test* mode:<br>
+**In *test* mode:**<br>
 foreground is defined as the number of selected fragments, which are intersected 
 with the *template* binding sites, as a percentage of the total number of generated fragments.<br>
 Background is defined as the number of selected fragments, which are not intersected 
 with the *template* binding sites, as a percentage of the foreground.<br>
 In practice a background level of 1-3% corresponds with a good experimental data set, 
 while a level of more than 6% leads to generate data with a rather low signal-to-noise ratio.<br>
-* In *control* mode:<br>
+**In *control* mode:**<br>
 foreground is defined as the number of selected fragments, as a percentage of the total number of generated fragments. 
 It should be considered as the level of overall loss.<br>
 Background value is ignored.<br>
@@ -232,14 +248,13 @@ Range: 0-100 for both values<br>
 Default: 100;1
 
 `-D|--mda`<br>
-applies MDA technique. The amplification model is simplified due to non-essential details: 
-the absence of primer annealing and the fragment debranching into 2 amplicons. 
-When there are no amplicons left over the length of the read, the process stops.<br>
+applies MDA technique. See [Model: brief description](#model-brief-description) for more details.<br>
 The process applies to all fragments.
 
 `-a|--pcr <int>`<br>
-specifies the number of PCR amplification cycles. If MDA is applied, PCR performs after it.<br>
-The process applies to all fragments.<br>
+specifies the number of PCR amplification cycles. 
+See [Model: brief description](#model-brief-description) for more details.<br>
+If MDA is applied, PCR performs after it. The process applies to all fragments.<br>
 Value 0 means the absence of amplification.<br>
 Range: 0-100<br>
 Default: 0
@@ -258,17 +273,10 @@ Default: `ON`
 
 `-c|--chr <name>`<br>
 Generate output for the specified chromosome only. 
-The parameter `name` name is the chromosome identifier; it is a number or character, for example, `10`, `X`.<br>
+The value `name` is the chromosome identifier; it is a number or character, for example, `10`, `X`.<br>
 This is a strong option, which forces to ignore all other chromosomes from reference genome and *template*, 
 and abolishes the impact of option `--bg-all`. 
 If the specified chromosome is absent in *template*, the program has nothing to simulate.
-
-`-N|--full-size`<br>
-forces to scan the entire reference chromosome, including gaps at each end (‘undefined telomeres’).<br>
-By default these gaps are excluded from processing.<br>
-This permission makes no difference in data after alignment, but slightly increases the output volume and the runtime. 
-For instance, when simulation on the basis of mm9 genome, this option increases both values by about 2.4%. 
-For the hg19 genome the difference is about 0.7%.
 
 `-m|--smode <SE|PE>`<br>
 generates reads according to stated sequencing mode: `SE` – single end, `PE` – paired end 
@@ -284,6 +292,24 @@ In *control* mode is ignored.<br>
 Range: 4-12 (except for the zero value)<br>
 Default: 5
 
+`--edge-len <int>`<br>
+specifies unstable binding length (binding site edge effect. 
+By default fragment is considered linked to the binding site in the presence of at least one intersecting nucleotide. 
+For various reasons, this connection may be unstable. 
+This option specifies the length of the intersection of the fragment with the site, 
+at which the probability of binding increases from 0 to 1 in direct proportion to the number of intersected nucleotides.<br>
+When the option value is more than half the length of the minimum site, it decreases to this half.<br>
+In control mode is ignored.<br>
+Range: 0-10<br>
+Default: 0
+
+`-N|--full-size`<br>
+forces to scan the entire reference chromosome, including gaps at each end (‘undefined telomeres’).<br>
+By default these gaps are excluded from processing.<br>
+This permission makes no difference in data after alignment, but slightly increases the output volume and the runtime. 
+For instance, when simulation on the basis of mm9 genome, this option increases both values by about 2.4%. 
+For the hg19 genome the difference is about 0.7%.
+
 `-P|--threads <int>`<br>
 specifies the number of threads. The workflow is separated between chromosomes, so the actual number of threads 
 can be reduced (if the number of actual treated chromosomes is less then assigned value). 
@@ -292,7 +318,7 @@ Range: 1-20<br>
 Default: 0
 
 `--serv <name>`<br>
-specifies explicit folder to keep service files. 
+specifies the service directory – a place for keeping service files *chr\<x\>.region*, chromosome sizes file and sample files. 
 isChIP generate auxiliary chrom.sizes, chrN.regions and sample files. 
 Although it takes no more than 3-5 additional seconds, the program nevertheless saves them for reuse. 
 By default, they are stored in the reference genome folder. 
@@ -303,23 +329,24 @@ Default: reference genome directory
 fixes random numbers emission to get repetitive results. 
 The actual seed equals the option value increased by a certain factor to provides a noticeable difference in the of random number generation option values that differ by 1.<br>
 Value 0 means non-recurring random generation.<br>
-Range: 0-100<br>
+Range: 0-1000<br>
 Default: 0
 
-`--ln <float;float>`<br>
-specifies the mean and standard deviation of fragments’ lognormal distribution.<br>
+`-L|--ln <[float]:[float]>`<br>
+specifies the mean and standard deviation of fragments sizes lognormal distribution.<br>
 See [Fragments distribution and size selection](#fragments-distribution-and-size-selection).<br>
-Range: 2;0.1-9;1<br>
-Default: 5.46;0.4
+Range: 2:0.1-9:1<br>
+Default: 5.46:0.4
 
-`--ss <int;int>`<br>
-specifies the mean and standard deviation of size selection normal distribution.<br>
-By default mean value is calculated as the mode of the fragment’s lognormal distribution. 
+`-S|--ss [<[int]:[int]>]`<br>
+specifies the mean and standard deviation of fragment size selection normal distribution.<br>
+By default size selection is deactivated. Specifying an option leads to activation of size selection with default values, 
+if no option value is set, or with specified value(s).<br>
+If option is specified without value(s), size selection mean value is calculated as the mode of the fragment’s lognormal distribution. 
 In other words, this value is equal to the most frequent value of the lognormal distribution, which for given defaults is 200.<br>
-Setting any of the value to 0, e.g. `--ss 0;` , deactivates size selection (turns it off).<br>
 See [Fragments distribution and size selection](#fragments-distribution-and-size-selection).<br>
-Range: 30;2-5000;500 (except for the zero values)<br>
-Default: auto;30
+Range: 30:2-5000:500 (except for the zero values)<br>
+Default: auto:30
 
 `-r|--rd-len <int>`<br>
 specifies the length of output read.<br>
@@ -455,8 +482,9 @@ the maximal generated fragment length is about 1200 kbp, the average fragment le
 
 ## Model: brief description
 The real protocol of ChIP-seq is simulated by repeating the basic cycle, performed for each treated chromosome (twice for autosomes). 
-The basic cycle consists of the next phases:
-* **'shearing of DNA'**: cutting the reference genome in fragments with size distribution fitted to lognormal distribution with given *mean* and *sigma*;
+The basic cycle corresponds to one nominal cell and consists of the next stages:
+* **'shearing of DNA'**: cutting the reference genome in fragments with size distribution fitted to lognormal distribution with given *mean* and *sigma*. 
+See [Fragments distribution and size selection](#fragments-distribution-and-size-selection);
 * **'ChIP'** (in *test* mode): extraction of the fragments overlapping with the *template* binding events;
 * **'loss fragments in ‘Library construction’'**: sampling of selected fragments according to user-defined sample (`--fg` and `-b|--bg` options), 
 *template* sample (defined as *template* features score) and automatically adjusted scaling sample (`--bg-all` and `--rd-lim` options);
@@ -464,22 +492,28 @@ The basic cycle consists of the next phases:
 **MDA**:<br>
 A. splitting of each fragment into two random amplicons, copying of the fragment and both amplicons to the output;<br>
 B. applying step A to each amplicon until it is longer than the length of read.<br>
+The amplification model is simplified due to non-essential details: 
+the absence of primer annealing and the fragment debranching into 2 amplicons.<br>
 **PCR**:<br>
-copying each fragment 2^N times, where N denotes a given number of PCR cycles;
+copying each fragment 2^N times, where N denotes a given number of PCR cycles.<br>
+In reality the multiplication coefficient is below 2 in each cycle, it also can be lower for some particular amplicons, e.g. CG-reach. 
+These details are excluded from the model as insignificant to assess the effect of amplification on the final generalized result.<br>
 * **'size selection'**: selection of fragments fitted to desirable size. See [Fragments distribution and size selection](#fragments-distribution-and-size-selection);
 * **'sequencing'**: cutting the 5’end of the fragment of desirable length, or the 3’end (by random choice) in SE mode, 
 or both ends in PE mode, and complementary reversing the 3’end read;
 * recording reads in an appropriate formats.
 
-The input parameters of simulation process (except number of conditional cells) 
+The input parameters of simulation process (except number of nominal cells) 
 are adjusted correspondingly to those in real ChIP-Seq experiment.
 
-The model was developed by [Dr. Tatiana Subkhankulova](https://www.linkedin.com/in/tatiana-subkhankulova-0876a240), University of Cambridge.
+The model in its basic features was developed by [Dr. Tatiana Subkhankulova](https://www.linkedin.com/in/tatiana-subkhankulova-0876a240), 
+University of Cambridge.
 
 ## Fragments distribution and size selection
 The lognormal distribution of fragments by shearing chromatin based on sonication is confirmed by many researches.<br>
-In practice, the distribution parameters can vary widely:<br>
-![Real Distributions](https://github.com/fnaumenko/isChIP/blob/master/pict/fragDistr_ChIP-seq_label_small.png) 
+In practice, the distribution parameters can vary widely. 
+Examples of frequency profiles and recovered distributions of experimental datasets from NCBI database are shown 
+in the ![figure](https://github.com/fnaumenko/bioStat/tree/master/pict/PEdistribs_medium.png).
 
 Fragment size selection can be performed in different techniques, e.g. by using magnetic beads or by manual cutting of the gel strip. 
 Nevertheless, it is safe to assume the general normal character of size selection:<br>
@@ -541,11 +575,11 @@ The peak density of test 2 is taken as 100.
 Actual coverages in the figure are obtained directly by **isChIP** with the option `–F|--format WIG`.<br>
 Peak amplitudes are displayed proportional:
 
-![Coverages](https://github.com/fnaumenko/isChIP/blob/master/pict/test_ampl.png) 
+![Coverages](https://github.com/fnaumenko/isChIP/blob/master/pict/test_ampl_col.png) 
 
 Coverages in strands (read - positive, blue - negative):
 
-![Coverages](https://github.com/fnaumenko/isChIP/blob/master/pict/test_ampl_strand.png) 
+![Coverages](https://github.com/fnaumenko/isChIP/blob/master/pict/test_ampl_strand_col.png) 
 
 
 Fragments distributions:
@@ -554,17 +588,24 @@ Fragments distributions:
 
 Synopsis:
 ```
-test1:  isChIP –g $G –c 19 –o test1 -f wig –tx –n 100 tc19_10x1000-5e3.bed
-test2:  isChIP –g $G –c 19 –o test2 -f wig –tx –ss 0; –n 100 tc19_10x1000-5e3.bed
-test3:  isChIP –g $G –c 19 –o test3 -f wig –txD –ss 0; -a 5 tc19_10x1000-5e3.bed
-test4:  isChIP –g $G –c 19 –o test4 -f wig –txD –ss 0; -ln 7.06; tc19_10x1000-5e3.bed
-test5:  isChIP –g $G –c 19 –o test5 -f wig –txD –ss 0; tc19_10x1000-5e3.bed
-test6:  isChIP –g $G –c 19 –o test6 -f wig –txD –ss 0; -a 3 tc19_10x1000-5e3.bed
-test7:  isChIP –g $G –c 19 –o test7 -f wig –txD –ss 0; -r 25 tc19_10x1000-5e3.bed
-test8:  isChIP –g $G –c 19 –o test8 -f wig –txD –ss 0; -r 25 -a 3 tc19_10x1000-5e3.bed
+test1:  isChIP –g $G –c 19 -f wig –o test1 –tx –n 100 tc19_10x1000-1e4.bed
+test2:  isChIP –g $G –c 19 -f wig –o test2 –tx  –S :30 –n 100 tc19_10x1000-1e4.bed
+test3:  isChIP –g $G –c 19 -f wig –o test3 –txD –S :30 -a 5 tc19_10x1000-1e4.bed
+test4:  isChIP –g $G –c 19 -f wig –o test4 –txD –S :30 --ln 7.06: tc19_10x1000-1e4.bed
+test5:  isChIP –g $G –c 19 -f wig –o test5 –txD –S :30 tc19_10x1000-1e4.bed
+test6:  isChIP –g $G –c 19 -f wig –o test6 –txD –S :30 -a 3 tc19_10x1000-1e4.bed
+test7:  isChIP –g $G –c 19 -f wig –o test7 –txD –S :30 -r 25 tc19_10x1000-1e4.bed
+test8:  isChIP –g $G –c 19 -f wig –o test8 –txD –S :30 -r 25 -a 3 tc19_10x1000-1e4.bed
 ```
 where `$G` is initialized by reference genome path,<br>
-`tc19_10x1000-5e3.bed` contains 1000 TFBS for chromosome 19 with a length of 10, evenly distributed in the range of 10,000,000 - 20,000,000
+`tc19_10x1000-1e4.bed` contains 1000 TFBS for chromosome 19 with a length of 10, evenly distributed in the range of 10,000,000 - 20,000,000
+<br><br>
 
 ---
 If you face to bugs, incorrect English, or have commentary/suggestions, please do not hesitate to write me on fedor.naumenko@gmail.com
+
+
+
+[![Build Status](https://travis-ci.org/samtools/samtools.svg?branch=develop)](https://travis-ci.org/samtools/samtools)
+[![Build status](https://ci.appveyor.com/api/projects/status/enujqi06jlqw493t/branch/develop?svg=true)](https://ci.appveyor.com/project/samtools/samtools/branch/develop)
+[![Github All Releases](https://img.shields.io/github/downloads/samtools/samtools/total.svg)](https://github.com/samtools/samtools/releases/latest)
