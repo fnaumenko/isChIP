@@ -104,7 +104,8 @@ comparable with what is experimentally observed in [Series GSE56098](https://www
 Processing:
   -g|--gen <name>       reference genome library. Required
   -n|--cells <int>      number of nominal cells [1]
-  -G|--ground <float;float>     fore- and background levels:
+  -G|--ground <float;float>
+                        fore- and background levels:
                         number of selected fragments inside | outside binding sites,
                         in percent of all | foreground.
                         In control mode background is ignored [100;1]
@@ -123,8 +124,10 @@ Processing:
   --serv <name>         folder to store service files [-g|--gen]
   --seed <int>          fix random emission with given seed, or 0 if do not fix [0]
 Fragment distribution:
-  -L|--ln <[float]:[float]>     mean and stand dev of fragment lognormal distribution [5.46:0.4]
-  -S|--ss [<[int]:[int]>]       mean and stand dev of size selection normal distribution.
+  -L|--ln <[float]:[float]>
+                        mean and stand dev of fragment lognormal distribution [5.46:0.4]
+  -S|--ss [<[int]:[int]>]
+                        mean and stand dev of size selection normal distribution.
                         If not specified, then disabled [auto:30]
 Reads:
   -r|--rd-len <int>     length of output read [50]
@@ -135,7 +138,8 @@ Reads:
   --rd-ql-patt <name>   read quality scores pattern 
   --rd-map-ql <int>     read mapping quality in SAM and BED output [255]
 Output:
-  -f|--format <FQ,BED,SAM,WIG,FREQ>     format of output data, in any order  [FQ]
+  -f|--format <FQ,BED,SAM,WIG,FREQ>
+                        format of output data, in any order  [FQ]
   -C|--control          generate control simultaneously with test
   -x|--strand           generate two additional wig files, each one per strand  
   -T|--sep              display number thousands separator
@@ -144,7 +148,8 @@ Output:
   -z|--gzip             compress the output
 Other:
   -t|--time             print runtime
-  -V|--verbose <SL|RES|RT|PAR|DBG>      set verbose level:
+  -V|--verbose <SL|RES|RT|PAR|DBG>
+                        set verbose level:
                         SL -    silent mode (show critical messages only)
                         RES -   show result summary
                         RT  -   show run-time information
@@ -600,6 +605,7 @@ test8:  isChIP –g $G –c 19 -f wig –o test8 –txD –S :30 -r 25 -a 3 tc19
 where `$G` is initialized by reference genome path,<br>
 `tc19_10x1000-1e4.bed` contains 1000 TFBS for chromosome 19 with a length of 10, evenly distributed in the range of 10,000,000 - 20,000,000
 <br>
+
 ---
 <br><br>
 If you face to bugs, incorrect English, or have commentary/suggestions, please do not hesitate to write me on fedor.naumenko@gmail.com
