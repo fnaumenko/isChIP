@@ -30,7 +30,7 @@ The required memory is linearly proportional to the number of threads. For one t
 [Download Windows version](https://github.com/fnaumenko/isChIP/releases/download/v1.0/isChIP-Windows-x64.zip)
 
 Alterative download in Linux:<br>
-`wget -O isChIP.gz https://github.com/fnaumenko/isChIP/releases/download/1.0/isChIP-Linux-x64.gz`
+`wget -O isChIP.gz https://github.com/fnaumenko/isChIP/releases/download/v1.0/isChIP-Linux-x64.gz`
 
 Then type<br>
 ```
@@ -52,7 +52,7 @@ make
 ```
 Alternative:
 ```
-wget -O isChIP.zip https://github.com/fnaumenko/isChIP/archive/1.0.zip
+wget -O isChIP.zip https://github.com/fnaumenko/isChIP/archive/v1.0.zip
 unzip isChIP.zip
 cd isChIP-1.0
 make
