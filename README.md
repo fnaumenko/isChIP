@@ -75,8 +75,7 @@ mv hgdownload.soe.ucsc.edu/goldenPath/mm9/chromosomes mm9
 rm -r hgdownload.soe.ucsc.edu
 ```
 Unplaced (chr\*\_random) and unlocalized (chrUn_\*\) sequences are not involved in modelling, 
-so you can delete them by typing<br>
-`rm mm9/*_*`<br><br>
+so you can delete them by typing `rm mm9/*_*`<br><br>
 **in Windows**<br>
 copy and paste the string *ftp://hgdownload.soe.ucsc.edu/goldenPath/mm9/chromosomes/* into Windows browser address bar, 
 then copy *.fa.gz files to your local directory.<br>
