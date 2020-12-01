@@ -36,8 +36,8 @@ effPartition::IdNumbers::IdNumbers(const ChromSizesExt& cSizes)
 {
 	reserve(cSizes.TreatedCount());
 	for(ChromSizes::cIter it=cSizes.cBegin(); it!=cSizes.cEnd(); it++)
-		if( cSizes.IsTreated(it) )
-			push_back( IdNumber(CID(it), cSizes.DefEffLength(it)) );
+		if(cSizes.IsTreated(it))
+			push_back(IdNumber(CID(it), cSizes.DefEffLength(it)));
 }
 
 		// Initializes instance by numbers
@@ -119,7 +119,7 @@ void effPartition::Subset::Print(BYTE sumW, BYTE valW, size_t prNumbsCnt) const
 	else
 		for(numb_id_cit it=numbIDs.begin(); it!=numbIDs.end(); it++)
 			cout << BLANK << setw(valW) << setfill(BLANK) << Chrom::Mark(*it);
-	cout << EOL;
+	cout << LF;
 }
 
 // ********** Result *********
@@ -132,7 +132,7 @@ void effPartition::Result::Init(size_t nCnt, ss_id ssCnt)
 	SumDiff = SUM_MAX;
 	Bins.reserve(ssCnt);
 	for(ss_id i=0; i<ssCnt; i++)
-		Bins.push_back(Subset(nCnt/ssCnt + 2));
+		Bins.push_back(Subset(rowlen(nCnt)/ssCnt + 2));
 }
 
 // Sorts subsets in descending order and sets subsets ID starting with 1

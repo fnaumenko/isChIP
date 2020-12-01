@@ -14,8 +14,10 @@ Provides option emum
 
 enum optValue {
 	oGEN,
+	//oPROT,
 	oNUMB_CELLS,
 	oGR_LEVEL,
+	oEXO,
 	oMDA,
 	oPCR_CYCLES,
 	oCHROM,
@@ -29,9 +31,10 @@ enum optValue {
 	oNUMB_THREAD,
 	oSERV,
 	oSEED,
-	oFRAG_DIST,
+	oFR_DIST,
 	oSS_DIST,
 	oRD_LEN,
+	oRD_DIST,
 	oRD_NAME,
 	oRD_LIMIT_N,
 	oRD_LIMIT,
@@ -51,4 +54,3 @@ enum optValue {
 	oVERSION,
 	oHELP
 };
-
