@@ -2,7 +2,7 @@
 common.cpp (c) 2014 Fedor Naumenko (fedor.naumenko@gmail.com)
 All rights reserved.
 -------------------------
-Last modified: 21.08.2019
+Last modified: 26.11.2020
 -------------------------
 Provides common functionality
 ***********************************************************/
@@ -23,9 +23,9 @@ Provides common functionality
 //	@val: integral value
 //	@isLocale: if true then adds number of '1000' separators
 //	return: number of digist without minus symbol or 0 if value is 0
-BYTE DigitsCount (LLONG val, bool isLocale)
+int DigitsCount (LLONG val, bool isLocale)
 {
-	BYTE res = 0;
+	int res = 0;
 	for(; val; val/=10, res++);
 	if(isLocale)	res += (res-1)/3;
 	return res;
@@ -69,10 +69,10 @@ string	sPercent(float val, BYTE precision, BYTE fieldWith, bool parentheses)
 void PrintHorLine(int w)
 {
 #ifdef OS_Windows
-	wcout << setw(w+1) << setfill(L'\304') << L'\n';
+	wcout << setw(++w) << setfill(L'\304') << L'\n';
 #else
-	for(int i=0; i<w; cout << "─", i++);	cout << EOL;
-	//cout << setw(w+1) << setfill('─') << EOL;
+	for(int i=0; i<w; cout << "─", i++);	cout << LF;
+	//cout << setw(w+1) << setfill('─') << LF;
 #endif
 }
 
@@ -142,8 +142,11 @@ const char*	Missing = "missing ";
 const char* Warning = "WARNING: ";
 const string sValue = "value";
 
+const char* Options::sPrSummary = "print program's summary";
+const char* Options::sPrTime = "print run time";
+const char* Options::sPrUsage = "print usage information";
+const char* Options::sPrVersion = "print program's version";
 const char* Options::Booleans [] = {"OFF","ON"};
-
 const char* Options::TypeNames [] = {
 	NULL, "<name>", "<char>", "<int>", "<float>", "<long>", NULL, NULL,
 	"<[int]:[int]>", "<[float]:[float]>", NULL, NULL, NULL
@@ -151,14 +154,15 @@ const char* Options::TypeNames [] = {
 
 const char Options::Option::EnumDelims [] = {'|', ',', ':'};
 
-// Checks is str represents valid digital value.  Prints 'wrong val' message in case of failure
+// Checks digital value representation. Prints 'wrong val' message in case of failure
+//	@str: defined (no NULL) string  representing digital value
+//	return: true if digital value representation is correct
 bool Options::Option::IsValidFloat(const char *str, bool isInt, bool isPair)
 {
 	char c = *str;
 	const char* str0 = str;
 	BYTE dotCnt = 0, eCnt = 0;
 
-	// str==NULL is checked before
 	if(!isdigit(c))						// check first char
 		if(c == DOT)	dotCnt++;
 		else if(c != HPH && c != PLUS)	goto end;
@@ -201,30 +205,30 @@ void PrintTransformDescr(char* buff, const char** vals, short* cnt)
 	else	cout << buff;
 }
 
-// Recursively prints string with EOL inside as a set of left-margin strings
+// Recursively prints string with LF inside as a set of left-margin strings
 // Used to output aligned option descriptions
 // First string is printed from current stdout position.
-// Last substring doesn't include EOL.
+// Last substring doesn't include LF.
 //	@buff: external buffer to copy and output temporary string
 //	@str: input string with possible EOLs
-//	@subStr: substring of input string to the first EOL, or NULL if input string is not ended by EOL
+//	@subStr: substring of input string to the first LF, or NULL if input string is not ended by LF
 //	@vals: enum/combi values or NULL for other types
 //	@cnt: external counter of enum/combi values
 void PrintSubLine(char* buff, const char* str, const char* subStr, const char** vals, short* cnt)
 {
-	if(subStr) {	// is substring ended by EOL exist?
+	if(subStr) {	// is substring ended by LF exist?
 		// form substring
 		size_t strLen = subStr - str;
 		strncpy(buff, str, strLen);
 		buff[strLen] = 0;
 		PrintTransformDescr(buff, vals, cnt);	// output enum values
-		cout << EOL;
+		cout << LF;
 		for(BYTE t=0; t<OPT_DESCF_TSHIFT; t++)	cout << TAB;
-		str = subStr + 1;		// skip EOL
-		subStr = strchr(str, EOL);
+		str = subStr + 1;		// skip LF
+		subStr = strchr(str, LF);
 		PrintSubLine(buff, str, subStr, vals, cnt);
 	}
-	else {			// output rest of initial string without EOL
+	else {			// output rest of initial string without LF
 		strcpy(buff, str);
 		PrintTransformDescr(buff, vals, cnt);
 	}
@@ -241,19 +245,20 @@ int Options::Option::SetVal(const char* opt, bool isword, char* val, bool isValL
 {
 	if(isword) { 
 		if(!Str || strcmp(Str, opt))	return -1;	// not this option
-		Sign.MarkAs(Signs::Word);
+		Sign.MarkAs(eFlag::fWord);
 	}
-	else if(Char != *opt)	return -1;
+	else 
+		if(Char != *opt)	return -1;
 
-	if(Sign.Is(Signs::Trimmed))	return PrintAmbigOpt(opt, isword, "duplicated");
+	if(Sign.Is(eFlag::fTrimmed))	return PrintAmbigOpt(opt, isword, "duplicated");
 	// check value existence
-	bool aa = IsValEsc();
 	bool noVal = val==NULL
 		|| (isValLastToken && (!ValRequired() || IsValEsc()))	// value is apps parameter
-		|| (*val==HPH && !isdigit(val[1]));			// true if no value, including negative
+		|| (*val==HPH && !isdigit(val[1]));		// true if no value, including negative
 	if(noVal) {
 		if(ValRequired() && !IsValEsc())
 			return PrintWrong(NULL, sValue + " required");
+		val = NULL;								// value is optional
 	}
 	else
 		if(ValRequired())	(*argInd)++;
@@ -262,21 +267,25 @@ int Options::Option::SetVal(const char* opt, bool isword, char* val, bool isValL
 			(*argInd)++;
 		}
 
-	Sign.MarkAs(Signs::Trimmed);
+	Sign.MarkAs(eFlag::fTrimmed);
 	switch(ValType) {
-		case tNAME: SVal = noVal ? NULL : val;		return 0;
+		case tNAME: SVal = noVal ? NULL : val;	return 0;
 		case tENUM:	return SetEnum(val);
 		case tCOMB:	return SetComb(val);
-		case tPAIR_INT:	return SetPair(noVal ? NULL : val, true);
-		case tPAIR_FL:	return SetPair(noVal ? NULL : val, false);
 		case tCHAR:	if(NVal != NO_VAL && strlen(val) == 1)
 						return SetTriedFloat(*val, MinNVal, MaxNVal);	// value is treated as int
 					break;
+		case tINT:
+		case tFLOAT:
+		case tLONG:	return noVal?
+						0 :				// NVal is default val
+						IsValidFloat(val, ValType==tINT) ?
+							SetTriedFloat(float(atof(val)), MinNVal, MaxNVal) :
+							1;
 		case tHELP:	return PrintUsage(true);
 		case tSUMM:	return PrintSummary(false);
 		case tVERS:	return PrintVersion();
-		default:	return IsValidFloat(val, ValType==tINT) ? 
-						SetTriedFloat(atof(val), MinNVal, MaxNVal) : 1;
+		default:	return SetPair(noVal ? NULL : val, ValType==tPR_INT);	// tPR_INT, tPR_FL
 	}
 	return PrintWrong(val);
 }
@@ -285,9 +294,9 @@ int Options::Option::SetVal(const char* opt, bool isword, char* val, bool isValL
 //	return: -1 if option is obligatory but not stated, otherwise 1
 int Options::Option::CheckOblig() const
 {
-	if( Sign.Is(Signs::Oblig) && ValRequired()
+	if( Sign.Is(eFlag::fOblig) && ValRequired()
 	&& ( (ValType == tNAME && !SVal) || (ValType != tNAME && NVal == NO_VAL) ) ) {
-		cerr << Missing << "required option " << NameToStr(false) << EOL;
+		cerr << Missing << "required option " << NameToStr(false) << LF;
 		return -1;
 	}
 	return 1;
@@ -300,7 +309,7 @@ inline string Options::Option::NameToStr (bool asPointed) const
 	ostringstream ss;
 	ss << HPH;
 	if(asPointed) {
-		if(!Sign.Is(Sign.Word))	{ ss << Char; return ss.str(); }
+		if(!Sign.Is(eFlag::fWord))	{ ss << Char; return ss.str(); }
 	}
 	else if(Char != HPH) {
 		ss << Char; 
@@ -331,7 +340,7 @@ const string Options::Option::PairValsToStr(const pairVal* vals) const
 //	return: 1 if limits are exceeded, otherwise 0
 int Options::Option::SetTriedFloat(float val, float min, float max)
 {
-	if(!val && Sign.Is(Signs::Allow0))	min = 0;
+	if(!val && Sign.Is(eFlag::fAllow0))	min = 0;
 	if(val < min || val > max) {
 		cerr << optTitle << NameToStr(true) << SepSCl << sValue << setprecision(4) << BLANK << val
 			 << " is out of available range [" << min << HPH << max << "]\n";
@@ -342,17 +351,18 @@ int Options::Option::SetTriedFloat(float val, float min, float max)
 }
 
 // Checks and sets enum option value. Prints 'wrong val' message in case of failure
-//	@val: input value as string
+//	@val: input value as string or NULL if value is optional and not defined
 //	return: 0 if success, 1 if wrong value
 int Options::Option::SetEnum(const char* val)
 {
-	if( ValRequired() ) {				// non-boolean template
+	if (!ValRequired())			// boolean template
+		NVal = !NVal;			// invers boolean value
+	else if (val) {				// non-boolean template, value is defined
 		int ind = GetEnumInd(val);
-		if(ind < 0)	return PrintWrong(val);
+		if (ind < 0)	return PrintWrong(val);
 		NVal = ind + MinNVal;	// add possible minimum value as a shift
 	}
-	else
-		NVal = !NVal;			// invers boolean value
+	// else val==NULL, so use default
 	return 0;
 }
 
@@ -372,7 +382,7 @@ int Options::Option::SetComb(char* vals)
 		ind = GetEnumInd(val);
 		// set bitwise val, in which running number of each bit (from right side)
 		// corresponds to number of detected value
-		if(ind >= 0)	NVal = int(NVal) ^ (1<<ind);
+		if (ind >= 0)	NVal = float(int(NVal) ^ (1 << ind));
 		if(delim)	*delim = EnumDelims[1];		// restore 'vals' string
 		else	break;							// no delimiter: last or single value
 	}
@@ -384,7 +394,7 @@ int Options::Option::SetComb(char* vals)
 //	return: 0 if success, 1 if wrong values
 int Options::Option::SetPair(const char* vals, bool isInt)
 {
-	if(!vals)	return 0;	// value isn't stated and it is escapable (that was checked before)
+	if(!vals)	return 0;	// value isn't stated and it's optional (that was checked before)
 	const char* delim = strchr(vals, EnumDelims[2]);	// a pointer to the delimiter ';' in vals
 
 	if(!delim)	return PrintWrong(vals, "missed '" + string(1, EnumDelims[2]) + "' delimiter in value");
@@ -392,13 +402,13 @@ int Options::Option::SetPair(const char* vals, bool isInt)
 
 	if(delim != vals) {		// first value is set
 		if(!IsValidFloat(vals, isInt, true)
-		|| SetTriedFloat(atof(vals), lim.Values(PairVals::MIN).first, lim.Values(PairVals::MAX).first))
+		|| SetTriedFloat(float(atof(vals)), lim.Values(PairVals::MIN).first, lim.Values(PairVals::MAX).first))
 			return 1;
 		((pairVal*)SVal)->first = NVal;		// set first PairVals element
 	}
 	if(*(delim+1)) {			// second value is set
 		if(!IsValidFloat(delim+1, isInt)
-		|| SetTriedFloat(atof(delim+1), lim.Values(PairVals::MIN).second, lim.Values(PairVals::MAX).second))
+		|| SetTriedFloat(float(atof(delim+1)), lim.Values(PairVals::MIN).second, lim.Values(PairVals::MAX).second))
 			return 1;
 		((pairVal*)SVal)->second = NVal;		// set first PairVals element
 	}
@@ -419,7 +429,7 @@ string Options::Option::ToStr(bool prVal) const
 //	otherwise signature only
 void Options::Option::Print(bool descr) const
 {
-	if(Sign.Is(Signs::Hidden))	return;
+	if(Sign.Is(fHidden))	return;
 	USHORT	len = 0;		// first len is used as counter of printed chars
 	bool	fixValType = ValType==tENUM || ValType==tCOMB;
 	char*	buffer;
@@ -429,7 +439,7 @@ void Options::Option::Print(bool descr) const
 	{
 	string name = NameToStr(false);
 	cout << BLANK << name;
-	len += 1 + name.length();
+	len += short(1 + name.length());
 	}
 	// *** option value type
 	cout << BLANK, len++;
@@ -437,7 +447,7 @@ void Options::Option::Print(bool descr) const
 	if(fixValType)	len += PrintEnumVals();		// print enum values
 	else if((buffer = const_cast<char*>(TypeNames[ValType])) != NULL)
 		cout << buffer,							// print value type
-		len += strlen(buffer);
+		len += short(strlen(buffer));
 	if(IsValEsc())	cout << ']', len++;
 	
 	// *** description
@@ -446,20 +456,20 @@ void Options::Option::Print(bool descr) const
 	short cnt = OPT_DESCF_TSHIFT - len / 8;	// OPT_DESCF_TSHIFT=3 * 8: right boundary of descriptions
 	if(cnt <= 0)	cnt = 1;
 	if(len + cnt*8 >= (OPT_DESCF_TSHIFT+1)*8)	// too long option,
-		cnt = OPT_DESCF_TSHIFT, cout << EOL;	// description on the next line
+		cnt = OPT_DESCF_TSHIFT, cout << LF;	// description on the next line
 	for(int i=0; i<cnt; i++)	cout << TAB;
 
 	// print description
 	cnt = 0;	// use as external enum counter
-	len = strlen(Descr);	// from now len is used as length of description string
+	len = USHORT(strlen(Descr));	// from now len is used as length of description string
 	buffer = new char[len+1];
-	PrintSubLine(buffer, Descr, strchr(Descr, EOL), fixValType ? (const char**)SVal : NULL, &cnt);
+	PrintSubLine(buffer, Descr, strchr(Descr, LF), fixValType ? (const char**)SVal : NULL, &cnt);
 	delete [] buffer;
 	if(AddDescr) {
-		if(Descr[len-1] != EOL)	cout << BLANK;
+		if(Descr[len-1] != LF)	cout << BLANK;
 		cout << AddDescr;
 	}
-	if(Sign.Is(Signs::Oblig))	cout << " Required";
+	if(Sign.Is(fOblig))	cout << " Required";
 	else if(ValType >= tHELP)	cout << " and exit";
 
 	// print default value
@@ -471,15 +481,15 @@ void Options::Option::Print(bool descr) const
 					PRINT_IN_PRTHS(((char**)SVal)
 						[int(NVal)-int(MinNVal)] );	// offset by min enum value
 				break;
-			case tPAIR_INT:
-			case tPAIR_FL:	
+			case tPR_INT:
+			case tPR_FL:	
 				PRINT_IN_PRTHS(PairValsToStr((pairVal*)SVal)); break;
 			case tCHAR:	PRINT_IN_PRTHS(char(NVal)); break;
 			default:	PRINT_IN_PRTHS(NVal);
 		}
 	}
 	else if(SVal != NULL)	PRINT_IN_PRTHS(ValType == tENUM ? "NONE" : SVal);
-	cout << EOL;
+	cout << LF;
 }
 
 // Prints enum or combi values
@@ -496,7 +506,7 @@ BYTE Options::Option::PrintEnumVals() const
 	cout << '<' << vals[0];			// first val image from array of val images
 	for(BYTE i=1; i<cnt; i++) {
 		cout << EnumDelims[ValType-tENUM] << vals[i];
-		len += strlen(vals[i]);
+		len += BYTE(strlen(vals[i]));
 	}
 	cout << '>';
 	return len + cnt + 1;	// here cnt denotes the number of printed delimiters
@@ -529,7 +539,7 @@ int Options::Option::PrintWrong(const char* val, const string& msg) const
 {
 	cerr << ToStr(false) << SepSCl << (msg == strEmpty ? "wrong " + sValue : msg);
 	if(val) cerr << BLANK << val;
-	cerr << EOL;
+	cerr << LF;
 	return 1;
 }
 
@@ -538,7 +548,7 @@ void Options::Option::Print() const
 {
 	cout << Str << TAB;
 	if(strlen(Str) < 4)	cout << TAB;
-	Sign.Print(); cout << EOL;
+	Sign.Print(); cout << LF;
 }
 #endif
 
@@ -573,7 +583,7 @@ int Options::CheckObligs()
 //	return: 0 if success, 1 otherwise
 int Options::SetOption (char* opt, char* val, bool isValLastToken, int* argInd)
 {
-	int i, res;
+	int i, res = 0;
 	const bool isWord = opt[0]==HPH;
 	char* sopt = opt += isWord;	// sliced option
 
@@ -614,7 +624,7 @@ int Options::PrintAmbigOpt(const char* opt, bool isWord, const char* headMsg, co
 	}
 	if(inOpt && Find(inOpt))
 		cerr << ". Do you mean " << HPH << HPH << inOpt << '?';
-	cerr << EOL;
+	cerr << LF;
 	return 1;
 }
 
@@ -633,7 +643,7 @@ int	Options::PrintVersion()
 int Options::PrintSummary(bool prTitle)
 {
 	if(prTitle)	cout << Product::Title << ": ";
-	cout << Product::Descr << EOL;
+	cout << Product::Descr << LF;
 	return 1;
 }
 
@@ -643,7 +653,7 @@ int Options::PrintSummary(bool prTitle)
 int Options::PrintUsage (bool title)
 {
 	BYTE i, k;
-	if(title)		PrintSummary(true), cout << EOL;
+	if(title)		PrintSummary(true), cout << LF;
 	
 	// output 'Usage' section
 	cout << "Usage:";
@@ -699,7 +709,7 @@ int Options::Parse(int argc, char* argv[], const char* obligPar)
 		if( *token != HPH )	{			// token is not an option
 			if( i < argc-1 				// not a last token
 			&& *nextToken == HPH )		// next token is an option
-				cerr << token << ": neither option nor parameter" << EOL,	res = -1;
+				cerr << token << ": neither option nor parameter" << LF,	res = -1;
 			break;
 		}
 		if( SetOption(
@@ -712,19 +722,19 @@ int Options::Parse(int argc, char* argv[], const char* obligPar)
 	}
 	if( res > 0 )	res = CheckObligs();			// check required options
 	if( res > 0 && obligPar && i == argc ) {
-		cerr << Missing << obligPar << EOL;
+		cerr << Missing << obligPar << LF;
 		res = -1;
 	}
 	return i * res;
 }
 
 // Return string value by index: if value is not oblig and is not specified, than defName with given extention
-const string Options::GetSVal(int indOpt, const char* defName, const string& ext)
+const string Options::GetFileName(int indOpt, const char* defName, const string& ext)
 {
 	Option opt = List[indOpt];
 	if(opt.SVal)
-		return string(opt.SVal);
-	if(opt.IsValEsc() && opt.Sign.Is(Signs::Trimmed))
+		return string(opt.SVal) + ext;
+	if(opt.IsValEsc() && opt.Sign.Is(fTrimmed))
 		return FS::ShortFileName(FS::FileNameWithoutExt(defName)) + ext;
 	return strEmpty;
 }
@@ -762,7 +772,7 @@ const char* Err::_msgs [] = {
 /* FZ_BUILD */	"this build does not support zipped files",
 /* F_WRITE */	"could not write",
 #ifndef _FQSTATN
-/* TF_FIELD */	"number of fields is less than expected",
+/* TF_FIELD */	"number of fields is less than required",
 /* TF_EMPTY */	"no",
 /* B_BADEND */	"'start' position is equal or more than 'end'",
 /* B_NEGPOS */	"negative position",
@@ -771,6 +781,8 @@ const char* Err::_msgs [] = {
 #endif
 /* EMPTY */		""
 };
+
+const char* Err::FailOpenOFile = "could not open output file";
 
 // Initializes _outText by cstring contained message kind of "<sender>: <txt> <specTxt>".
 void Err::set_message(const char* sender, const char *txt, const char *specTxt)
@@ -823,10 +835,11 @@ Err::Err(const Err & src)
 //	@throwExc: if true then throws exception, otherwise outputs Err message
 //	@eol: if true then carriage should be return while output Err message
 void Err::Throw(bool throwExc, bool eol) {
-	if(throwExc)	throw *this;
-	else {		
+	if(throwExc)	
+		throw *this;
+	else {
 		dout << _outText;
-		if(eol)		dout << EOL;
+		if(eol)		dout << LF;
 		fflush(stdout);
 	}
 }
@@ -838,7 +851,7 @@ void Err::Warning(string const& addText) {
 	dout << _outText;
 	if( !addText.empty() )	
 		dout << addText;
-	dout << EOL;
+	dout << LF;
 	fflush(stdout);
 }
 
@@ -867,7 +880,7 @@ bool FS::IsExist(const char* name, int st_mode)
 //	@name: object's name
 //	@st_mode: object's system mode
 //	@throwExcept: if true throws exception,
-//	otherwise outputs Err message as warning without EOL
+//	otherwise outputs Err message as warning without LF
 //	@ecode: error's code
 //	return: true if file or directory doesn't exist
 bool FS::CheckExist	(const char* name,  int st_mode, bool throwExcept, Err::eCode ecode)
@@ -928,7 +941,7 @@ LLONG FS::UncomressSize	(const char* fname)
 {
 	FILE *file = fopen(fname, "rb");	// "read+binary"
 	if( file == NULL )		return -1;
-	BYTE sz[4] = {0,0,0,0};
+	BYTE sz[] = {0,0,0,0};
 	_fseeki64(file, -4, SEEK_END);
 	fread(sz, 1, 4, file);
 	fclose(file);
@@ -939,7 +952,7 @@ LLONG FS::UncomressSize	(const char* fname)
 //	@name: name of file or directory
 //	@ext: file extention; if set, check for file first
 //	@throwExcept: if true throws exception,
-//	otherwise outputs Err message as warning without EOL
+//	otherwise outputs Err message as warning without LF
 //	return: true if file or directory doesn't exist
 bool FS::CheckFileDirExist(const char* name, const string & ext, bool throwExcept) 
 {
@@ -1126,10 +1139,10 @@ bool FS::GetFiles	(vector<string>& files, const string& dirName, const string& e
 // Prints elapsed time
 //	@elapsed: elapsed time in seconds
 //	@watch: true if time should be printed as a stopwatch (with decimal places and without empty minutes)
-//	@isEOL: if true then ended output by EOL
-void PrintTime(float elapsed, bool watch, bool parentheses, bool isEOL)
+//	@isEOL: if true then ended output by LF
+void PrintTime(long elapsed, bool watch, bool parentheses, bool isEOL)
 {
-	int hours = long(elapsed)/60;
+	int hours = elapsed/60;
 	int mins = hours%60;
 	hours /= 60;
 	if(parentheses)	dout << '(';
@@ -1140,7 +1153,7 @@ void PrintTime(float elapsed, bool watch, bool parentheses, bool isEOL)
 	if(watch)	dout << setw(5) << fixed << setprecision(2) << (elapsed - mins*60);
 	else		dout << setw(2) << long(elapsed)%60;
 	if(parentheses)	dout << ')';
-	if(isEOL)	dout << EOL, fflush(stdout);
+	if(isEOL)	dout << LF, fflush(stdout);
 }
 
 bool	TimerBasic::Enabled = false;
@@ -1157,7 +1170,7 @@ long TimerBasic::GetElapsed() const
 //	@elapsed: elapsed time in seconds 
 //	@title: string printed before time output
 //	@parentheses: if true then output time in parentheses
-//	@isEOL: if true then ended output by EOL
+//	@isEOL: if true then ended output by LF
 void TimerBasic::Print(long elapsed, const char *title, bool parentheses, bool isEOL)
 {
 	if(title)	dout << title;
@@ -1171,7 +1184,7 @@ clock_t	Timer::_StartCPUClock;
 
 // Stops enabled timer and prints elapsed time
 //	@offset: space before time output
-//	@isEOL: if true then ended output by EOL
+//	@isEOL: if true then ended output by LF
 void Timer::Stop(BYTE offset, bool isEOL)
 {
 	if(_enabled) {
@@ -1201,13 +1214,13 @@ void Stopwatch::Stop(const string title) const
 // Stops StopwatchCPU
 //	@title: string printed before time output
 //	@print: if true time should be printed
-//	@isEOL: if true then ended output by EOL
+//	@isEOL: if true then ended output by LF
 void StopwatchCPU::Stop(const char* title, bool print, bool isEOL)
 {
 	_sumclock += clock() - _clock;
 	if(print) {
 		if(title)	dout << title;
-		PrintTime(float(_sumclock)/CLOCKS_PER_SEC, false, false, isEOL);
+		PrintTime(_sumclock/CLOCKS_PER_SEC, false, false, isEOL);
 	}
 }
 
@@ -1241,18 +1254,18 @@ void Mutex::Finalize() {
 void Mutex::Lock(const eType type) {
 	if(_active)
 #ifdef OS_Windows
-		EnterCriticalSection(&_mutexes[type]);
+		EnterCriticalSection(&_mutexes[int(type)]);
 #else
-		pthread_mutex_lock(&_mutexes[type]);
+		pthread_mutex_lock(&_mutexes[int(type)]);
 #endif
 }
 
 void Mutex::Unlock(const eType type) {
 	if(_active)
 #ifdef OS_Windows
-		LeaveCriticalSection(&_mutexes[type]);
+		LeaveCriticalSection(&_mutexes[int(type)]);
 #else
-		pthread_mutex_unlock(&_mutexes[type]);
+		pthread_mutex_unlock(&_mutexes[int(type)]);
 #endif
 }
 
@@ -1286,12 +1299,12 @@ void Mutex::Unlock(const eType type) {
 /************************ class Chrom ************************/
 
 const char*		Chrom::Abbr = "chr";
+const BYTE		Chrom::MaxAbbrNameLength = BYTE(strlen(Chrom::Abbr)) + MaxMarkLength;
 #ifndef _FQSTATN
 const char*		Chrom::Marks = "XYM";
 const string	Chrom::UndefName = "UNDEF";
 const string	Chrom::Short = "chrom";
-const string	Chrom::Title = "chromosome";
-const BYTE		Chrom::MaxAbbrNameLength = BYTE(strlen(Chrom::Abbr)) + MaxMarkLength;
+const string	Chrom::sTitle = "chromosome";
 const BYTE		Chrom::MaxShortNameLength = BYTE(Chrom::Short.length()) + MaxMarkLength;
 const BYTE		Chrom::MaxNamedPosLength = 
 					BYTE(strlen(Chrom::Abbr)) + MaxMarkLength + CHRLEN_CAPAC + 1;
@@ -1305,7 +1318,7 @@ chrid Chrom::HeteroID	(const char cMark)
 {
 	if(firstHeteroID) {		// relative ID
 		for(size_t i=0; i<strlen(Marks); i++)
-			if(cMark == Marks[i])	return firstHeteroID + i;
+			if(cMark == Marks[i])	return chrid(firstHeteroID + i);
 		return UnID;
 	}
 	else return cMark;		// absolute ID
@@ -1414,12 +1427,7 @@ void Chrom::SetCustomOption(int opt, bool absID)
 		cID = ValidateID(Options::GetSVal(CustomOpt));
 }
 
-const string AutosomeToStr(chrid cid)
-{
-	char buff[Chrom::MaxMarkLength + 1];
-	sprintf(buff, "%d", cid + 1);
-	return string(buff);
-}
+inline const string AutosomeToStr(chrid cid) {	return to_string(cid + 1); }
 
 // Returns mark by ID
 const string Chrom::Mark(chrid cid)
@@ -1456,84 +1464,6 @@ string Chrom::AbbrName(chrid cid, bool numbSep)
 
 /************************ end of class Chrom ************************/
 
-#if !defined _WIGREG && !defined _FQSTATN
-
-/************************ class Read ************************/
-
-readlen	Read::Len;				// length of Read
-
-#if defined _ISCHIP || defined _VALIGN
-const char	Read::Strands[] = { '+', '-' };
-const char	Read::NmNumbDelimiter = DOT;
-const char	Read::NmPos1Delimiter = ':';
-const char	Read::NmPos2Delimiter = '-';
-#endif
-
-#ifdef _ISCHIP
-
-char	Read::SeqQuality;		// the quality values for the sequence (ASCII)
-bool	Read::PosInName;		// true if Read name includes a position
-short	Read::LimitN = vUNDEF;	// maximal permitted number of 'N' in Read or vUNDEF if all
-const char Read::ToUp	= 'a' - 'A';
-const char Read::Complements[] = {'T',0,'G',0,0,0,'C',0,0,0,0,0,0,'N',0,0,0,0,0,'A'};
-
-// Initializes static members
-//	@len: length of Read
-//	@posInName: true if Read position is included in Read name
-//	@seqQual: quality values for the sequence
-//	@limN: maximal permitted number of 'N'
-void Read::Init(readlen len, bool posInName, char seqQual, short limN)
-{
-	Len = len;
-	PosInName = posInName;
-	SeqQuality = seqQual;
-	if(limN < len)		LimitN = limN;
-}
-
-// Copies complemented Read.
-void Read::CopyComplement(char* dst, const char* src)
-{
-	//for(dst += Read::Len-1; *dst != EOL; dst--, src++)
-	//	*dst = Complements[*src - 'A' - (*src >= 'a' ? ToUp : 0)];
-	for(char i=Read::Len-1; i>=0; i--, src++)
-		dst[i] = Complements[*src - 'A' - (*src >= 'a' ? ToUp : 0)];
-	//dst[Read::Len] = EOL;
-}
-
-// Checks Read for number of 'N'
-//	@read: checked Read
-//	return:	1: NULL Read; 0: success; -1: N limit is exceeded
-int Read::CheckNLimit(const char* read)
-{
-	if( !read )		return 1;
-	if( LimitN != vUNDEF ) {
-		readlen cntN = 0, i = Len;
-		for(read += i-1; i; i--, read--)
-			if( *read == cN	&& ++cntN > LimitN )
-				return -1;
-	}
-	return 0;
-}
-
-// Prints Read values - parameters.
-void Read::Print()
-{
-	cout << "Read" << SepDCl << "length = " << int(Len);
-	if(IsPosInName())	cout << SepSCl << "name includes a position";
-	//if(NameType != nmNone)	
-	//	cout << SepSCl << "name includes a " << (NameType==nmPos ? "position" : "number");
-	cout << SepSCl << "N-limit" << SepCl;
-	if( LimitN == vUNDEF )	cout << Options::BoolToStr(false);
-	else					cout << LimitN;
-	cout << EOL;
-}
-
-#endif
-
-/************************ end of struct Read ************************/
-
-#endif
-
 /************************  MemStatus ************************/
 
 //bool	MemStatus::_enable;
@@ -1564,7 +1494,7 @@ void Read::Print()
 //{
 //	if(_enable) {
 //		size_t rem = getAvailMemory();
-//		cout << "Unallocated memory: " << (_startVolume - rem) << EOL;
+//		cout << "Unallocated memory: " << (_startVolume - rem) << LF;
 //	}
 //}
 /************************  end of MemStatus ************************/
