@@ -142,7 +142,7 @@ Reads:
   --rd-ql-patt <name>   read quality scores pattern
   --rd-ql-map <int>     read mapping quality in SAM and BED output [255]
 Output:
-  -f|--format <FQ,BED,SAM,BG,FDENS,RDENS,FDIST,RDIST >
+  -f|--format <FQ,BED,SAM,BG,FDENS,RDENS,FDIST,RDIST>
                         format of output data, in any order [FQ]
   -C|--control          generate control simultaneously with test
   -x|--strand           generate two additional wig files, each one per strand
