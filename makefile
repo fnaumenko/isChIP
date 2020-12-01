@@ -1,5 +1,5 @@
 PROG=isChIP
-COPT=-c -O3
+COPT=-c -O3 -std=c++11
 LOPT=-lpthread
 ifeq ($(shell whereis zlib | wc -l),0)
 	COPT+= -D_NO_ZLIB
@@ -11,16 +11,16 @@ SRC_DIR=src
 SRC=$(wildcard $(SRC_DIR)/*.cpp)
 HDR=$(wildcard $(SRC_DIR)/*.h)
 OBJ=$(SRC:.cpp=.o)
-EXEC=$(PROG)
 CC=g++
 #CC=icpc
 .PHONY: all clean
 
-all: print_warning $(HDR) $(SRC) $(EXEC)
+all: print_warning $(HDR) $(SRC) $(PROG)
 
-$(EXEC): $(OBJ)
+$(PROG): $(OBJ)
 	$(CC) $(LOPT) $(OBJ) -o $@
 	@echo "$(PROG) compilation complete."
+	cp $@ ..
 
 .cpp.o:
 	$(CC) $(COPT) $< -o $@
