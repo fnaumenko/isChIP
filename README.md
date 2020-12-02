@@ -233,7 +233,7 @@ corresponding to the peak density in the actually observed data through several 
 with a different number of nominal cells and zero foreground level. 
 Then the overall loss is calculated by the formula (1-n/N)*100%, where n is the number of nominal cells, N is the number of real cells in the experiment.
 
-In addition to the number of cells, the program’s run time heavily depends on the parameters of fragment size distribution and size selection 
+Besides the number of cells, the program’s run time heavily depends on the parameters of fragment size distribution and size selection 
 (see [Fragment distribution and size selection](#fragments-distribution-and-size-selection)). 
 In general, with the default fragment size distribution, a number of nominal cells from 1 to 5 
 provides an output read’s mean density comparable with real ‘inputs’, 
