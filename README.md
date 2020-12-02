@@ -304,8 +304,7 @@ In *control* mode is ignored.<br>
 Default: `ON`
 
 `-m|--smode <SE|PE>`<br>
-generates reads according to stated sequencing mode: `SE` – single end, `PE` – paired end 
-(see [Model: brief description](#model-brief-description)).<br>
+generates reads according to stated sequencing mode: `SE` – single end, `PE` – paired end .<br>
 Default: `SE`
 
 `-s|--bscore <int>`<br>
@@ -562,14 +561,15 @@ The lognormal distribution of fragments by shearing chromatin based on sonicatio
 The typical result is presented here:<br> 
 ![Frag Distrib Paper](https://github.com/fnaumenko/isChIP/blob/master/pict/Size_distr_analysis_lbl1.png)<br>
 In practice, the distribution parameters can vary widely. 
-Examples of initial and recovered distributions of experimental datasets from NCBI database are shown 
+Examples of original and recovered distributions of experimental datasets from NCBI database are shown 
 in the ![Frag Distributions](https://github.com/fnaumenko/bioStat/tree/master/pict/FragPE_distrs.png).
 
 Fragment size selection can be performed in different techniques, e.g. by using magnetic beads or by manual cutting of the gel strip. 
 Nevertheless, it is safe to assume the general normal character of size selection:<br>
 ![Size Selection](https://github.com/fnaumenko/isChIP/blob/master/pict/Mag-Bind_label.png)<br>
-This is also confirmed by the real fragment frequency distributions in the first figure. 
-In particular, experiments SRR408580 (in green) and SRR965509 (in yellow) were clearly carried out using some size selection technique.<br>
+This is also confirmed by the real fragment frequency distributions in the 
+![ Frag Distributions](https://github.com/fnaumenko/bioStat/tree/master/pict/FragPE_distrs.png). 
+In particular, experiments experiments in cases 7-13  were clearly carried out using some size selection technique.<br>
 
 On this basis, the default values of the lognormal *sigma* and *mean* are selected in **isChIP** so 
 as to provide the most frequently observed distribution with Mean of 200.<br>
