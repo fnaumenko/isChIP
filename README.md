@@ -21,7 +21,7 @@ The required memory is linearly proportional to the number of threads. For one t
   [Usage](#usage)<br>
   [Details](#details)<br>
   [Model: brief description](#model-brief-description)<br>
-  [Fragments distribution and size selection](#fragments-distribution-and-size-selection)<br>
+  [Fragment distribution and size selection](#fragments-distribution-and-size-selection)<br>
   [Example of single cell simulation](#example-of-single-cell-simulation)
 
 ## Installation
@@ -106,8 +106,8 @@ Processing:
   -n|--cells <int>      number of nominal cells [1]
   -G|--ground <[float]:[float]>
                         fore- and background levels:
-                        number of selected fragments inside | outside binding sites,
-                        in percent of all | foreground.
+                        number of selected fragments inside/outside binding sites,
+                        in percent of all/foreground.
                         In control mode background is ignored [50:1]
   -E|--exo [<int>]      apply ChIP-exo protocol modification with specified exonuclease 'headroom' length.
                         If the option is not specified, ChIP-exo is not applied [6]
@@ -191,9 +191,8 @@ with the necessary replacement of the coordinates of the peaks to the coordinate
 Alternatively, the scores can be entered manually.<br>
 At the same time different stated scores in *template* can be ignored by setting the `-s|--bscore` option to 0.
 
-*Template* does not have to be sorted, but the features must be grouped by chromosomes. 
-This means that features belonging to the same chromosome must be arranged sequentially, in a single group. 
-The simplest way to ensure this is to pre-sort the file.
+*Template* does not have to be sorted, but all the features belonging to a chromosome should be clustered together. 
+The simplest way to meet this requirement is to use pre-sorted data.
 
 ### Options description
 
@@ -235,7 +234,7 @@ with a different number of nominal cells and zero foreground level.
 Then the overall loss is calculated by the formula (1-n/N)*100%, where n is the number of nominal cells, N is the number of real cells in the experiment.
 
 In addition to the number of cells, the program’s run time heavily depends on the parameters of fragment size distribution and size selection  
-(see [Fragments distribution and size selection](#fragments-distribution-and-size-selection)). 
+(see [Fragment distribution and size selection](#fragments-distribution-and-size-selection)). 
 In general, with the default fragment size distribution, a number of nominal cells from 1 to 5 
 provides an output read’s mean density comparable with real ‘inputs’, 
 and a value from 50 to 300 leads to generated simulated data, which is comparable with real tests in terms of density.<br>
@@ -363,7 +362,7 @@ specifies the mean and standard deviation of fragments sizes lognormal distribut
 Default parameters give a lognormal mode (expected value) of 176 and a mean (average) of 200.<br>
 When `-R|--rd-dist` option is enabled, a wide distribution is set by default with mean of 5.92 and a sigma of 0.4, 
 which gives a lognormal mode of 317 and an average of 403.<br>
-See [Fragments distribution and size selection](#fragments-distribution-and-size-selection).<br>
+See [Fragment distribution and size selection](#fragments-distribution-and-size-selection).<br>
 Range: 3:0.3-9:1<br>
 Default: 5.26:0.3
 
@@ -373,7 +372,7 @@ By default size selection is deactivated. Specifying an option leads to activati
 if no option value is set, or with specified value(s).<br>
 If option is specified without value(s), size selection mean value is calculated as the mode of the fragment’s lognormal distribution. 
 In other words, this value is equal to the most frequent value of the lognormal distribution, which for given defaults is 200.<br>
-See [Fragments distribution and size selection](#fragments-distribution-and-size-selection).<br>
+See [Fragment distribution and size selection](#fragments-distribution-and-size-selection).<br>
 Range: 50:2-2000:500 (except for the zero values)<br>
 Default (if applied): auto:30
 
@@ -534,7 +533,7 @@ the maximal generated fragment length is about 1200 kbp, the average fragment le
 The real protocol of ChIP-seq is simulated by repeating the basic cycle, performed for each treated chromosome (twice for autosomes). 
 The basic cycle corresponds to one nominal cell and consists of the next stages:
 * **'shearing of DNA'**: cutting the reference genome in fragments with size distribution fitted to lognormal distribution with given *mean* and *sigma*. 
-See [Fragments distribution and size selection](#fragments-distribution-and-size-selection);
+See [Fragment distribution and size selection](#fragments-distribution-and-size-selection);
 * **'ChIP'** (in *test* mode): extraction of the fragments overlapping with the *template* binding events;
 * **'loss fragments in ‘Library construction'**: sampling of selected fragments according to user-defined sample (`-G|--ground` option), 
 *template* sample (defined as *template* features score) and automatically adjusted scaling sample (`--bg-all` and `--rd-lim` options);
@@ -548,7 +547,7 @@ the absence of primer annealing and the fragment debranching into 2 amplicons.<b
 copying each fragment 2^N times, where N denotes a given number of PCR cycles.<br>
 In reality the multiplication coefficient is below 2 in each cycle, it also can be lower for some particular amplicons, e.g. CG-reach. 
 These details are excluded from the model as insignificant to assess the effect of amplification on the final generalized result.<br>
-* **'size selection'**: selection of fragments fitted to desirable size. See [Fragments distribution and size selection](#fragments-distribution-and-size-selection);
+* **'size selection'**: selection of fragments fitted to desirable size. See [Fragment distribution and size selection](#fragments-distribution-and-size-selection);
 * **'sequencing'**: cutting the 5’end of the fragment of desirable length, or the 3’end (by random choice) in SE mode, 
 or both ends in PE mode, and complementary reversing the 3’end read;
 * recording reads in an appropriate formats.
@@ -558,9 +557,10 @@ are adjusted correspondingly to those in real ChIP-Seq experiment.
 
 The model in its basic features was developed by [Dr T. Subkhankulova](https://www.linkedin.com/in/tatiana-subkhankulova-0876a240), ICL.
 
-## Fragments distribution and size selection
+## Fragment distribution and size selection
 The lognormal distribution of fragments by shearing chromatin based on sonication is confirmed by many researches. 
-The typical result is presented here: ![Frag Distrib Paper](https://github.com/fnaumenko/isChIP/blob/master/pict/Size_distr_analysis_lbl.png)<br>
+The typical result is presented here:<br> 
+![Frag Distrib Paper](https://github.com/fnaumenko/isChIP/blob/master/pict/Size_distr_analysis_lbl1.png)<br>
 In practice, the distribution parameters can vary widely. 
 Examples of initial and recovered distributions of experimental datasets from NCBI database are shown 
 in the ![Frag Distributions](https://github.com/fnaumenko/bioStat/tree/master/pict/FragPE_distrs.png).
@@ -576,11 +576,12 @@ as to provide the most frequently observed distribution with Mean of 200.<br>
 The size selection in **isChIP** is carried out according to the normal distribution. 
 By default, its *mean* is automatically adjusted so that it coincides with the Mean of an initial lognormal distribution. 
 This provides the least computational loss: 
-![Model Distribution](https://github.com/fnaumenko/isChIP/blob/master/pict/isChIP_fragDistr2_lbl.png)
+![Model Distribution](https://github.com/fnaumenko/isChIP/blob/master/pict/isChIP_fragDistr2_lbl.png)<br>
 When the user sets its own size selection parameters, one should bear in mind a decrease in output, 
 which is the greater, the further the size selection mean is from the lognormal Mean.<br>
 
-To facilitate the adjustment of distribution parameters use of a specialized Windows utility [**RandomTest**](https://github.com/fnaumenko/RandomTest-Win) is recommended. 
+To facilitate the adjustment of distribution parameters use of a specialized Windows utility 
+[**RandomTest**](https://github.com/fnaumenko/RandomTest-Win) is recommended. 
 It visualizes the initial lognormal as well as the final distribution of fragments after size selection, 
 and allows you to quickly fit the parameters for the desired distribution.
 
