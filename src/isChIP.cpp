@@ -73,8 +73,8 @@ Options::Option Options::List[] = {
 	//"protocol: ? - Illumina, ? - Ion Torent", NULL },
 	{ 'n',"cells",	fNone,	tINT,	gTREAT, 1, 1, 2e6, NULL, "number of nominal cells", NULL },
 	{ 'G',"ground",	fNone,	tPR_FL,	gTREAT, 0, 0, 0, (char*)&grounds,
-	"fore- and background levels:\nnumber of selected fragments inside | outside binding sites,\n\
-in percent of all | foreground.\nIn control mode background is ignored ", NULL },
+	"fore- and background levels:\nnumber of selected fragments inside/outside binding sites,\n\
+in percent of all/foreground.\nIn control mode background is ignored ", NULL },
 	{ 'E',"exo",	fOptnal,tINT,	gTREAT,	6,	0, 20, NULL,
 	"apply ChIP-exo protocol modification with specified exonuclease 'headroom' length\n\
 If the option is not specified, ChIP-exo is not applied", NULL },
