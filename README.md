@@ -233,7 +233,7 @@ corresponding to the peak density in the actually observed data through several 
 with a different number of nominal cells and zero foreground level. 
 Then the overall loss is calculated by the formula (1-n/N)*100%, where n is the number of nominal cells, N is the number of real cells in the experiment.
 
-In addition to the number of cells, the program’s run time heavily depends on the parameters of fragment size distribution and size selection  
+In addition to the number of cells, the program’s run time heavily depends on the parameters of fragment size distribution and size selection 
 (see [Fragment distribution and size selection](#fragments-distribution-and-size-selection)). 
 In general, with the default fragment size distribution, a number of nominal cells from 1 to 5 
 provides an output read’s mean density comparable with real ‘inputs’, 
@@ -569,7 +569,7 @@ Nevertheless, it is safe to assume the general normal character of size selectio
 ![Size Selection](https://github.com/fnaumenko/isChIP/blob/master/pict/Mag-Bind_label.png)<br>
 This is also confirmed by the real fragment frequency distributions in the 
 ![ Frag Distributions](https://github.com/fnaumenko/bioStat/tree/master/pict/FragPE_distrs.png). 
-In particular, experiments experiments in cases 7-13  were clearly carried out using some size selection technique.<br>
+In particular, experiments experiments in cases 9-13  were clearly carried out using some size selection technique.<br>
 
 On this basis, the default values of the lognormal *sigma* and *mean* are selected in **isChIP** so 
 as to provide the most frequently observed distribution with Mean of 200.<br>
