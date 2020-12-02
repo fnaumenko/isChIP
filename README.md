@@ -134,7 +134,7 @@ Reads:
   -r|--rd-len <int>     fixed length of output read, or minimum length of variable reads [50]
   -R|--rd-dist [<[int]:[int]>]
                         mean and stand dev of variable read normal distribution,
-			according to Ion Torrent/Roche454 protocol.
+						according to Ion Torrent/Roche454 protocol.
                         If the option is not specified, the read length is fixed [200:20]
   --rd-pos              add read position to its name
   --rd-Nlim <int>       maximum permitted number of ambiguous code N in read [OFF]
@@ -235,7 +235,7 @@ with a different number of nominal cells and zero foreground level.
 Then the overall loss is calculated by the formula (1-n/N)*100%, where n is the number of nominal cells, N is the number of real cells in the experiment.
 
 In addition to the number of cells, the program’s run time heavily depends on the parameters of fragment size distribution and size selection  
-(see the section [Fragments distribution and size selection](#fragments-distribution-and-size-selection)). 
+(see [Fragments distribution and size selection](#fragments-distribution-and-size-selection)). 
 In general, with the default fragment size distribution, a number of nominal cells from 1 to 5 
 provides an output read’s mean density comparable with real ‘inputs’, 
 and a value from 50 to 300 leads to generated simulated data, which is comparable with real tests in terms of density.<br>
@@ -266,7 +266,7 @@ in the direction away from the binding site.<br>
 This term is borrowed from the article 
 [Comprehensive Genome-wide Protein-DNA Interactions Detected at Single-Nucleotide Resolution](https://www.cell.com/fulltext/S0092-8674(11)01351-1), 
 as well as the default value for this parameter.<br>
-Comparison of the model data with the data from the article is shown in the ![figure](https://github.com/fnaumenko/isChIP/blob/master/pict/Exo-real-sim.png).<br>
+Comparison of the model data with the data from the article is shown in the ![figure](https://github.com/fnaumenko/isChIP/tree/master/pict/Exo-real-sim.png).<br>
 The peaks detection should be done with specialized ChIP-exo peak-callers (see, for example, 
 [Comparative analysis of ChIP-exo peak-callers: impact of data quality, read duplication and binding subtypes]( https://bmcbioinformatics.biomedcentral.com/articles/10.1186/s12859-020-3403-3).<br>
 Default (if applied): 6
@@ -306,7 +306,7 @@ Default: `ON`
 
 `-m|--smode <SE|PE>`<br>
 generates reads according to stated sequencing mode: `SE` – single end, `PE` – paired end 
-(see  the section [Model: brief description](#model-brief-description)).<br>
+(see [Model: brief description](#model-brief-description)).<br>
 Default: `SE`
 
 `-s|--bscore <int>`<br>
@@ -339,7 +339,7 @@ For the hg19 genome the difference is about 0.7%.
 `-P|--threads <int>`<br>
 specifies the number of threads. The workflow is separated between chromosomes, so the actual number of threads 
 can be reduced (if the number of actual treated chromosomes is less then assigned value). 
-The actual threads number is displayed in `PAR` and `DBG` verbose mode (`-V|--verbose` option).<br>
+The actual threads number is displayed in `PAR` and `DBG` verbose mode.<br>
 Range: 1-20<br>
 Default: 0
 
@@ -380,16 +380,16 @@ Default (if applied): auto:30
 `-r|--rd-len <int>`<br>
 specifies the fixed length of output read.<br>
 Also see `-R|--rd-dist` option.<br>
-Notably, **isChIP** does not perform a preliminary check of the read length relative to the mode of fragments distribution or the mean of size selection. 
-If the reads are too long, their number  at the output can be reduced up to 0 without any warnings.<br>
+Notably, **isChIP** does not perform a preliminary check of the read length relative to the parameters of fragments distribution or size selection. 
+If the reads are too long, their number at the output can be reduced up to 0 without any warnings.<br>
 Range: 20-500<br>
 Default: 50
 
 `-R|--rd-dist [<[int]:[int]>]`<br>
 specifies mean and standard deviation of variable read normal distribution, according to Ion Torrent/Roche454 protocol.<br>
-Although the real read distributions do not always fit into the normal pattern, 
-as can be seen in the ![figure](https://github.com/fnaumenko/bioStat/tree/master/pict/Read_distribs.png), 
-it was chosen as the best approximation.<br>
+As can be seen in the ![Read_distributions](https://github.com/fnaumenko/bioStat/tree/master/pict/Read_distrs.png), 
+the real read distributions do not always follow the normal pattern. 
+Nevertheless, it should be admitted as the best approximation.<br>
 If this option is applied, `-r|--rd-len` option specifies the minimum limit of read length (20 bp by default).<br>
 Enabling this option when MDA is activated leads to an additional increase in the run time.<br>
 Default (if applied): 200:30
@@ -536,7 +536,7 @@ The basic cycle corresponds to one nominal cell and consists of the next stages:
 * **'shearing of DNA'**: cutting the reference genome in fragments with size distribution fitted to lognormal distribution with given *mean* and *sigma*. 
 See [Fragments distribution and size selection](#fragments-distribution-and-size-selection);
 * **'ChIP'** (in *test* mode): extraction of the fragments overlapping with the *template* binding events;
-* **'loss fragments in ‘Library construction’'**: sampling of selected fragments according to user-defined sample (`-G|--ground` option), 
+* **'loss fragments in ‘Library construction'**: sampling of selected fragments according to user-defined sample (`-G|--ground` option), 
 *template* sample (defined as *template* features score) and automatically adjusted scaling sample (`--bg-all` and `--rd-lim` options);
 * **'amplification'** the selected fragments if required:<br>
 **MDA**:<br>
@@ -559,10 +559,11 @@ are adjusted correspondingly to those in real ChIP-Seq experiment.
 The model in its basic features was developed by [Dr T. Subkhankulova](https://www.linkedin.com/in/tatiana-subkhankulova-0876a240), ICL.
 
 ## Fragments distribution and size selection
-The lognormal distribution of fragments by shearing chromatin based on sonication is confirmed by many researches.<br>
+The lognormal distribution of fragments by shearing chromatin based on sonication is confirmed by many researches. 
+The typical result is presented here: ![Frag Distrib Paper](https://github.com/fnaumenko/isChIP/blob/master/pict/Size_distr_analysis_lbl.png)<br>
 In practice, the distribution parameters can vary widely. 
 Examples of initial and recovered distributions of experimental datasets from NCBI database are shown 
-in the ![figure](https://github.com/fnaumenko/bioStat/tree/master/pict/PEdistribs.png).
+in the ![Frag Distributions](https://github.com/fnaumenko/bioStat/tree/master/pict/FragPE_distrs.png).
 
 Fragment size selection can be performed in different techniques, e.g. by using magnetic beads or by manual cutting of the gel strip. 
 Nevertheless, it is safe to assume the general normal character of size selection:<br>
@@ -571,13 +572,13 @@ This is also confirmed by the real fragment frequency distributions in the first
 In particular, experiments SRR408580 (in green) and SRR965509 (in yellow) were clearly carried out using some size selection technique.<br>
 
 On this basis, the default values of the lognormal *sigma* and *mean* are selected in **isChIP** so 
-as to provide the most frequently observed distribution with mode of 200.<br>
+as to provide the most frequently observed distribution with Mean of 200.<br>
 The size selection in **isChIP** is carried out according to the normal distribution. 
-By default, its *mean* is automatically adjusted so that it coincides with the mode of an initial lognormal distribution. 
-This provides the least computational loss. Of course the size selection mean can be set by user. 
-But in this case, one should bear in mind a decrease in output, which is the greater, the further the size selection mean is from the lognormal mode 
-(yellow graph):<br>
-![Model Distribution](https://github.com/fnaumenko/isChIP/blob/master/pict/isChIP_fragDistr_label_0.png)
+By default, its *mean* is automatically adjusted so that it coincides with the Mean of an initial lognormal distribution. 
+This provides the least computational loss: 
+![Model Distribution](https://github.com/fnaumenko/isChIP/blob/master/pict/isChIP_fragDistr2_lbl.png)
+When the user sets its own size selection parameters, one should bear in mind a decrease in output, 
+which is the greater, the further the size selection mean is from the lognormal Mean.<br>
 
 To facilitate the adjustment of distribution parameters use of a specialized Windows utility [**RandomTest**](https://github.com/fnaumenko/RandomTest-Win) is recommended. 
 It visualizes the initial lognormal as well as the final distribution of fragments after size selection, 
