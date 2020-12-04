@@ -385,7 +385,7 @@ Default: 50
 
 `-R|--rd-dist [<[int]:[int]>]`<br>
 specifies mean and standard deviation of variable read normal distribution, according to Ion Torrent/Roche454 protocol.<br>
-As can be seen in the ![Read_distributions](https://github.com/fnaumenko/bioStat/tree/master/pict/Read_distrs.png), 
+As can be seen in the ![Read distributions](https://github.com/fnaumenko/bioStat/tree/master/pict/Read_distrs.png), 
 the real read distributions do not always follow the normal pattern. 
 Nevertheless, it should be admitted as the best approximation.<br>
 If this option is applied, `-r|--rd-len` option specifies the minimum limit of read length (20 bp by default).<br>
