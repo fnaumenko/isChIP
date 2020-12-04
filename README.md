@@ -214,6 +214,7 @@ See [Template](#template) and `--bg-all` and `–c|--chr` options.<br>
 One can obtain a genome library in UCSC: ftp://hgdownload.soe.ucsc.edu/goldenPath/ or in Ensemble: ftp://ftp.ensembl.org/pub/release-73/fasta storage. 
 In the second case please copy genomic sequences with the same masked type only, 
 e.g. unmasked (‘dna'), since program does not recognise mask’s types.<br>
+The program also generates and saves chromosome sizes files in this directory on first launch (see `--serv <name>`).<br>
 This option is required.
 
 `-n|--cells <int>`<br>
@@ -343,10 +344,9 @@ Default: 0
 
 `--serv <name>`<br>
 specifies the service directory – a place for keeping service files *chr\<x\>.region*, chromosome sizes file and sample files. 
-isChIP generate auxiliary chrom.sizes, chrN.regions and sample files. 
-Although it takes no more than 3-5 additional seconds, the program nevertheless saves them for reuse. 
+The program generates these files on first launch, and then reuses them. 
 By default, they are stored in the reference genome folder. 
-However, if this folder is closed for writing, or you want to store these files separately for your own reasons, that is the place.<br>
+But if this folder is closed for writing, or you want to store these files separately for your own reasons, that is the place.<br>
 Default: reference genome directory
 
 `--seed <int>`<br>
@@ -570,7 +570,6 @@ Nevertheless, it is safe to assume the general normal character of size selectio
 This is also confirmed by the real fragment frequency distributions in the 
 ![ Frag Distributions](https://github.com/fnaumenko/bioStat/tree/master/pict/FragPE_distrs.png). 
 In particular, experiments experiments in cases 9-13  were clearly carried out using some size selection technique.<br>
-
 On this basis, the default values of the lognormal *sigma* and *mean* are selected in **isChIP** so 
 as to provide the most frequently observed distribution with Mean of 200.<br>
 The size selection in **isChIP** is carried out according to the normal distribution. 
