@@ -218,7 +218,7 @@ protected:
 	//	@pl: true if plural form
 	virtual const string & ItemTitle(bool pl = false) const = 0;
 
-	// Prints LF if needs.
+	// Prints LF if needs and flash stdout
 	//	@printEOL: true if LF should be printed explicitly
 	void PrintEOL(bool printEOL);
 

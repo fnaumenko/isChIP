@@ -113,12 +113,12 @@ void effPartition::Subset::Print(BYTE sumW, BYTE valW, size_t prNumbsCnt) const
 		 << Chrom::Abbr;
 	if(prNumbsCnt && prNumbsCnt < numbIDs.size()) {
 		for(size_t i=0; i<prNumbsCnt; i++)
-			cout << BLANK << setw(valW) << setfill(BLANK) << Chrom::Mark(numbIDs[i]);
+			cout << SPACE << setw(valW) << setfill(SPACE) << Chrom::Mark(numbIDs[i]);
 		cout << "... (" << numbIDs.size() << ')';
 	}
 	else
 		for(numb_id_cit it=numbIDs.begin(); it!=numbIDs.end(); it++)
-			cout << BLANK << setw(valW) << setfill(BLANK) << Chrom::Mark(*it);
+			cout << SPACE << setw(valW) << setfill(SPACE) << Chrom::Mark(*it);
 	cout << LF;
 }
 

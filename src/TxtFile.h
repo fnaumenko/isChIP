@@ -2,7 +2,7 @@
 TxtFile.h (c) 2014 Fedor Naumenko (fedor.naumenko@gmail.com)
 All rights reserved.
 -------------------------
-Last modified: 1.12.2020
+Last modified: 4.12.2020
 -------------------------
 Provides read|write text file functionality
 ***********************************************************/
@@ -19,9 +19,9 @@ typedef short rowlen;	// type: length of row in TxtFile
 // 'TabFilePar' keeps basic parameters for TabFile
 struct TabFilePar 
 {
-	static const BYTE BGLnLen;	// BedGraph line length in purpose of reserving container size
-	static const BYTE WvsLnLen;	// WIF variable step line length in purpose of reserving container size
-	static const BYTE WfsLnLen;	// WIF fixed step line length in purpose of reserving container size
+	static const BYTE BGLnLen;	// predefined BedGraph line length in purpose of reserving container size
+	static const BYTE WvsLnLen;	// predefined WIG variable step line length in purpose of reserving container size
+	static const BYTE WfsLnLen;	// predefined WIG fixed step line length in purpose of reserving container size
 
 	const BYTE	MinFieldCnt;	// minimum number of feilds in file line; checked during initialization
 	const BYTE	MaxFieldCnt;	// maximum possible number of feilds in data line; checked by a call
@@ -31,7 +31,7 @@ struct TabFilePar
 
 	inline TabFilePar() : MinFieldCnt(0), MaxFieldCnt(0), LineLen(0), Comment(cNULL), LineSpec(NULL) {}
 
-	inline TabFilePar(BYTE minTabCnt, BYTE maxTabCnt, BYTE lineLen = 0, char comm = HASH, const char* lSpec = NULL) :
+	TabFilePar(BYTE minTabCnt, BYTE maxTabCnt, BYTE lineLen = 0, char comm = HASH, const char* lSpec = NULL) :
 		MinFieldCnt(minTabCnt),
 		MaxFieldCnt(maxTabCnt<minTabCnt ? minTabCnt : maxTabCnt),
 		LineLen(lineLen),
@@ -224,7 +224,7 @@ protected:
 	// Sets error code and throws exception if it is allowed.
 	//	@errCode: error code
 	//	@senderSpec: sender specificator (string added to file name)
-	void SetError(Err::eCode errCode, const string& senderSpec = strEmpty) const;
+	void SetError(Err::eCode errCode, const string& senderSpec = strEmpty, const string& spec = strEmpty) const;
 
 	// Returns true if instance is a clone.
 	inline bool IsClone() const { return IsFlag(CLONE); }
@@ -294,9 +294,7 @@ private:
 
 	// Gets number of line.
 	//	@lineInd: index of line in a record
-	inline ULONG LineNumber	(BYTE lineInd) const { 
-		return (_recCnt-1)*_recLineCnt + lineInd + 1;
-	}
+	inline ULONG LineNumber	(BYTE lineInd) const { return (_recCnt-1)*_recLineCnt + lineInd + 1; }
 
 protected:
 	// Constructs an TxtInFile instance: allocates buffers, opens an assigned file.
@@ -398,6 +396,7 @@ class TxtOutFile : public TxtFile
 #endif
 public:
 	static bool	Zipped;				// true if filed should be zippped
+
 private:
 	char	_delim;			// field delimiter in line
 	// === line write buffer
@@ -589,7 +588,7 @@ class TabFile : public TxtInFile
 	void Release() { if (_fieldPos) delete[] _fieldPos; _fieldPos = NULL; }
 
 protected:
-	// Initializes instance by a new type
+	// Initializes instance by a new type, correct estimated number of lines if it's predefined
 	void ResetType(FT::eType type);
 
 public:
@@ -691,18 +690,19 @@ class DataInFile
 {
 protected:
 	int	_cID = vUNDEF;			// current readed chrom ID; int for BAM PI compatibility
-	ULONG _estItemCnt = vUNDEF;	// estimated number of items
 
 public:
 	// Returns estimated number of items
-	inline ULONG EstItemCount() const { return _estItemCnt; }
+	virtual ULONG EstItemCount() const = 0;
 	
-	//Returns true if next chrom starts reading
-	virtual bool IsNextChrom() const = 0;
-	
-	// Sets next chrom as currently reading and returns its ID
-	virtual chrid SetNextChrom() = 0;
-	
+	// Sets the next chromosome as the current one if they are different
+	//	@shift: shift constant chrom mark position to the right
+	//	@return: true, if new chromosome is set as current one
+	virtual bool GetNextChrom(BYTE shift = 0) = 0;
+
+	// Returns current chrom
+	inline chrid GetChrom() const { return _cID; }
+
 	// Retrieves next item's record
 	virtual bool GetNextItem() = 0;
 	
@@ -748,13 +748,6 @@ class BedInFile : public DataInFile, public TabFile
 	BYTE _scoreInd;		// index of 'score' filed (used for FBED and all WIGs)
 	BYTE _chrMarkPos;	// chrom's mark position in line (BED, BedGraph) or definition line (wiggle_0)
 	 
-	// Gets pointer to the chrom mark in current line without check up
-	//	for WIG only
-	inline char* ChromMark() { return StrField(0) + _chrMarkPos; }
-
-	// Gets const pointer to the chrom mark in current line without check up
-	inline const char* ChromMark() const { return StrField(0) + _chrMarkPos; }
-	
 public:
 	// Creates new instance for reading and open file
 	//	@fName: name of file
@@ -766,22 +759,19 @@ public:
 		_scoreInd(scoreNumb ? scoreNumb-1 : 4),
 		_chrMarkPos(BYTE(strlen(Chrom::Abbr))),
 		TabFile(fName, type, eAction::READ, abortInval, prName)
-	{ _estItemCnt = EstCount(); }
+	{}
 
-	// Returns true if next chrom starts reading
-	inline bool IsNextChrom() const { 
-		return Chrom::ValidateID(ChromMark()) != _cID;
-		//return strcmp(_cMark, ChromMark()); 
-	}
+	// Gets pointer to the chrom mark in current line without check up
+	//	for WIG only
+	inline const char* ChromMark() const { return StrField(0) + _chrMarkPos; }
 
-	//// Sets count of items (public for WIG)
-	//inline void SetItemCnt() { _estItemCnt = ULONG(Length() / RecordLength()); }
+	// Returns estimated number of items
+	inline ULONG EstItemCount() const { return  EstCount(); }
 
-	// Sets next chrom as currently reading and returns its ID
-	inline chrid SetNextChrom() { 
-		return _cID = Chrom::ValidateID(ChromMark());
-		//return Chrom::ValidateID(strcpy(_cMark, ChromMark())); 
-	}
+	// Sets the next chromosome as the current one if they are different
+	//	@shift: shift constant chrom mark position to the right
+	//	@return: true, if new chromosome is set as current one
+	bool GetNextChrom(BYTE shift = 0);
 
 	// Retrieves next item's record
 	inline bool GetNextItem()	{ return GetNextLine(); }
@@ -812,27 +802,17 @@ public:
 
 	// Returns true if item contains the strand sign
 	//	Is invoked in the Feature constructor only.
-	inline bool IsItemHoldStrand() const { 
-		if (StrandFieldInd) {
-			const char s = *StrField(StrandFieldInd);
-			return s == '+' || s == '-';
-		}
-		return false; }
+	bool IsItemHoldStrand() const;
 
 	// Returns current item strand: true - positive, false - negative
 	inline bool ItemStrand() const	{ return *StrFieldValid(StrandFieldInd) == PLUS; }
 
 #ifdef _WIG
-	// Reset WIG type, score index and chrom mark position offset
-	void ResetWigType(FT::eType type, BYTE scoreInd, BYTE cMarkPosOffset)
-	{
-		ResetType(type);
-		_scoreInd = scoreInd;
-		_chrMarkPos += cMarkPosOffset;
-	}
+	// Reset WIG type, score index, chrom mark position offset and estimated number of lines
+	void ResetWigType(FT::eType type, BYTE scoreInd, BYTE cMarkPosOffset);
 
 	// Inserts '0' after chrom in current line and returns point to the next decl parameter if exists
-	const char* SplitLineOnChrom();
+	//const char* SplitLineOnChrom();
 #endif //_WIG
 };
 
@@ -848,10 +828,13 @@ using namespace BamTools;
 // 'BamInFile' represents unified PI for reading bam file
 class BamInFile : public DataInFile
 {
+	// BamTools: http://pezmaster31.github.io/bamtools/struct_bam_tools_1_1_bam_alignment.html
+
 	bool	_prFName;
 	BamReader		_reader;
 	BamAlignment	_read;
 	mutable string	_rName;
+	ULONG _estItemCnt = vUNDEF;	// estimated number of items
 
 public:
 	// Creates new instance for reading and open file
@@ -859,22 +842,22 @@ public:
 	//	@prName: true if file name should be printed in exception's message
 	BamInFile(const string& fName, bool prName);
 
-	inline ~BamInFile() { if(_estItemCnt != -1) _reader.Close(); }	// IsClose() is absent in 2010 version
+	// Returns estimated number of items
+	inline ULONG EstItemCount() const { return _estItemCnt; }
 
 	// returns chroms count
 	inline chrid ChromCount() const { return _reader.GetReferenceCount(); }
 
-	// Returns true if next chrom starts reading
-	inline bool IsNextChrom() const { return _read.RefID != _cID && _read.RefID != -1; }
-
-	// Sets next chrom as currently reading and returns its ID
-	inline chrid SetNextChrom()	{ return _cID = Chrom::ValidateID(_read.RefID); }
+	// Sets the next chromosome as the current one if they are different
+	//	@shift: shift constant chrom mark position to the right
+	//	@return: true, if new chromosome is set as current one
+	bool GetNextChrom(BYTE shift = 0);
 
 	// Retrieves next item's record
-	inline bool GetNextItem()	{ 
-	return _reader.GetNextAlignmentCore(_read)
-		&& _read.Position >= 0;	// additional check because of bag: GetNextAlignment() doesn't
-								// return false after last read while reading the whole genome
+	bool GetNextItem()	{ 
+		return _reader.GetNextAlignmentCore(_read)
+			&& _read.Position >= 0;	// additional check because of bag: GetNextAlignment() doesn't
+									// return false after last read while reading the whole genome
 	}
 
 	// Returns current item start position

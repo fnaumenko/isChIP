@@ -2,7 +2,7 @@
 common.cpp (c) 2014 Fedor Naumenko (fedor.naumenko@gmail.com)
 All rights reserved.
 -------------------------
-Last modified: 26.11.2020
+Last modified: 3.12.2020
 -------------------------
 Provides common functionality
 ***********************************************************/
@@ -46,7 +46,7 @@ string	sPercent(float val, BYTE precision, BYTE fieldWith, bool parentheses)
 	if( val && val < threshold ) {
 		if(fieldWith) {
 			int blankCnt = fieldWith - precision - 4;
-			if(blankCnt > 0)	sout << setw(blankCnt) << BLANK;
+			if(blankCnt > 0)	sout << setw(blankCnt) << SPACE;
 		}
 		sout << '<' << threshold;
 	}
@@ -238,38 +238,42 @@ void PrintSubLine(char* buff, const char* str, const char* subStr, const char** 
 //	@opt: option
 //	@isword: true if option is a word, false if option is a char
 //	@val: value of option
-//	@isValLastToken: true if value is the last token
+//	@nextItem: next token after opt and val, or NULL
 //	@argInd: the current index in argc; increased by 1 if value is accepted
 //	Return: 0 if success, -1 if not found, 1 if option or value is wrong
-int Options::Option::SetVal(const char* opt, bool isword, char* val, bool isValLastToken, int *argInd)
+int Options::Option::SetVal(const char* opt, bool isword, char* val, char* nextItem, int& argInd)
 {
 	if(isword) { 
 		if(!Str || strcmp(Str, opt))	return -1;	// not this option
 		Sign.MarkAs(eFlag::fWord);
 	}
-	else 
-		if(Char != *opt)	return -1;
+	else if(Char != *opt)	return -1;		// not this option
 
 	if(Sign.Is(eFlag::fTrimmed))	return PrintAmbigOpt(opt, isword, "duplicated");
-	// check value existence
-	bool noVal = val==NULL
-		|| (isValLastToken && (!ValRequired() || IsValEsc()))	// value is apps parameter
-		|| (*val==HPH && !isdigit(val[1]));		// true if no value, including negative
-	if(noVal) {
-		if(ValRequired() && !IsValEsc())
-			return PrintWrong(NULL, sValue + " required");
-		val = NULL;								// value is optional
+
+	//== check actual value
+	const bool isValOblig = ValRequired() && !IsValEsc();
+	const bool noRealVal =		// true if no actual value is submitted
+		val == NULL								// no value
+		|| (!nextItem && !isValOblig)			// nextItem is apps parameter
+		|| (*val=='-' && !isdigit(val[1]));		// val is not negative value but next option
+	
+	if(noRealVal) {
+		if(isValOblig)	return PrintWrong(NULL, sValue + " required");
+		val = NULL;				// in case of 'false' value
 	}
 	else
-		if(ValRequired())	(*argInd)++;
-		else if(val) {
-			cerr << Warning, PrintWrong(NULL, sValue + " prohibited: ignored");
-			(*argInd)++;
-		}
+		if(ValRequired())	argInd++;
+		else 
+			if(val && nextItem && *nextItem == HPH) {	// next token after val is option
+				cerr << Warning, PrintWrong(NULL, sValue + " prohibited: " + string(val) + " ignored");
+				argInd++;
+			}
 
+	//== set actual value
 	Sign.MarkAs(eFlag::fTrimmed);
 	switch(ValType) {
-		case tNAME: SVal = noVal ? NULL : val;	return 0;
+		case tNAME: SVal = noRealVal ? NULL : val;	return 0;
 		case tENUM:	return SetEnum(val);
 		case tCOMB:	return SetComb(val);
 		case tCHAR:	if(NVal != NO_VAL && strlen(val) == 1)
@@ -277,7 +281,7 @@ int Options::Option::SetVal(const char* opt, bool isword, char* val, bool isValL
 					break;
 		case tINT:
 		case tFLOAT:
-		case tLONG:	return noVal?
+		case tLONG:	return noRealVal?
 						0 :				// NVal is default val
 						IsValidFloat(val, ValType==tINT) ?
 							SetTriedFloat(float(atof(val)), MinNVal, MaxNVal) :
@@ -285,7 +289,7 @@ int Options::Option::SetVal(const char* opt, bool isword, char* val, bool isValL
 		case tHELP:	return PrintUsage(true);
 		case tSUMM:	return PrintSummary(false);
 		case tVERS:	return PrintVersion();
-		default:	return SetPair(noVal ? NULL : val, ValType==tPR_INT);	// tPR_INT, tPR_FL
+		default:	return SetPair(noRealVal ? NULL : val, ValType==tPR_INT);	// tPR_INT, tPR_FL
 	}
 	return PrintWrong(val);
 }
@@ -342,7 +346,7 @@ int Options::Option::SetTriedFloat(float val, float min, float max)
 {
 	if(!val && Sign.Is(eFlag::fAllow0))	min = 0;
 	if(val < min || val > max) {
-		cerr << optTitle << NameToStr(true) << SepSCl << sValue << setprecision(4) << BLANK << val
+		cerr << optTitle << NameToStr(true) << SepSCl << sValue << setprecision(4) << SPACE << val
 			 << " is out of available range [" << min << HPH << max << "]\n";
 		return 1;
 	}
@@ -434,15 +438,15 @@ void Options::Option::Print(bool descr) const
 	bool	fixValType = ValType==tENUM || ValType==tCOMB;
 	char*	buffer;
 
-	if(descr)	cout << BLANK, len++;	// full way: double blank first
+	if(descr)	cout << SPACE, len++;	// full way: double blank first
 	// *** signature
 	{
 	string name = NameToStr(false);
-	cout << BLANK << name;
+	cout << SPACE << name;
 	len += short(1 + name.length());
 	}
 	// *** option value type
-	cout << BLANK, len++;
+	cout << SPACE, len++;
 	if(IsValEsc())	cout << '[', len++;
 	if(fixValType)	len += PrintEnumVals();		// print enum values
 	else if((buffer = const_cast<char*>(TypeNames[ValType])) != NULL)
@@ -466,7 +470,7 @@ void Options::Option::Print(bool descr) const
 	PrintSubLine(buffer, Descr, strchr(Descr, LF), fixValType ? (const char**)SVal : NULL, &cnt);
 	delete [] buffer;
 	if(AddDescr) {
-		if(Descr[len-1] != LF)	cout << BLANK;
+		if(Descr[len-1] != LF)	cout << SPACE;
 		cout << AddDescr;
 	}
 	if(Sign.Is(fOblig))	cout << " Required";
@@ -538,7 +542,7 @@ int Options::Option::GetEnumInd (const char* val)
 int Options::Option::PrintWrong(const char* val, const string& msg) const
 {
 	cerr << ToStr(false) << SepSCl << (msg == strEmpty ? "wrong " + sValue : msg);
-	if(val) cerr << BLANK << val;
+	if(val) cerr << SPACE << val;
 	cerr << LF;
 	return 1;
 }
@@ -558,7 +562,7 @@ void Options::Usage::Print(Option* opts) const
 	if(Opt != NO_DEF)	// output option value
 		opts[Opt].Print(false);
 	else if(Par) {		// output parameter
-		if(IsParOblig)	cout << BLANK << Par;
+		if(IsParOblig)	cout << SPACE << Par;
 		else			PRINT_IN_PRTHS(Par);
 		if(ParDescr)	// output parameter description
 			cout << "\n  " << Par << ": " << ParDescr;
@@ -578,23 +582,24 @@ int Options::CheckObligs()
 // Set option [with value] or splitted short options
 //	@opt: option without HYPHEN
 //	@val: value of option
-//	@isValLastToken: true if value is the last token
+//	@nextItem: next token after opt and val, or NULL
 //	@argInd: the current index in argc; increased by 1 if value is accepted
 //	return: 0 if success, 1 otherwise
-int Options::SetOption (char* opt, char* val, bool isValLastToken, int* argInd)
+int Options::SetOption (char* opt, char* val, char* nextItem, int& argInd)
 {
 	int i, res = 0;
 	const bool isWord = opt[0]==HPH;
 	char* sopt = opt += isWord;	// sliced option
 
-	do {						// parse possibly sliced short options
+	// parse possibly united short options
+	do {
 		for(i=0; i<OptCount; i++)
-			if( (res = List[i].SetVal(sopt, isWord, val, isValLastToken, argInd)) > 0 )
-				return res; 
+			if ((res = List[i].SetVal(sopt, isWord, val, nextItem, argInd)) > 0)
+				return res;
 			else if(!res)	break;
 		if(res<0)	return PrintAmbigOpt(sopt, isWord, "unknown", opt);
 	}
-	while(!isWord && *++sopt);	// next slice of short option
+	while(!isWord && *++sopt);	// next slice of united short options
 	return 0;
 }
 
@@ -615,7 +620,7 @@ bool Options::Find(const char* opt)
 //	return: always 1
 int Options::PrintAmbigOpt(const char* opt, bool isWord, const char* headMsg, const char* inOpt)
 {
-	cerr << headMsg << BLANK << optTitle << HPH;
+	cerr << headMsg << SPACE << optTitle << HPH;
 	if(isWord)	cerr << HPH << opt;
 	else {
 		cerr << *opt;
@@ -685,7 +690,7 @@ string const Options::CommandLine(int argc, char* argv[])
 	ostringstream oss;
 	int i;
 	for (i = 0; i < argc-1; i++)
-		oss << argv[i] << BLANK;
+		oss << argv[i] << SPACE;
 	oss << argv[i];
 	return oss.str();
 }
@@ -714,9 +719,9 @@ int Options::Parse(int argc, char* argv[], const char* obligPar)
 		}
 		if( SetOption(
 			token + 1,								// option without HYPHEN
-			i+1 < argc ? nextToken : NULL,			// option's value
-			i+2 == argc,							// true if next item is prog parameter
-			&i										// current index in argc
+			i + 1 <= argc ? nextToken : NULL,		// option's value
+			i + 2 > argc ? NULL : argv[i + 2],		// next item or NULL
+			i										// current index in argc
 			) )
 		{	res = -1; break; }
 	}
@@ -787,19 +792,19 @@ const char* Err::FailOpenOFile = "could not open output file";
 // Initializes _outText by cstring contained message kind of "<sender>: <txt> <specTxt>".
 void Err::set_message(const char* sender, const char *txt, const char *specTxt)
 {
-	size_t senderLen = sender!=NULL ? strlen(sender) : 0;
+	size_t senderLen = sender != NULL ? strlen(sender) : 0;
 	size_t outLen = senderLen + strlen(txt) + strlen(SepSCl) + 2;
-	if(specTxt)	outLen += strlen(specTxt) + 1;
+	if (specTxt)	outLen += strlen(specTxt) + 1;
 	_outText = new char[outLen];		// will be free in destructor
 	memset(_outText, cNULL, outLen);
-	if(sender) {
-		*_outText = BLANK;
-		if(senderLen)	strcat(_outText, sender);
+	if (sender) {
+		//*_outText = SPACE;
+		if (senderLen)	strcat(_outText, sender);
 		strcat(_outText, SepCl);
 	}
 	strcat(_outText, txt);
-	if(specTxt) {
-		strcat(_outText, sBLANK);
+	if (specTxt) {
+		if (*specTxt != ':')		strcat(_outText, sBLANK);
 		strcat(_outText, specTxt);
 	}
 }
@@ -812,7 +817,7 @@ void Err::set_message(const char* sender, const char *txt, const char *specTxt)
 //{
 //	string res = fName;
 //	if(fName != strEmpty)	res += SepSCl;
-//	return res + issName + BLANK + NSTR(issNumb);
+//	return res + issName + SPACE + NSTR(issNumb);
 //}
 
 // Gets message "no @fileName.@ext[.gz] files in this directory"
@@ -825,7 +830,7 @@ const string Err::MsgNoFiles (const string & fileName, const string ext)
 Err::Err(const Err & src)
 {
 	_code = src._code;
-	int size = strlen(src._outText) + 1;
+	int size = strlen(src.what()) + 1;
 	_outText = new char[size];
 	strcpy(_outText, src._outText);
 	//_specifyText = src._specifyText;
@@ -835,10 +840,10 @@ Err::Err(const Err & src)
 //	@throwExc: if true then throws exception, otherwise outputs Err message
 //	@eol: if true then carriage should be return while output Err message
 void Err::Throw(bool throwExc, bool eol) {
-	if(throwExc)	
-		throw *this;
+	if (throwExc)
+		throw* this;
 	else {
-		dout << _outText;
+		dout << what();
 		if(eol)		dout << LF;
 		fflush(stdout);
 	}
@@ -847,8 +852,8 @@ void Err::Throw(bool throwExc, bool eol) {
 // Outputs warning with prefix "WARNING" and additional text, if it is setting.
 void Err::Warning(string const& addText) {
 	dout << _msgs[ErrWARNING];
-	if(_outText[0] != ':') dout << SepCl;	// check if sender is not recorded
-	dout << _outText;
+	if(*what() != ':') dout << SepCl;	// check if sender is not recorded
+	dout << what();
 	if( !addText.empty() )	
 		dout << addText;
 	dout << LF;
@@ -1188,7 +1193,7 @@ clock_t	Timer::_StartCPUClock;
 void Timer::Stop(BYTE offset, bool isEOL)
 {
 	if(_enabled) {
-		if(offset)	dout << setw(offset) << BLANK;
+		if(offset)	dout << setw(offset) << SPACE;
 		PrintTime(GetElapsed(), false, false, isEOL);
 	}
 }

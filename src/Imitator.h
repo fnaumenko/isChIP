@@ -409,7 +409,7 @@ class Imitator
 
 		// Prints empty margin
 		//	@width: margin width
-		static inline void PrintMarg(BYTE width) { cout << setw(width) << BLANK; }
+		static inline void PrintMarg(BYTE width) { cout << setw(width) << SPACE; }
 
 		BYTE CountW;		// width of 'number of Reads' field
 		BYTE SampleWRP;		// 'sample' field right padding: space to the right of the value (0|1)

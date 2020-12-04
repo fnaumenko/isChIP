@@ -277,7 +277,7 @@ void PrintParams(const ChromSizesExt& cSizes, const char* templName,
 	cout << SignPar << "Reference" << SepDCl << "genome" << SepCl << cSizes.RefPath();
 	cout << SepCm << Chrom::TitleName() << COLON;
 	if (!Chrom::NoCustom())
-		cout << BLANK << Chrom::Mark(Chrom::CustomID());
+		cout << SPACE << Chrom::Mark(Chrom::CustomID());
 	else 
 		cSizes.PrintTreatedChroms();
 	cout << LF;

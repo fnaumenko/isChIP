@@ -234,7 +234,7 @@ BedROutFile::BedROutFile(const string& fName, const ReadName& rName)
 		ReadName::MaxLength() + 		// length of Read name
 		2 * CHRLEN_CAPAC +				// start + stop positions
 		Output::MapQual.length() +		// score
-		1 + 2 + 6));					// strand + HASH + BLANK + 5 TABs + LF
+		1 + 2 + 6));					// strand + HASH + SPACE + 5 TABs + LF
 }
 
 // Sets treated chrom's name to line write buffer

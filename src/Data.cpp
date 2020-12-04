@@ -2,7 +2,7 @@
 Data.cpp (c) 2014 Fedor Naumenko (fedor.naumenko@gmail.com)
 All rights reserved.
 -------------------------
-Last modified: 1.12.2020
+Last modified: 3.12.2020
 -------------------------
 Provides common data functionality
 ***********************************************************/
@@ -63,7 +63,7 @@ void Obj::Spotter::PrintLineAlarm(eCase ecase) const
 {
 	if( _alarm ) {
 		if( !_alarmPrinted )	{ dout << LF;	_alarmPrinted = true; }
-		Err(_Msgs[ecase].LineAlarm + BLANK + ItemTitle() + SepCl, _file->LineNumbToStr().c_str()).
+		Err(_Msgs[ecase].LineAlarm + SPACE + ItemTitle() + SepCl, _file->LineNumbToStr().c_str()).
 			Warning(Message(ecase));
 	}
 }
@@ -80,12 +80,12 @@ void Obj::Spotter::PrintCaseStat(eCase ecase, chrlen allCnt, bool total) const
 	if(total)	dout << "NOTICE: ";
 	else		dout << TAB;
 	dout<< cnt
-		<< sPercent(ULLONG(cnt), ULLONG(allCnt), 4, 0, true) << BLANK
-		<< _Msgs[ecase].StatInfo << BLANK
+		<< sPercent(ULLONG(cnt), ULLONG(allCnt), 4, 0, true) << SPACE
+		<< _Msgs[ecase].StatInfo << SPACE
 		<< ItemTitle(cnt);
 
 	//if(unsortedItems)		dout << " arisen after sorting";
-	if(totalAlarm)	dout << BLANK << totalAlarm;
+	if(totalAlarm)	dout << SPACE << totalAlarm;
 	dout << SepSCl << Message(ecase);
 	if(totalAlarm)	dout << '!';
 	dout << LF;
@@ -102,7 +102,7 @@ void Obj::Spotter::PrintItems(chrid cID, bool prAcceptItems, long estItemCnt) co
 	if (prAcceptItems || cID != Chrom::UnID)	dout << estItemCnt;
 	if (prAcceptItems)							dout << ACCEPTED;
 	if(_info > Obj::eInfo::NM) {
-		dout << BLANK << ItemTitle(estItemCnt);
+		dout << SPACE << ItemTitle(estItemCnt);
 		if( cID != Chrom::UnID )	dout << Per << Chrom::ShortName(cID);
 	}
 }
@@ -182,7 +182,7 @@ void Obj::Spotter::Print(chrid cID, const char* title, const p_ulong& itemCnts)
 			dout << SepCl;
 			if (cID == Chrom::UnID) {
 				dout << itemCnts.first;
-				if (!noSpotters)	dout << BLANK << sTotal;
+				if (!noSpotters)	dout << SPACE << sTotal;
 			}
 			if (printAccept)		dout << SepCm;
 			PrintItems(cID, printAccept, itemCnts.second);
@@ -207,11 +207,11 @@ void Obj::Spotter::Print(chrid cID, const char* title, const p_ulong& itemCnts)
 		}
 		// print total remained entities
 		dout<< TAB << sTotal << ACCEPTED << SepCl << itemCnts.second
-			<< sPercent(ULLONG(itemCnts.second), ULLONG(itemCnts.first), 4, 0, true) << BLANK
+			<< sPercent(ULLONG(itemCnts.second), ULLONG(itemCnts.first), 4, 0, true) << SPACE
 			<< ItemTitle(itemCnts.second);
 		hasPrinted = true;
 	}
-	fflush(stdout);
+	//fflush(stdout);
 }
 
 #ifdef _BIOCC
@@ -252,8 +252,8 @@ void Obj::Init	(const char* title, const string& fName, Spotter& spotter,
 	Timer	timer(isInfo);
 
 	if(isInfo) {	// print title and file name
-		if(title)	dout << title << BLANK;
-		dout << fName; fflush(stdout); _EOLneeded = true;
+		if(title)	dout << title << SPACE;
+		dout << fName;	fflush(stdout);	_EOLneeded = true;
 	}
 	try {
 #ifdef _BAM
@@ -292,16 +292,17 @@ void Obj::Init	(const char* title, const string& fName, Spotter& spotter,
 		}
 		spotter.Print(Chrom::CustomID(), NULL, items);
 	}
-	if(timer.IsEnabled())	dout << BLANK;
+	if(timer.IsEnabled())	dout << SPACE;
 	timer.Stop(true, false);
 	PrintEOL(false);
 	}
 
-// Prints LF if needs.
+// Prints LF if needs and flash stdout
 //	@printEOL: true if LF should be printed explicitly
 void Obj::PrintEOL(bool printEOL)
 {
 	if(printEOL || _EOLneeded)	dout << LF;
+	fflush(stdout);
 	_EOLneeded = false;
 }
 
@@ -347,8 +348,8 @@ p_ulong BaseItems::InitBed(Spotter& spotter, const ChromSizes& cSizes)
 	ReserveItems(estItemCnt);
 
 	for (; file.GetNextItem(); ++cntLines) {
-		if( file.IsNextChrom() ) {
-			chrid nextCID = file.SetNextChrom();
+		if( file.GetNextChrom() ) {
+			chrid nextCID = file.GetChrom();
 			if (nextCID == Chrom::UnID)		continue;
 			if(Chrom::NoCustom()) {					// are all chroms specified?
 				// Last item index is equal of total number of recorded items.
@@ -396,6 +397,7 @@ p_ulong BaseItems::InitBed(Spotter& spotter, const ChromSizes& cSizes)
 			AddChrom(cID, firstInd, spotter);
 		SortIfNecessary(spotter, estItemCnt);
 	}
+	//cout << " est/fact: " << float(estItemCnt) / ItemsCount() << SPACE;
 	return make_pair(cntLines, cntAccLines);
 }
 
@@ -404,7 +406,7 @@ p_ulong BaseItems::InitBed(Spotter& spotter, const ChromSizes& cSizes)
 void BaseItems::PrintItemCount(bool prLF) const
 {
 	size_t iCnt = ItemsCount();
-	dout << iCnt << BLANK << ItemTitle(iCnt>1);
+	dout << iCnt << SPACE << ItemTitle(iCnt>1);
 	if(ChromCount()==1)		dout << Per << Chrom::TitleName(CID(cBegin()));
 	if(prLF)	dout << LF;
 }
@@ -422,7 +424,7 @@ void BaseItems::Print(const char* title, chrlen estItemCnt) const
 {
 	chrlen i, iCnt;
 	cout << "BaseItems's ";
-	if( estItemCnt )	cout << title << BLANK << estItemCnt << BLANK;
+	if( estItemCnt )	cout << title << SPACE << estItemCnt << SPACE;
 	cout << ItemTitle() << "s:\n";
 	for(cIter it=cBegin(); it!=cEnd(); it++) {
 		iCnt = estItemCnt ?
@@ -935,7 +937,7 @@ ChromSizes::ChromSizes(const char* gName, const char* sPath, bool prMsg, bool ch
 					AddValue(*it, ChromSize(FaFile(RefName(*it) + _ext).ChromLength()));
 				if (IsServAvail())	Write(cName);
 				if (prMsg)
-					dout << FS::ShortFileName(cName) << BLANK
+					dout << FS::ShortFileName(cName) << SPACE
 					<< (IsServAvail() ? "created" : "generated") << LF,
 					fflush(stdout);			// std::endl is unacceptable
 			}
@@ -1033,7 +1035,7 @@ chrid ChromSizesExt::SetTreated(bool statedAll, const BaseItems* const templ)
 
 inline void PrintChromID(char sep, chrid cID) { dout << sep << Chrom::Mark(cID); }
 
-// Prints threated chroms short names, starting with BLANK
+// Prints threated chroms short names, starting with SPACE
 void ChromSizesExt::PrintTreatedChroms() const
 {
 	if (TreatedCount() == ChromCount()) {
@@ -1065,13 +1067,13 @@ void ChromSizesExt::PrintTreatedChroms() const
 				}
 				else 
 					sep = prFirst ? 
-						BLANK :								// single
+						SPACE :								// single
 						(unprintedCnt >= 1 ? '-' : COMMA);	// last
 				PrintChromID(sep, CID(it));
 				break;
 			}
 			if (prFirst)
-				PrintChromID(BLANK, cIDlast = CID(it));
+				PrintChromID(SPACE, cIDlast = CID(it));
 			else 
 				if (CID(it) - cID > 1) {
 					if (cID != cIDlast)
@@ -1643,6 +1645,7 @@ void LenFreq::Print(dostream& s, eType type, bool callNorm, bool prDistr)
 				s << it->first << TAB << it->second << LF;
 			}
 		}
+		fflush(stdout);		// when called from a package
 }
 
 /************************ LenFreq: end ************************/

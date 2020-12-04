@@ -246,7 +246,7 @@ void Imitator::GenomeSizes::IncrSizes(const RefSeq& seq)
 */
 
 //#define cFIL_VAL	'*'
-#define cFIL_VAL BLANK
+#define cFIL_VAL SPACE
 const char* Imitator::ChromView::tGapsExcl = "g_excl";
 const char* Imitator::ChromView::tTime = "mm:ss";
 BYTE Imitator::ChromView::GapsWexcl;
@@ -381,7 +381,7 @@ void Imitator::ChromView::Init(ULONG maxCnt, float sample, float maxDens)
 void Imitator::ChromView::Print(ULONG maxCnt)
 {
 	cout << Gr::Title(GrType) << SepCl;
-	cout << "MaxCnt = " << setw(6) << setfill(BLANK) << maxCnt << SepCm;
+	cout << "MaxCnt = " << setw(6) << setfill(SPACE) << maxCnt << SepCm;
 	cout << "CountW = " << int(CountW) << SepCm;
 	cout << "SampleW = " << int(SampleW) << SepCm;
 	cout << "DensPr = " << int(DensPr) << SepCm;
@@ -467,7 +467,7 @@ void Imitator::ChromCutter::PrintChrom (
 	if(excLimit) {
 		cout << " exceeded limit";
 		if(!Verbose(eVerb::PAR))
-			cout << " of " << Seq::ReadsLimit() << BLANK << FT::ItemTitle(FT::eType::ABED, true);
+			cout << " of " << Seq::ReadsLimit() << SPACE << FT::ItemTitle(FT::eType::ABED, true);
 	}
 	cout << endl;
 	
@@ -697,8 +697,8 @@ const Features	*Imitator::Templ = NULL;
 void Imitator::PrintChromName(chrid cID, GM::eMode gm, bool print)
 {
 	if( Verbose(eVerb::RT) && print) {
-		if(MakeControl) 	cout << *GM::Title(gm) << BLANK;
-		cout << setw(ChromView::ChromNameW()) << left << setfill(BLANK)
+		if(MakeControl) 	cout << *GM::Title(gm) << SPACE;
+		cout << setw(ChromView::ChromNameW()) << left << setfill(SPACE)
 			 << (cID==Chrom::UnID ? sTotal : Chrom::AbbrName(cID, true)) + COLON;
 		fflush(stdout);		// including reset to default right and setfill
 	}
@@ -730,7 +730,7 @@ void Imitator::PrintHeader(bool header)
 		if(Verbose(eVerb::PAR))	cout << LF;
 		if(MakeControl)
 			w += PrFittedStr(sBLANK, 2);	// "t " or "c "
-		cout << setfill(BLANK) << left;
+		cout << setfill(SPACE) << left;
 		w += PrFittedStr(Chrom::Short.c_str(), ChromView::ChromNameW());
 		if(TestMode)
 			w += ChrView[Gr::FG].PrintHeader(true);
@@ -747,7 +747,7 @@ void Imitator::PrintTotal()
 	cout << sTotal << " recorded "; Output::PrintItemTitle();
 	if(MakeControl)		// add "test:"
 		cout << SepCl << GM::Title(GM::eMode::Test) << COLON;
-	cout << BLANK;
+	cout << SPACE;
 	Output::PrintItemCount( GlobContext[int(GM::eMode::Test)].RecCnt() );
 	if (MakeControl) {	// add "control:"
 		cout << SepCm << GM::Title(GM::eMode::Control) << SepCl;

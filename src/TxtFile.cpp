@@ -2,7 +2,7 @@
 TxtFile.cpp (c) 2014 Fedor Naumenko (fedor.naumenko@gmail.com)
 All rights reserved.
 -------------------------
-Last modified: 1.12.2020
+Last modified: 4.12.2020
 -------------------------
 Provides read|write text file functionality
 ***********************************************************/
@@ -13,8 +13,8 @@ Provides read|write text file functionality
 #include <fstream>
 #endif
 
-const BYTE TabFilePar::BGLnLen = Chrom::MaxAbbrNameLength + 2 * 9;
-const BYTE TabFilePar::WvsLnLen = 9 + 3 + 2 + 20;	// pos + TAB + val + LF + correction
+const BYTE TabFilePar::BGLnLen = Chrom::MaxAbbrNameLength + 2 * 9;	// 2*pos + correction
+const BYTE TabFilePar::WvsLnLen = 9 + 3 + 2 + 25;	// pos + val + TAB + LF + correction
 const BYTE TabFilePar::WfsLnLen = 5 + 1;			// val + LF
 
 /************************ class FT ************************/
@@ -37,7 +37,8 @@ const FT::fTypeAttr FT::TypeAttrs[] = {
 	{ wigExt,	Interval,	Intervals,	Mutex::eType::NONE,	 TabFilePar(1, 1, TabFilePar::WfsLnLen, HASH) },// wiggle_0 fixed step
 	{ "fq",		strEmpty,	strEmpty,	Mutex::eType::WR_FQ, TabFilePar() },
 	{ "fa",		strEmpty,	strEmpty,	Mutex::eType::NONE,	 TabFilePar() },
-	{ "chrom.sizes",strEmpty,strEmpty,	Mutex::eType::NONE,	 TabFilePar(2, 2, 0, cNULL, Chrom::Abbr) },
+	// for the chrom.size, do not specify TabFilePar::LineSpec to get an exception if the file is invalid
+	{ "chrom.sizes",strEmpty,strEmpty,	Mutex::eType::NONE,	 TabFilePar(2, 2, 0, cNULL) },//, Chrom::Abbr) },
 	{ "region",	strEmpty,	strEmpty,	Mutex::eType::NONE,	 TabFilePar(2, 2) },
 	{ "dist",	strEmpty,	strEmpty,	Mutex::eType::NONE,	 TabFilePar(1, 2) },	// required 2 data fields, but set min=1 to skip optional text line
 #ifdef _ISCHIP
@@ -81,11 +82,11 @@ const char* modes[] = { "r", "w", "a+" };
 const char* bmodes[] = { "rb", "wb" };
 
 // Sets error code and throws exception if it is allowed.
-void TxtFile::SetError(Err::eCode errCode, const string& senderSpec) const
+void TxtFile::SetError(Err::eCode errCode, const string& senderSpec, const string& spec) const
 {
 	_errCode = errCode;
 	if (IsFlag(ABORTING)) {
-		Err(errCode, (CondFileName() + senderSpec).c_str()).Throw();
+		Err(errCode, (CondFileName() + senderSpec).c_str(), spec.length() ? spec.c_str() : NULL).Throw();
 	}
 }
 
@@ -706,7 +707,7 @@ void TabFile::Init(FT::eType type)
 	if (FT::FileParams(type).LineLen)
 		_estLineCnt = ULONG(Length() / FT::FileParams(type).LineLen);
 	else
-		if (GetNextLine(false)) {
+		if (GetNextLine(true)) {
 			_estLineCnt = ULONG(Length() / RecordLength());
 			RollBackLine();
 		}
@@ -714,7 +715,7 @@ void TabFile::Init(FT::eType type)
 	//cout << "  file estLen: " << _estLineCnt << LF;
 }
 
-// Initializes instance by a new type
+// Initializes instance by a new type, correct estimated number of lines if it's predefined
 void TabFile::ResetType(FT::eType type)
 {
 	if(FT::FileParams(_fType).MaxFieldCnt < FT::FileParams(type).MaxFieldCnt)
@@ -730,7 +731,7 @@ void TabFile::ResetType(FT::eType type)
 //	ULONG	cnt = 0;
 //	
 //	for(USHORT pos=0; line = GetNextRecord(); pos=0) {
-//		while( *(line+pos)==BLANK )	pos++;		// skip blanks at the beginning of line
+//		while( *(line+pos)==SPACE )	pos++;		// skip blanks at the beginning of line
 //		if (*(line+pos) != comment)	break;		// skip comment line
 //	}
 //	if(line) {
@@ -773,7 +774,7 @@ const char*	TabFile::GetNextLine(bool checkTab)
 		USHORT	currPos = 0;	// a bit faster than using _currPos in heep
 	
 		// skip blanks at the beginning of line
-		while (line[currPos] == BLANK)	currPos++;
+		while (line[currPos] == SPACE)	currPos++;
 		// skip comment line
 		if (*(line + currPos) == par.Comment)
 			return GetNextLine(checkTab);
@@ -790,7 +791,9 @@ const char*	TabFile::GetNextLine(bool checkTab)
 					if (i >= par.MinFieldCnt)				// less than number of optional fields
 						break;
 					else {									// less than number of required fields
-						SetError(Err::TF_FIELD, LineNumbToStr());
+						SetError(Err::TF_FIELD,
+							LineNumbToStr(),
+							": " + to_string(i) + " against " + to_string(par.MinFieldCnt) + "; wrong format?");
 						return _currLine = NULL;
 					}
 		line[RecordLength() - 1] = cNULL;	// replace '\'n by 0
@@ -812,14 +815,44 @@ const char*	TabFile::GetNextLine(bool checkTab)
 
 /************************ BedInFile ************************/
 
-#ifdef _WIG
-// Inserts '0' after chrom in current line and returns point to the next decl parameter if exists
-const char* BedInFile::SplitLineOnChrom()
+// Sets the next chromosome as the current one if they are different
+//	@shift: shift constant chrom mark position to the right
+//	@return: true, if new chromosome is set as current one
+bool BedInFile::GetNextChrom(BYTE shift)
 {
-	char* line = strchr(ChromMark(), BLANK);
-	if (!line)	return NULL;
-	*line = cNULL; return line + 1;
+	chrid cid = Chrom::ValidateID(ChromMark() + shift);
+	if (cid != _cID) { _cID = cid; return true; }
+	return false;
 }
+
+// Returns true if item contains the strand sign
+//	Is invoked in the Feature constructor only.
+bool BedInFile::IsItemHoldStrand() const
+{
+	if (StrandFieldInd) {
+		const char s = *StrField(StrandFieldInd);
+		return s == '+' || s == '-';
+	}
+	return false;
+}
+
+#ifdef _WIG
+// Reset WIG type, score index, chrom mark position offset and estimated number of lines
+void BedInFile::ResetWigType(FT::eType type, BYTE scoreInd, BYTE cMarkPosOffset)
+{
+	ResetType(type);
+	_scoreInd = scoreInd;
+	_chrMarkPos += cMarkPosOffset;
+}
+
+
+// Inserts '0' after chrom in current line and returns point to the next decl parameter if exists
+//const char* BedInFile::SplitLineOnChrom()
+//{
+//	char* line = strchr(ChromMark(), SPACE);
+//	if (!line)	return NULL;
+//	*line = cNULL; return line + 1;
+//}
 #endif //_WIG
 
 /************************ end of BedInFile ************************/
@@ -832,7 +865,21 @@ const char* BedInFile::SplitLineOnChrom()
 BamInFile::BamInFile(const string& fName, bool prName) : _prFName(prName)
 {
 	_reader.Open(fName);
-	_estItemCnt = _reader.GetReferenceCount() * 10000;	// very crude estimation
+	// this version provides an _estItemCnt spread max/min ~ 18
+	float x = float(_reader.GetReferenceCount()) * 200000;
+	_estItemCnt = log(x*x) * 100000;
+	// this version provides an _estItemCnt spread max/min ~ 28
+	//_estItemCnt = _reader.GetReferenceCount() * 200000;
+}
+
+// Sets the next chromosome as the current one if they are different
+//	@shift: shift constant chrom mark position to the right
+//	@return: true, if new chromosome is set as current one
+bool BamInFile::GetNextChrom(BYTE shift)
+{
+	chrid cid = Chrom::ValidateID(_read.RefID);
+	if (cid != _cID && cid != -1) { _cID = cid; return true; }
+	return false;
 }
 
 /************************ end of BamInFile ************************/

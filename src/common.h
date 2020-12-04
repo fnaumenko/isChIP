@@ -2,7 +2,7 @@
 common.h (c) 2014 Fedor Naumenko (fedor.naumenko@gmail.com)
 All rights reserved.
 -------------------------
-Last modified: 26.11.2020
+Last modified: 3.12.2020
 -------------------------
 Provides common functionality
 ***********************************************************/
@@ -111,7 +111,7 @@ typedef ULONG		genlen;		// type length of genome
 #define cN		'N'
 #define HPH		'-'
 #define USCORE	'_'
-#define BLANK	' '
+#define SPACE	' '
 #define sBLANK	" "
 #define QUOT	'\''
 #define DOT		'.'
@@ -441,10 +441,10 @@ private:
 		//	@opt: option
 		//	@isword: true if option is a word, false if option is a char
 		//	@val: value of option
-		//	@isValLastToken: true if value is the last token
+		//	@nextItem: next token after opt and val, or NULL
 		//	@argInd: the current index in argc; increased by 1 if value is accepted
 		//	return: 0 if success, -1 if not found, 1 if option or value is wrong
-		int	SetVal(const char* opt, bool isword, char* val, bool isValLastToken, int* argInd);
+		int	SetVal(const char* opt, bool isword, char* val, char* nextItem, int& argInd);
 
 		// Check option for obligatory.
 		//	return: -1 if option is obligatory but not stated, otherwise 1
@@ -556,10 +556,10 @@ private:
 	// Set option [with value] or splitted short options
 	//	@opt: option without HYPHEN
 	//	@val: option's value
-	//	@isValLastToken: true if value is the last token
+	//	@nextItem: next token after opt and val, or NULL
 	//	@argInd: the current index in argc; increased by 1 if value is accepted
 	//	Return: 0 - success, 1 - false
-	static int	SetOption(char* opt, char* val, bool isValLastToken, int *argInd);
+	static int	SetOption(char* opt, char* val, char* nextItem, int& argInd);
 
 	// Returns true if long option opt is defined
 	static bool Find(const char* opt);
@@ -691,7 +691,8 @@ private:
 	static const char* _msgs[];
 	enum eCode	_code;			// error code
 	char * _outText;			// output message
-	
+	//unique_ptr<char[]> _outText;			// output message
+
 	// Initializes _outText by C string contained message kind of
 	// "<sender>: <text> <specifyText>".
 	void set_message(const char* sender, const char* text, const char* specifyText=NULL);
@@ -762,11 +763,12 @@ public:
 	// copy constructor
 	Err(const Err& src);
 
-	inline ~Err() { if( _outText) delete [] _outText; }
+	~Err() {
+		if (_outText) {	delete[] _outText; _outText = NULL;
+		}
+	}
 
-	inline const char* what() const /*throw()*/ { return _outText;	}
-
-	//inline bool IsEmpty() const	{ return strlen(_outText)==0; }
+	inline const char* what() const /*throw()*/ { return _outText; }
 
 	inline eCode Code() const		{ return _code; }
 
@@ -1425,7 +1427,7 @@ public:
 	static string AbbrName(chrid cid, bool numbSep = false);
 
 	// Gets short name 'chrom X'
-	inline static string ShortName(chrid cid)	{ return Short + BLANK + Mark(cid); }
+	inline static string ShortName(chrid cid)	{ return Short + SPACE + Mark(cid); }
 
 	// Gets title name 'chromosome X' or 'chromosomes'
 	//	@cid: chromosome's ID or UnID if plural
