@@ -134,7 +134,7 @@ Reads:
   -r|--rd-len <int>     fixed length of output read, or minimum length of variable reads [50]
   -R|--rd-dist [<[int]:[int]>]
                         mean and stand dev of variable read normal distribution,
-						according to Ion Torrent/Roche454 protocol.
+			according to Ion Torrent/Roche454 protocol.
                         If the option is not specified, the read length is fixed [200:20]
   --rd-pos              add read position to its name
   --rd-Nlim <int>       maximum permitted number of ambiguous code N in read [OFF]
