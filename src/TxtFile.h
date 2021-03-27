@@ -2,7 +2,7 @@
 TxtFile.h (c) 2014 Fedor Naumenko (fedor.naumenko@gmail.com)
 All rights reserved.
 -------------------------
-Last modified: 4.12.2020
+Last modified: 23.03.2021
 -------------------------
 Provides read|write text file functionality
 ***********************************************************/
@@ -179,14 +179,12 @@ protected:
 	inline UINT EOLSize() const	{ 	return 2 - (_flag & F_CR); }
 
 	// Returns true if LF size is not defined
-	//inline bool IsEOLundef() const { return (_flag & EOLCHECKED) == 0; }
 	inline bool IsEOLundef() const { return !bool(_flag & EOLCHECKED); }
 
 	// Establishes the presence of CR symbol at the end of line.
 	//	@c: if c is CR then the second bit is raised to 1, the first turn down to 0,
 	//	so the value return by EOLSZ mask is 2, otherwise remains in state 1
 	inline void SetEOL(char c)	{ if(c==CR)	 RaiseFlag(F_CR); RaiseFlag(EOLCHECKED); }
-	//inline void SetEOL(char c)	{ if(c==CR)	_flag ^= EOLSZ;	RaiseFlag(EOLCHECKED); }
 
 private:
 	// Initializes instance variables, opens a file, sets a proper error code.
@@ -322,7 +320,7 @@ protected:
 	// Reads N-controlled record
 	//	@counterN: counter of 'N'
 	//	return: pointer to line or NULL if no more lines
-	const char*	GetNextRecord(chrlen* const counterN);
+	const char*	GetNextRecord(chrlen& counterN);
 
 	// Reads tab-controlled record
 	//	@tabPos: TAB's positions array that should be filled
@@ -330,7 +328,7 @@ protected:
 	//	return: pointer to line or NULL if no more lines
 	char*	GetNextRecord(short* const tabPos, const BYTE tabCnt);
 
-#if defined _FRAGDIST || defined _FQSTATN
+#if defined _CALLDIST || defined _FQSTATN
 	// Gets next record
 	//	return: point to the next record in a buffer.
 	inline const char* NextRecord() const { return _buff + _currRecPos; }
@@ -639,7 +637,7 @@ public:
 	//	@cntLines: returned estimated count of lines.
 	//	It works properly only if lines are sorted by ascending, f.e. in sorted bed-files.
 	//	return: current line
-	const char*	GetFirstLine(ULONG *cntLines);
+	//const char*	GetFirstLine(ULONG& cntLines);
 
 	// Reads next line and set it as current.
 	//	@checkTabs: it true then check the number of incoming fields (tabs)
@@ -647,7 +645,7 @@ public:
 	const char* GetNextLine(bool checkTabs = true);
 
 	// Reads string by field's index from current line without check up.
-	inline char* StrField(BYTE fInd) { return _currLine + _fieldPos[fInd]; }
+	//inline char* StrField(BYTE fInd) { return _currLine + _fieldPos[fInd]; }
 
 	// Reads string by field's index from current line without check up.
 	inline const char* StrField	(BYTE fInd)	const {	return _currLine + _fieldPos[fInd]; }
@@ -967,7 +965,7 @@ public:
 	inline Regions() {}
 	
 	// Single region constructor
-	inline Regions(chrlen start, chrlen end) { _regions.push_back(Region(start, end)); }
+	inline Regions(chrlen start, chrlen end) { _regions.emplace_back(start, end); }
 
 	// Copying constructor
 	//inline Regions(const Regions& rgns) { _regions = rgns._regions;	}
@@ -1159,7 +1157,7 @@ public:
 
 #endif	// _WIGREG
 #endif	// no _FQSTATN
-#if defined _FRAGDIST || defined _FQSTATN
+#if defined _CALLDIST || defined _FQSTATN
 
 // 'FqFile' implements reading/writing file in FQ format.
 class FqFile : public TxtInFile
@@ -1184,7 +1182,7 @@ public:
 	inline ULONG Count() const { return RecordCount(); }
 };
 
-#endif	// _FRAGDIST || _FQSTATN
+#endif	// _CALLDIST || _FQSTATN
 
 #if !defined _WIGREG && !defined _FQSTATN
 
@@ -1305,7 +1303,7 @@ public:
 		Score(score),
 		InitCID(cid)
 	{}
-#elif defined _FRAGDIST
+#elif defined _CALLDIST
 
 	Read(const Region& rgn, ULLONG numb, bool strand)
 		: Pos(rgn.Start), Len(readlen(rgn.Length())), Numb(numb), Strand(strand) {}

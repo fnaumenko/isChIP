@@ -2,7 +2,7 @@
 Data.cpp (c) 2014 Fedor Naumenko (fedor.naumenko@gmail.com)
 All rights reserved.
 -------------------------
-Last modified: 3.12.2020
+Last modified: 27.03.2021
 -------------------------
 Provides common data functionality
 ***********************************************************/
@@ -256,26 +256,23 @@ void Obj::Init	(const char* title, const string& fName, Spotter& spotter,
 		dout << fName;	fflush(stdout);	_EOLneeded = true;
 	}
 	try {
+		unique_ptr<DataInFile> file;
 #ifdef _BAM
 		if( spotter.FileType() == FT::eType::BAM) {
-			BamInFile file(fName, !isInfo);
-			spotter.SetFile(file);
+			file.reset(new BamInFile(fName, !isInfo));
 			Chrom::SetRelativeID();		// irrespective of initial setting
-#ifdef _FRAGDIST
-			Chrom::Validate(file.GetHeaderText());	// validate all chroms ID
+#ifdef _CALLDIST
+			Chrom::Validate(((BamInFile&)(*file)).GetHeaderText());	// validate all chroms ID
 #else
 			if(!cSizes.IsFilled())	
-				cSizes.Init(file.GetHeaderText());
-#endif
-			items = InitDerived(spotter, cSizes);
+				cSizes.Init(((BamInFile&)(*file)).GetHeaderText());
+#endif	//_CALLDIST
 		}
 		else 
 #endif	//_BAM
-		{
-			BedInFile file(fName, spotter.FileType(), scoreNumb, abortInval, !isInfo);
-			spotter.SetFile(file);
-			items = InitDerived(spotter, cSizes);
-		}
+			file.reset(new BedInFile(fName, spotter.FileType(), scoreNumb, abortInval, !isInfo));
+		spotter.SetFile(*file);
+		items = InitDerived(spotter, cSizes);
 	}
 	catch(Err& err) {	// intercept an exception to manage _isBad and aborting if invalid
 		err.Throw(abortInval, !(_isBad = _EOLneeded = true));
@@ -478,19 +475,19 @@ bool Reads::AddItem(const Region& rgn, Spotter& spotter)
 		else spotter.TreatCase(spotter.DIFFSZ);
 
 	_strand = spotter.File().ItemStrand();
-#if defined _VALIGN || defined _FRAGDIST
+#if defined _VALIGN || defined _CALLDIST
 	DataInFile& file = spotter.File();
-#ifdef _FRAGDIST
+#ifdef _CALLDIST
 	if (_isPEonly && !file.ItemIsPaired())
-		Err("only paired-end reads are acceptable", file.CondFileName()).Throw();
+		Err("only paired-end reads are acceptable to call fragments distribution", file.CondFileName()).Throw();
 #endif
 	const char* name = file.ItemName();
 	const char* numb = strrchr(name, DOT);	// "number" position, beginning with last DOT
 	if(!numb || !isdigit(*(++numb)))
 		Err("Cannot find number in the read's name. It should be '<name>.<number>'",
 			file.LineNumbToStr().c_str()).Throw();
-#ifdef _FRAGDIST
-	_items.push_back( Read(rgn, atol(numb), _strand) );
+#ifdef _CALLDIST
+	_items.emplace_back(rgn, atol(numb), _strand);
 #else	// _VALIGN
 	//const char* cid = strstr(name, Chrom::Abbr);
 	const char* cid = strchr(name, Read::NmDelimiter);
@@ -506,11 +503,12 @@ bool Reads::AddItem(const Region& rgn, Spotter& spotter)
 	if(score <= _minScore)	return false;				// pass Read with under-threshhold score
 	if(score > _maxScore)	_maxScore = score;
 
-	_items.push_back( Read(rgn, atol(numb), _strand, atol(pos), score, Chrom::IDbyAbbrName(cid)) );
-#endif	// _FRAGDIST #else
+	_items.emplace_back(rgn, atol(numb), _strand, atol(pos), score, Chrom::IDbyAbbrName(cid));
+#endif	// _CALLDIST #else
 #else	
-	_items.push_back( Read(rgn) );
-#endif	//  _VALIGN || _FRAGDIST
+	//_items.push_back( Read(rgn) );
+	_items.emplace_back(rgn);
+#endif	//  _VALIGN || _CALLDIST
 	return true;
 }
 
@@ -548,7 +546,7 @@ bool Reads::AddItem(const Region& rgn, Spotter& spotter)
 Reads::Reads(const char* title, const string& fName, ChromSizes& cSizes, eInfo info,
 	bool printfName, bool abortInval, bool alarm, bool PEonly, bool acceptDupl, int minScore)
 	: _readLen(0), _strand(true)
-#if defined _VALIGN || defined _FRAGDIST
+#if defined _VALIGN || defined _CALLDIST
 	, _isPEonly(PEonly), _paired(false)
 #endif
 #ifdef _VALIGN
@@ -628,7 +626,7 @@ bool Features::AddItem(const Region& rgn, Spotter& spotter)
 #endif
 #ifdef _ISCHIP
 	float score = spotter.File().ItemValue();
-	_items.push_back(Featr(rgn, score));
+	_items.emplace_back(rgn, score);
 	if(score > _maxScore)	_maxScore = score;
 #else
 	_items.push_back(rgn);
@@ -1240,76 +1238,253 @@ void DefRegions::Print() const
 #endif	// _READDENS || _BIOCC
 
 
-#if defined _ISCHIP || defined _FRAGDIST
+#if defined _ISCHIP || defined _CALLDIST
 /************************ LenFreq ************************/
-
-static const string sDDistrib = "Distribution";
-const char* LenFreq::sTitle[] = { "Normal ", "Lognormal " };
-const string LenFreq::sSpec[] = {
-	strEmpty,
-	sDDistrib + " is smooth",
-	sDDistrib + " is modulated",
-	sDDistrib + " is even",
-	sDDistrib + " is cropped to the left",
-	sDDistrib + " is heavily cropped to the left",
-	sDDistrib + " looks slightly defective on the left",
-	sDDistrib + " looks defective on the left"
-};
-const string LenFreq::sParams = "parameters";
-const string LenFreq::sInaccurateParams = sParams + " may be inaccurate";
-
-//	Add element and return average
-float LenFreq::SMA::Push(ULONG x)
-{
-	_sum += x;
-	_q.push(x);
-	const fraglen size = fraglen(_q.size());
-	if (size < _size)	return 0;
-	if (size > _size)	_sum -= _q.front(),	_q.pop();
-	return (float)_sum / _size;
-}
-
-//	Add element and return median
-ULONG LenFreq::SMM::Push(citer it)
-{
-	_v.clear();
-	for (fraglen i = 0; i < _size; i++)	_v.push_back(it++->second);
-	sort(_v.begin(), _v.end());
-	return _v[_middle];
-}
-
-//#define _DEBUG
 
 const float SDPI = float(sqrt(3.1415926 * 2));		// square of doubled Pi
 
-// array of lambdas treated like a regular function and assigned to a function pointer
-double (*Distrs[])(float, float, fraglen, float) = {
-	[](float mean, float sigma, fraglen x, float dsigma2) ->
-		double { return exp(-pow(((x - mean) / sigma), 2) / 2) / (sigma * SDPI); },		// normal
-	[](float mean, float sigma, fraglen x, float dsigma2) ->
-		double { return exp(-pow((log(x) - mean), 2) / dsigma2) / (sigma * SDPI * x); }	// lognormal
+const float LenFreq::DParams::UndefPCC = -1;
+const float LenFreq::lghRatio = float(log(LenFreq::hRatio));	// log of ratio of the summit height to height of the measuring point
+const string LenFreq::sParams = "parameters";
+const string LenFreq::sInaccurate = " may be inaccurate";
+const char* LenFreq::sTitle[] = { "Norm", "Lognorm", "Gamma" };
+const string LenFreq::sSpec[] = {
+	strEmpty,
+	"is smooth",
+	"is modulated",
+	"is even",
+	"is cropped to the left",
+	"is heavily cropped to the left",
+	"looks slightly defective on the left",
+	"looks defective on the left"
 };
 
-// Returns estimated slicing base
-//	@pointCnt: returned count of actually scanning points
-//	return: estimated half base, or 0 in case of degenerate distribution
-fraglen LenFreq::GetBase(chrlen& pointCnt)
+// Add last value and pop the first one (QUEUE functionality)
+void LenFreq::MW::PushVal(ULONG x)
+{
+	move(begin() + 1, end(), begin());
+	*(end() - 1) = x;
+}
+
+//	Add value and return average
+float LenFreq::MA::Push(ULONG x)
+{
+	_sum += x - *begin();
+	PushVal(x);
+	return float(_sum) / size();
+}
+
+//	Add value and return median
+ULONG LenFreq::MM::GetMedian(ULONG x)
+{
+	PushVal(x);
+	copy(begin(), end(), _ss.begin());
+	sort(_ss.begin(), _ss.end());
+	return _ss[size() >> 1];		// mid-size
+}
+
+// Constructor
+//	@base: moving window half-length;
+//	if 0 then empty instance (initialized by empty Push() method)
+LenFreq::MM::MM(fraglen base) : MW(base)
+{
+	if (base)	_ss.insert(_ss.begin(), size(), 0);
+	else		_push = &MM::GetMedianStub;
+}
+
+// Returns two constant terms of the distrib equation of type, supplied as an index
+//	@params: distrib params: mean/alpha and sigma/beta
+//	@return: two initialized constant terms of the distrib equation
+//	Implemeted as an array of lambdas treated like a regular function and assigned to a function pointer.
+fpair (*InitEqTerms[])(const fpair& params) = {
+	[](const fpair& params) -> fpair { return fpair			// normal
+		(params.second * SDPI, 0); },
+	[](const fpair& params)	-> fpair { return fpair			// lognormal
+		(params.second * SDPI, 2 * params.second * params.second); },
+	[](const fpair& params)	-> fpair { return fpair			// gamma
+		(params.first - 1, float(pow(params.second, params.first))); }
+};
+
+// Returns y-coordinate by x-coordinate of the distrib of type, supplied as an index
+//	@params: distrib params: mean/alpha and sigma/beta
+//	@x: x-coordinate
+//	@eqTerms: two constant terms of the distrib equation
+double (*Distrs[])(const fpair& params, fraglen x, const fpair& eqTerms) = {
+	[](const fpair& params, fraglen x, const fpair& eqTerms) ->	double { return 		// normal
+		exp(-pow(((x - params.first) / params.second), 2) / 2) / eqTerms.first; },
+	[](const fpair& params, fraglen x, const fpair& eqTerms) ->	double { return 		// lognormal
+		exp(-pow((log(x) - params.first), 2) / eqTerms.second) / (eqTerms.first * x); },
+	[](const fpair& params, fraglen x, const fpair& eqTerms) ->	double { return 		// gamma
+		pow(x, eqTerms.first) * exp(-(x/params.second)) / eqTerms.second; }
+};
+
+// Returns distribution mode
+//	@params: distrib params: mean/alpha and sigma/beta
+float(*GetMode[])(const fpair& params) = {
+	[](const fpair& params) -> float { return 0; },	// normal
+	[](const fpair& params) -> float				// lognormal
+		{ return exp(params.first - params.second * params.second); },
+	[](const fpair& params) -> float				// gamma 
+		{ return (params.first - 1) * params.second; }
+};
+
+// Returns distribution Mean (expected value)
+//	@params: distrib params: mean/alpha and sigma/beta
+float(*GetMean[])(const fpair& params) = {
+	[](const fpair& params) -> float { return 0; },	// normal
+	[](const fpair& params) -> float 				// lognormal
+		{ return exp(params.first + params.second * params.second / 2); },
+	[](const fpair& params) -> float 				// gamma 
+		{ return params.first * params.second; }
+};
+
+// Calls distribution parameters by consecutive distribution type as index
+//	@keypts: key pointers: X-coord of highest point, X-coord of right middle hight point
+//	@params: returned mean(alpha) & sigma(beta)
+//	Defined as a member of the class only to use the private short 'lghRatio'
+void (*LenFreq::SetParams[])(const fpair& keypts, fpair& params) = {
+	[](const fpair& keypts, fpair& params) {	//** normal
+		params.first = keypts.first;												// mean
+		params.second = sqrt(pow(keypts.second - params.first, 2) / (lghRatio * 2));// sigma
+	},
+	[](const fpair& keypts, fpair& params) {	//** lognormal
+		const float lgM = log(keypts.first);	// logarifm of Mode
+		const float lgH = log(keypts.second);	// logarifm of middle height
+		
+		params.first = (lgM * (lghRatio + lgM - lgH) + (lgH * lgH - lgM * lgM) / 2) / lghRatio;
+		params.second = sqrt(params.first - lgM);
+	},
+	[](const fpair& keypts, fpair& params) {	//** gamma
+		params.second =
+			(keypts.second - keypts.first * (1 + log(keypts.second / keypts.first))) / lghRatio;
+		params.first = (keypts.first / params.second) + 1;
+	}
+};
+
+// Prints restored distr parameters
+//	@s: print stream
+//	@maxPCC: masimum PCC to print relative PCC percentage
+void LenFreq::AllDParams::QualDParams::Print(dostream& s, float maxPCC) const
+{
+	if (IsSet()) {
+		s << Title << TAB;
+		if (dParams.IsUndefPcc())
+			s << "parameters cannot be called";
+		else {
+			s << setprecision(5) << dParams.PCC << TAB;
+			if (maxPCC) {		// print percent to max PCC
+				if (maxPCC != dParams.PCC)	s << setprecision(3) << 100 * ((dParams.PCC - maxPCC) / maxPCC) << '%';
+				s << TAB;
+			}
+			s << setprecision(4) << dParams.Params.first << TAB << dParams.Params.second << TAB;
+			const dtype type = GetDType(Type);
+			float Mode = GetMode[type](dParams.Params);
+			if (Mode)		// for normal Mode is equal to 0
+				s << Mode << TAB << GetMean[type](dParams.Params);
+		}
+		s << LF;
+	}
+}
+
+// Returns true if distribution parameters set in sorted instance
+bool LenFreq::AllDParams::IsSetInSorted(eCType ctype) const
+{
+	for (const QualDParams& dp : _allParams)
+		if (dp.Type == ctype)
+			return dp.IsSet();
+	return false;
+}
+
+// Returns number of distribution parameters set in sorted instance
+int LenFreq::AllDParams::SetCntInSorted() const
+{
+	int cnt = 0;
+	for (const QualDParams& dp : _allParams)
+		cnt += dp.IsSet();
+	return cnt;
+}
+
+// Sorts in PCC descending order
+void LenFreq::AllDParams::Sort()
+{
+	if (!_sorted) {
+		sort(_allParams.begin(), _allParams.end(),
+			[](const QualDParams& dp1, const QualDParams& dp2) -> bool
+			{ return dp1.dParams > dp2.dParams; }
+		);
+		_sorted = true;
+	}
+}
+
+// Default constructor
+LenFreq::AllDParams::AllDParams()
+{
+	int i = 0;
+	for (QualDParams& dp : _allParams)
+		dp.SetTitle(i++);
+	//for (int i = 0; i < DTCNT; i++)
+	//	_allParams[i].SetTitle(i);
+}
+
+// Returns parameters of distribution with the highest (best) PCC
+//	@dParams: returned PCC, mean(alpha) & sigma(beta)
+//	return: consecutive distribution type with the highest (best) PCC
+LenFreq::dtype LenFreq::AllDParams::GetBestParams(DParams& dParams)
+{
+	Sort();
+	const QualDParams& QualDParams = _allParams[0];
+	dParams = QualDParams.dParams;
+	return GetDType(QualDParams.Type);
+}
+
+// Prints sorted distibutions params
+//	@s: print stream
+void LenFreq::AllDParams::Print(dostream& s)
+{
+	const char* N[] = { sMean, sSigma };
+	const char* G[] = { "alpha", "beta" };
+	const char* P[] = { "p1", "p2" };
+	const char* a[] = { "*", "**" };
+	const bool notSingle = SetCntInSorted() > 1;
+	float maxPCC = 0;
+	bool note = false;
+
+	Sort();			// should be sorted before by PrintTraits(), but just in case
+	s << LF << "\t PCC\t";
+	if (notSingle)
+		s << "relPCC\t",
+		maxPCC = _allParams[0].dParams.PCC;
+	if (!IsSetInSorted(eCType::GAMMA))	s << N[0] << TAB << N[1];
+	else if (note = notSingle)			s << P[0] << a[0] << TAB << P[1] << a[1];
+	else								s << G[0] << TAB << G[1];
+	s << "\tmode\texp.val\n";
+	for (const QualDParams& params : _allParams)	params.Print(s, maxPCC);
+	if (note) {
+		s << LF;
+		for (int i = 0; i < 2; i++)
+			s << setw(3) << a[i] << P[i] << " - " << N[i] << ", or "
+			<< G[i] << " for " << LenFreq::sTitle[GetDType(eCType::GAMMA)] << LF;
+	}
+}
+
+// Returns estimated moving window half-length ("base")
+//	return: estimated base, or 0 in case of degenerate distribution
+fraglen LenFreq::GetBase()
 {
 	const int CutoffFrac = 100;	// fraction of the maximum height below which scanning stops on the first pass
-	pointCnt = 0;				// count of scanning points
 	ULONG	cutoffY = 0;			// Y-value below which scanning stops on the first pass
-	fraglen base = 1, halfX = 0;
+	fraglen halfX = 0;
 	USHORT peakCnt = 0;
 	bool up = false;
 	auto it = begin();
 	spoint p0(*it), p;			// previous, current point
 	spoint pMin(0, 0), pMax(pMin), pMMax(pMin);	// current, previous, maximum point
-	SMA	sma(base);
+	MA	sma(1);
 	vector<spoint> extr;		// local extremums
 
 	//== define pMMax and halfX
 	extr.reserve(20);
-	for (it++; it != end(); p0 = p, pointCnt++, it++) {
+	for (it++; it != end(); p0 = p, it++) {
 		p.first = it->first;
 		p.second = ULONG(sma.Push(it->second));
 		//cout << p.first << TAB << p.second << LF;
@@ -1336,8 +1511,9 @@ fraglen LenFreq::GetBase(chrlen& pointCnt)
 			}
 		}
 	}
-	if (!halfX || pMMax.second - pMin.second <= 4 ) {	// why 4? 5 maybe enough to identify a peak?
-		_spec = eSpec::EVEN;
+	if (!halfX || pMMax.second - pMin.second <= 4 ) {	// why 4? 5 maybe enough to identify a peak
+		//_spec = eSpec::EVEN;
+		Err(Spec(_spec) + SepSCl + sParams + " are not called").Throw(false);	// even distribution
 		return 0;
 	}
 #ifdef _DEBUG
@@ -1380,273 +1556,266 @@ fraglen LenFreq::GetBase(chrlen& pointCnt)
 	if (!halfX)		return smoothBase;
 	fraglen diffX = halfX - pMMax.first;
 #ifdef _DEBUG
-	base = float(diffX) * (isPeakAfterDip ? 0.9F : (diffX > 20 ? 0.1F : 0.35F));
+	fraglen base = float(diffX) * (isPeakAfterDip ? 0.9F : (diffX > 20 ? 0.1F : 0.35F));
 	cout << "isPeakAfterDip: " << isPeakAfterDip << "\thalfX: " << halfX << "\tdiffX: " << diffX << "\tbase: " << base << LF;
 	return base;
 #else
-	return float(diffX) * (isPeakAfterDip ? 0.9F : (diffX > 20 ? 0.1F : 0.35F));
+	return fraglen(float(diffX) * (isPeakAfterDip ? 0.9F : (diffX > 20 ? 0.1F : 0.35F)));
 #endif
 }
 
 // Defines key pointers
-//	@base: splining base
+//	@base: moving window half-length
 //	@summit: returned X,Y coordinates of spliced (smoothed) summit
-//	@fillSpline: true if fill splining curve (container) to fill
-//	@spline: splining curve (container) to fill
 //	return: key pointers: X-coord of highest point, X-coord of right middle hight point
-LenFreq::fpair LenFreq::GetKeyPoints(fraglen base, point& summit, bool fillSpline, vector<point>& spline) const
+fpair LenFreq::GetKeyPoints(fraglen base, point& summit) const
 {
-	const bool isSmooth = base == smoothBase;	// true if input curve is smooth
-	fraglen baseSMM = base;
-	fraglen shift = isSmooth ? 0 : baseSMM;		// to correct SMM forward shift
-	auto it = begin();
-	auto End = end();
-	point p0(*it), p(0, 0);						// current, previous, maximum point
-	SMA	sma(base);
-	SMM smm(baseSMM);							// have tried 2*baseSMM, no real difference
+	const fraglen baseSMM = base <= smoothBase ? 0 : base;
+	point p0(*begin()), p(0, 0);			// previous, current point
+	MA ma(base);
+	MM mm(baseSMM);
 
-	summit.first = 0, summit.second = 0;
-	for (short i = smm.Base(); i; i--)	End--;	// reduce End because of SMM forward reading
-	//advance(it, size() - smm.Base());			// slower
-	for (; it != End; it++) {
-		p.first = it->first - base + shift;		// minus SMA base back shift plus SMM base forward shift
-		p.second = sma.Push(isSmooth ? it->second : smm.Push(it));	// spline smooth input by SMA only
-		//p.first = it->first - base;			// SMA base back shift
-		//p.second = sma.Push(it->second);		// spline by SMA
-		//p.first = it->first + shift;			// SMM base forward shift
-		//p.second = smm.Push(it);				// spline by SMM
-		if (fillSpline)		spline.push_back(p);
+	summit.second = 0;
+#ifdef _DEBUG
+	_spline.clear();
+	fpair keyPts(0, 0);
+#endif
+	for (const value_type& f : *this) {
+		p.first = f.first - base - baseSMM;		// X: minus MA & MM base back shift
+		p.second = ma.Push(mm.Push(f.second));	// Y: splined
+#ifdef _DEBUG
+		// *** to print splicing individually
+		//p.first = f.first - base;		p.second = sma.Push(f.second);	// spline by MA
+		//p.first = f.first - baseSMM;	p.second = smm.Push(f.second);	// spline by MM
+		if (_fillSpline)	_spline.push_back(p);
+#endif
 		if (p.second >= summit.second)	summit = p;
-		else if (p.second < summit.second / hRatio)	// to debug print change hRatio to 10
-			break;
-		p0 = p;
+		else {
+			if (p.second < summit.second / hRatio) {
+#ifdef _DEBUG
+				if (!keyPts.first) {
+					keyPts.first = float(summit.first);
+					keyPts.second = p0.first + p0.second / (p.second + p0.second);
+				}
+			}
+			if (p.second < summit.second / (hRatio * 5)) {
+#endif
+				break;
+			}
+			p0 = p;
+		}
 	}
-	return make_pair(
+
+#ifdef _DEBUG
+	return keyPts;
+#else
+	return fpair(
 		float(summit.first),							// summit X
 		p0.first + p0.second / (p.second + p0.second)	// final point with half height; proportional X
 	);
-}
-
-// Calls distribution parameters
-//	@type: NORM or LNORM
-//	@keypts: key pointers: X-coord of highest point, X-coord of right middle hight point
-//	return: mean & sigma
-LenFreq::fpair LenFreq::GetParams(eType type, const fpair& keypts) const
-{
-	if (keypts.first) {
-		if (type == eType::NORM)
-			return make_pair(
-				keypts.first,													// mean
-				sqrt(pow(keypts.second - keypts.first, 2) / (2 * log(hRatio)))	// sigma
-			);
-		// lognorm
-		const float A = log(keypts.first * hRatio / keypts.second);	// logarifm of 2*mean / middle height
-		const float lgM = log(keypts.first);						// logarifm of Mode
-		const float lgH = log(keypts.second);						// logarifm middle height
-		const float mean = (lgM * A + (lgH * lgH - lgM * lgM) / 2) / (A + lgH - lgM);
-
-		return make_pair(mean, sqrt(mean - lgM));
-	}
-	return make_pair(0, 0);
+#endif
 }
 
 // Compares this sequence with calculated one by given mean & sigma, and returns PCC
-//	@type: NORM or LNORM
-//	@params: mean & sigma
-//	@peakX: X-coordinate of summit
+//	@type: consecutive distribution type
+//	@dParams: returned PCC, input mean(alpha) & sigma(beta)
+//	@Mode: X-coordinate of summit
 //	@full: if true then correlate from the beginning, otherwiase from summit
-//	return: Pearson correlation coefficient,
 //	calculated on the basis of the "start of the sequence" – "the first value less than 0.1% of the maximum".
-float LenFreq::CalcPCC(eType type, const fpair& params, fraglen peakX, bool full) const
+void LenFreq::CalcPCC(dtype type, DParams& dParams, fraglen Mode, bool full) const
 {
-	const float mean = params.first;
-	const float sigma = params.second;
-	const float dsigma2 = 2 * sigma * sigma;
-	const float cutoffY = float(Distrs[int(type)](mean, sigma, peakX, dsigma2) / 1000);	// break when Y became less then 0.1% of max value
-	unsigned int cnt = 0;			// count of points
-	double	a, b;					// y coordinate (value) of the original and calculated sequence
-	double	sumA = 0, sumA2 = 0;	// original and calculated sum of values
-	double	sumB = 0, sumB2 = 0;	// original and calculated sum of squares of values
+	const fpair eqTerms = InitEqTerms[type](dParams.Params);		// two constant terms of the distrib equation
+	const double cutoffY = Distrs[type](dParams.Params, Mode, eqTerms) / 1000;	// break when Y became less then 0.1% of max value
+	double	sumA = 0, sumA2 = 0;	// sum, sum of squares of original values
+	double	sumB = 0, sumB2 = 0;	// sum, sum of squares of calculated values
 	double	sumAB = 0;				// sum of products of original and calculated values
+	UINT	cnt = 0;				// count of points
 
 	// one pass PCC calculation
-	for (auto it = begin(); it != end(); it++) {
-		if (!full && it->first < peakX)	continue;
-		b = Distrs[int(type)](mean, sigma, it->first, dsigma2);
-		if (it->first > peakX && b < cutoffY) break;
-		sumA += a = it->second;
+	dParams.SetUndefPcc();
+	for (const value_type& f : *this) {
+		if (!full && f.first < Mode)		continue;
+		const double b = Distrs[type](dParams.Params, f.first, eqTerms);	// y-coordinate (value) of the calculated sequence
+		if (isNaN(b))						return;
+		if (f.first > Mode && b < cutoffY)	break;
+		const double a = f.second;											// y-coordinate (value) of the original sequence
+		sumA += a;
 		sumB += b;
 		sumA2 += a * a;
 		sumB2 += b * b;
 		sumAB += a * b;
 		cnt++;
 	}
-	return float((sumAB * cnt - sumA * sumB) / 
+	float pcc = float((sumAB * cnt - sumA * sumB) /
 		sqrt((sumA2 * cnt - sumA * sumA) * (sumB2 * cnt - sumB * sumB)));
+	if (!isNaN(pcc))	dParams.PCC = pcc;
 }
 
-// Returns X-coordinate of the middle height of the left branch
-float LenFreq::GetLeftMiddleHalf(vector<point>& spline, const point& summit) const
+// Calculates distribution parameters
+//	@type: consecutive distribution type
+//	@keyPts: key pointers: X-coord of highest point, X-coord of right middle hight point
+//	@dParams: returned PCC, mean(alpha) & sigma(beta)
+//	@Mode: X-coordinate of summit
+void LenFreq::SetPCC(dtype type, const fpair& keypts, DParams& dParams, fraglen Mode) const
 {
-	float maxY = summit.second / 2;
-
-	point p(0, 0);
-	float y0 = 0;
-	for (auto it = spline.cbegin(); it != spline.cend(); it++)
-		if ((p=*it).second > maxY)	break;
-		else						y0 = p.second;
-	return p.first + y0 / (p.second + y0);		// final point with half height; proportional x
+	SetParams[type](keypts, dParams.Params);
+	CalcPCC(type, dParams, Mode);
 }
 
-// Prints PCC, mean and sigma
-//	@s: print stream
-//	@type: NORM or LNORM
-//	@pcc: printed PCC
-void LenFreq::PrintBaseParams(dostream& s, eType type, float pcc) const
+// Calculates and print called distribution parameters
+//	@type: consecutive distribution type
+//	@base: moving window half-length
+//	@summit: returned X,Y coordinates of spliced (smoothed) summit
+void LenFreq::CallParams(dtype type, fraglen base, point& summit)
 {
-	s << LF << sTitle[int(type)] << sDistrib << SepCl;
-	s << "PCC = " << setprecision(4) << pcc << LF;
-	s << sMean << SepCl << _params.first << TAB << sSigma << SepCl << _params.second << LF;
-}
-
-// Calculates and print called lognormal distribution parameters
-//	@s: print stream
-//	@eType: type of distribution
-//	@callNorm: call normal parameters anyway
-void LenFreq::CallParams(dostream& s, eType type, bool callNorm)
-{
-	chrlen pointCnt = 0;
-	fraglen base = GetBase(pointCnt);
-	if (_spec == eSpec::EVEN) {
-		Err(Spec(_spec) + SepSCl + sParams + " are not called").Throw(false);
-		return;
-	}
-	if (base == smoothBase)
-		s << Spec(eSpec::SMOOTH) << LF;
-	fpair keyPts;			// X-coord of highest point, X-coord of right middle hight point
-	float Pcc = 0;
-	fpair params;			// current mean, sigma
-	float leftMH = 0;		// X-coordinate of the middle height of the left branch
-	eType dt = type;
-	point summit;
-	vector<point> spline;	// saved spline to test for normal distribution
-	bool fillSpline = false;
-
-	if (type == eType::UNDEF || callNorm) {
-		spline.reserve(pointCnt);
-		dt = eType::LNORM;
-		fillSpline = true;
-	}
+	const BYTE failCntLim = 2;	// max count of base's decreasing steps after which PCC is considered only decreasing
+	BYTE failCnt = 0;			// counter of base's decreasing steps after which PCC is considered only decreasing
+	point summit0;				// temporary summit
+	DParams dParams0, dParams;	// temporary, final  PCC & mean(alpha) & sigma(beta)
 #ifdef _DEBUG
-	fillSpline = true;
-	BYTE i = 0;
+	int i = 0;					// counter of steps
 #endif
-	BYTE failCnt = 0;	// count of failure iterations (steps), when PCC is less then previous
-	fraglen base0 = 0;
-	const bool full = true;
-	BYTE failCntLim = 2;
 
+	//base = 9;					// to print spline for fixed base
+	// progressive calculate PCC with unknown key points & summit
 	for (; base; base--) {
-		fpair keypts = GetKeyPoints(base, summit, fillSpline, spline);
-		params = GetParams(dt, keypts);
-		float pcc = CalcPCC(dt, params, summit.first, full);
+	//for (int i=0; !i; i++) {	// to print spline for fixed base
+		const fpair keypts = GetKeyPoints(base, summit0);
+		SetPCC(type, keypts, dParams0, summit0.first);
 #ifdef _DEBUG
-		s << "base: " << setw(2) << base << "  summitX: " << keypts.first << "\tpcc: " << pcc;
-		if (pcc > Pcc)	s << "\t>";
-		s << LF;
-		i++;
+		*_s << setw(4) << setfill(SPACE) << left << ++i;
+		*_s << "base: " << setw(2) << base << "  summitX: " << keypts.first << "\tpcc: " << dParams0.PCC;
+		if (dParams0 > dParams)	*_s << "\t>";
+		*_s << LF;
+		if (_fillSpline) { for (point p : _spline)	*_s << p.first << TAB << p.second << LF; _fillSpline = false; }
 #endif
-		if (pcc > Pcc) {
-			Pcc = pcc;
-			keyPts = keypts;
-			_params = params;
+		if (dParams0 > dParams) {
+			dParams = dParams0;
+			summit = summit0;
 			failCnt = 0;
-			base0 = base;
 		}
 		else {
-			if (pcc > 0)	failCnt++;		// negative PCC is possible in rare cases
-			if (failCnt > 2)	break;
+			if (dParams0.PCC > 0)	failCnt++;		// negative PCC is possible in rare cases
+			else if (dParams0.IsUndefPcc()) {
+				dParams.SetUndefPcc();
+				break;
+			}
+			if (failCnt > failCntLim)	break;
 		}
 	}
-#ifdef _DEBUG
-	//s << "spline:\nlength\tfrequency\tbase = " << base << LF;
-	//for(spoint p: spline)
-	//	if(p.second)	// zero at the begining
-	//		s << p.first << TAB << p.second << LF;
-	s << "\nbase: " << base0 << "\tsteps: " << int(i) << LF;
-#endif
-	if (type == eType::UNDEF)
-		if (summit.first - begin()->first < SMA::Base(base0)
-		|| begin()->second / summit.second > 0.95)
-			Err(Spec(eSpec::HCROP) + SepSCl + sInaccurateParams).Warning();
-		else if (_spec == eSpec::MODUL)
-			s << Spec(_spec) << LF;
-		else if(begin()->second / summit.second > 0.5)
-			Err(Spec(eSpec::CROP)).Warning();
-		else {
-			float pcc = CalcPCC(dt, params, summit.first, !full);
-#ifdef _DEBUG
-			s << "summit: " << keyPts.first << "\tPCCsummit: " << pcc << "\tdiff PCC: " << pcc - Pcc << LF;
-#endif
-			float diffPCC = pcc - Pcc;
-			if (diffPCC > 0.01)
-				Err(Spec(eSpec::DEFECT) + SepSCl + sInaccurateParams).Warning();
-			else if (diffPCC > 0.002)
-				Err(Spec(eSpec::SDEFECT)).Warning();
-			leftMH = GetLeftMiddleHalf(spline, summit);
-		}
+	_allParams.SetParams(type, dParams);
 
-	if (type != eType::NORM) {
-		PrintBaseParams(s, eType::LNORM, Pcc);
-		// Mode: keypts.first is exactly equal to exp(mean - sigma * sigma)
-		s << "Mode: " << keyPts.first << "\t Mean: " << (exp(_params.first + _params.second * _params.second / 2)) << LF;
-	}
 #ifdef _DEBUG
-	if(leftMH)	s << ">> leftMH: " << leftMH << TAB << keyPts.first - leftMH << " / " << keyPts.second - keyPts.first << " = " << (keyPts.first - leftMH) / (keyPts.second - keyPts.first) << LF;
+	*_s << LF;
 #endif
-	if (type == eType::NORM
-	|| callNorm
-	|| type == eType::UNDEF && leftMH && (keyPts.first - leftMH) / (keyPts.second - keyPts.first) > 0.72) {
-		_params = GetParams(eType::NORM, keyPts);
-		Pcc = CalcPCC(eType::NORM, _params, summit.first, true);
-		PrintBaseParams(s, eType::NORM, Pcc);
+}
+
+// Prints original distrib features
+//	@s: print stream
+//	@base: moving window half-length
+//	@summit: X,Y coordinates of spliced (smoothed) summit
+void LenFreq::PrintTraits(dostream& s, fraglen base, const LenFreq::point& summit)
+{
+	if (base == smoothBase)		s << Spec(eSpec::SMOOTH) << LF;
+	if (summit.first - begin()->first < MA::Size(base)
+		|| begin()->second / summit.second > 0.95)
+		Err(Spec(eSpec::HCROP) + SepSCl + sParams + sInaccurate).Warning();
+	else if (_spec == eSpec::MODUL)
+		s << Spec(_spec) << LF;
+	else if (begin()->second / summit.second > 0.5)
+		Err(Spec(eSpec::CROP)).Warning();
+	else {
+		DParams dParams, dParams0;
+		CalcPCC(_allParams.GetBestParams(dParams), dParams0, summit.first, false);	// sorts params
+		float diffPCC = dParams0.PCC - dParams.PCC;
+#ifdef _DEBUG
+		s << "summit: " << summit.first << "\tPCCsummit: " << dParams.PCC << "\tdiff PCC: " << diffPCC << LF;
+#endif
+		if (diffPCC > 0.01)
+			Err(Spec(eSpec::DEFECT) + SepSCl + sParams + sInaccurate).Warning();
+		else if (diffPCC > 0.002)
+			Err(Spec(eSpec::SDEFECT)).Warning();
 	}
 }
 
-// Constructor by file name; for test porpose
-//	@fname: name of file, paired-end alignment
+// Prints original distribution as a set of <frequency>-<size> pairs
+void LenFreq::PrintSeq(dostream& s) const
+{
+	const chrlen maxLen = INT_MAX / 10;
+
+	s << "\nOriginal " << sDistrib << COLON << "\nlength\tfrequency\n";
+	for (const value_type& f : *this) {
+		if (f.first > maxLen)	break;
+		s << f.first << TAB << f.second << LF;
+	}
+}
+
+// Constructor by pre-prepared frequency distribution file
+//	@fname: name of pre-prepared frequency distribution file
 LenFreq::LenFreq(const char* fName)
 {
 	TabFile file(fName, FT::eType::DIST);
+
 	for(int x; file.GetNextLine();)
 		if(x = file.IntField(0))	// IntField(0) returns 0 if zero field is not an integer
 			(*this)[x] = file.IntField(1);
 }
 
+//#define _TIME
+#ifdef _TIME
+#include <chrono> 
+using namespace std::chrono;
+#endif
+
 // Calculate and print dist params
 //	@s: print stream
-//	@type: type of distribution
-//	@callNorm: call normal parameters anyway
+//	@ctype: combined type of distribution
 //	@prDistr: if true then print distribution additionally
-void LenFreq::Print(dostream& s, eType type, bool callNorm, bool prDistr)
+void LenFreq::Print(dostream& s, eCType ctype, bool prDistr)
 {
 	if(empty())		s << "empty " << sDistrib << LF;
-	else
+	else {
 		if (IsDegenerate())
 			s << "Degenerate " << sDistrib << " (only " << size() << " points)\n";
-		else
-			CallParams(s, type, callNorm);
-		if (prDistr) {
-			const chrlen maxLen = INT_MAX / 10;
-
-			s << "\nOriginal " << sDistrib << COLON << "\nlength\tfrequency\n";
-			for (auto it = begin(); it != end(); it++) {
-				if (it->first > maxLen)	break;
-				s << it->first << TAB << it->second << LF;
+		else {
+			point summit;				// returned value
+			fraglen base = GetBase();	// initialized returned value
+#ifdef _TIME
+			auto start = high_resolution_clock::now();
+			const int	tmCycleCnt = 1000;
+#endif			
+			// For optimization purposes, we can initialize base, keypts & summit at the first call of CallParams,
+			// and use them on subsequent calls to avoid repeated PCC iterations.
+			// However, the same base (and, as a consequence, keypts & summit) only works well for LNORM and GAMMA.
+			// For the best NORM, base may be less, therefore, for simplicity and reliability, all parameters are always recalculated
+#ifdef _DEBUG
+			_s = &s;
+			if(_fillSpline)	_spline.reserve(size() / 2);
+#endif
+#ifdef _TIME
+			for(int i=0; i < tmCycleCnt; i++)
+#endif
+			for (dtype i = 0; i < eCType::CNT; i++)
+				if (IsType(ctype, i))
+					CallParams(i, base, summit);
+#ifdef _TIME
+			auto stop = high_resolution_clock::now();
+			auto duration = duration_cast<microseconds>(stop - start);
+			s << duration.count() / tmCycleCnt << " mcs\n";
+#else
+			// check for NORM if LNORM is defined
+			if (IsType(ctype, eCType::LNORM) && !IsType(ctype, eCType::NORM)) {
+				CallParams(GetDType(eCType::NORM), base, summit);
+				_allParams.ClearNormDistBelowThreshold(1.02);	// threshold 2%
 			}
+#endif
+			PrintTraits(s, base, summit);
+			_allParams.Print(s);
 		}
-		fflush(stdout);		// when called from a package
+		if (prDistr)	PrintSeq(s);
+	}
+	fflush(stdout);		// when called from a package
 }
 
 /************************ LenFreq: end ************************/
-#endif	// _ISCHIP
+#endif	// _ISCHIP & _CALLDIST

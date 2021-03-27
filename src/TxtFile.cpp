@@ -2,7 +2,7 @@
 TxtFile.cpp (c) 2014 Fedor Naumenko (fedor.naumenko@gmail.com)
 All rights reserved.
 -------------------------
-Last modified: 4.12.2020
+Last modified: 24.03.2021
 -------------------------
 Provides read|write text file functionality
 ***********************************************************/
@@ -287,27 +287,20 @@ const char* TxtInFile::GetNextRecord()
 // GetNextRecord(), GetRecordN() and GetRecordTab() are quite similar,
 // but they are separated for effectiveness
 	if(IsFlag(ENDREAD))	return NULL;
-	//if(Length() == 0)	return ReadingEnded();
 	 
 	UINT i, blanklCnt = 0,			// counter of empty lines
 		 currPos = _currRecPos;		// start position of current readed record
-	char c;
 	char* buf;
 
 	_recLen = 0;
 	for(BYTE rec=0; rec<_recLineCnt; rec++)
-		//for(i=currPos;;i++)	{
-			//c = _buff[i];
-		for (buf = _buff + (i = currPos);; buf++, i++) {
-			c = *buf;
-			if(c==LF) {					// check for 0 in case of no LF at the end
+		for (buf = _buff + (i = currPos);;buf++, i++) {
+			if(*buf == LF) {
 				if( i==currPos ) {				// LF marker is first in line
 					currPos++; blanklCnt++;		// skip empty line
 					continue;
 				}
 				if (IsEOLundef())	SetEOL(*(buf - 1));		// define LF size
-				//if(IsEOLundef())	SetEOL(_buff[i-1]);		// define LF size
-				//_flag |= !bool(_buff[i-1]-CR);
 lf:				_recLen += (_linesLen[rec] = ++i - currPos);
 				currPos = i;
 				break;							// mext line in a record
@@ -329,22 +322,20 @@ lf:				_recLen += (_linesLen[rec] = ++i - currPos);
 // Reads N-controlled record
 //	@counterN: counter of 'N'
 //	return: pointer to line or NULL if no more lines
-const char* TxtInFile::GetNextRecord(chrlen* const counterN)
+const char* TxtInFile::GetNextRecord(chrlen& counterN)
 {
 	if(IsFlag(ENDREAD))	return NULL;
 
 	UINT i, blanklCnt = 0,			// counter of empty lines
 		 currPos = _currRecPos;		// start position of current readed record
 	chrlen cntN = 0;				// local counter of 'N'
-	char c;
 	char* buf;
 
 	_recLen = 0;
 	for(BYTE rec=0; rec<_recLineCnt; rec++)
 		for(buf = _buff + (i=currPos);; buf++,i++)	{
-			c = *buf;
-			if(c == cN)		cntN++;
-			else if( c==LF ) {
+			if(*buf == cN)		cntN++;
+			else if(*buf == LF) {
 				if( i==currPos ) {				// LF marker is first in line
 					currPos++; blanklCnt++;		// skip empty line
 					continue;
@@ -364,7 +355,7 @@ lf:				_recLen += (_linesLen[rec] = ++i - currPos);
 		}
 	_currRecPos = currPos;			// next record position
 	_recCnt++;
-	*counterN += cntN;
+	counterN += cntN;
 	return RealRecord();
 }
 
@@ -379,18 +370,16 @@ char* TxtInFile::GetNextRecord(short* const tabPos, const BYTE tabCnt)
 	UINT i, blanklCnt = 0,			// counter of empty lines
 		 currPos = _currRecPos;		// start position of current readed record
 	BYTE tabInd = 1;				// index of TAB position in tabPos
-	char c;
 	char* buf;
 
 	_recLen = 0;
 	for(BYTE rec=0; rec<_recLineCnt; rec++)
 		for (buf = _buff + (i = currPos);; buf++, i++) {
-			c = *buf;
-			if(c == TAB) {
+			if(*buf == TAB) {
 				if(tabInd < tabCnt)
 					tabPos[tabInd++] = i + 1 - currPos;
 			}
-			else if(c == LF) {
+			else if(*buf == LF) {
 				if( i==currPos ) {				// LF marker is first in line
 					currPos++; blanklCnt++;		// skip empty line
 					continue;
@@ -401,7 +390,6 @@ lf:				_recLen += (_linesLen[rec] = ++i - currPos);
 				break;
 			}
 			if (i >= _readedLen) {	// check for oversize block
-				//cout << "tb> " << i << TAB << currPos << TAB << _readedLen << TAB << _buffLen << LF;
 				if (_readedLen != _buffLen && i > currPos)	// last record does not end with LF
 					goto lf;
 				if(CompleteBlock(currPos, blanklCnt))	return NULL;
@@ -746,13 +734,13 @@ void TabFile::ResetType(FT::eType type)
 //	@cntLines: returned estimated count of lines.
 //	It works properly only if lines are sorted by ascending, f.e. in sorted bed-files.
 //	return: current line
-const char* TabFile::GetFirstLine(ULONG *cntLines)
-{
-	*cntLines = 0;
-	if(GetNextLine() )
-		*cntLines = (ULONG)(Length() / RecordLength());	
-	return _currLine;
-}
+//const char* TabFile::GetFirstLine(ULONG& cntLines)
+//{
+//	cntLines = 0;
+//	if(GetNextLine() )
+//		cntLines = (ULONG)(Length() / RecordLength());	
+//	return _currLine;
+//}
 
 // Reads next line and set it as current.
 //	@checkTabs: it true then check the number of incoming fields (tabs)
@@ -775,11 +763,9 @@ const char*	TabFile::GetNextLine(bool checkTab)
 	
 		// skip blanks at the beginning of line
 		while (line[currPos] == SPACE)	currPos++;
-		// skip comment line
-		if (*(line + currPos) == par.Comment)
-			return GetNextLine(checkTab);
-		// skip line without specifier
-		if (par.LineSpec && memcmp(line+currPos, par.LineSpec, _lineSpecLen))
+		// skip comment line or line without specifier
+		if (*(line + currPos) == par.Comment
+		|| (par.LineSpec && memcmp(line + currPos, par.LineSpec, _lineSpecLen)))
 			return GetNextLine(checkTab);
 
 		_fieldPos[0] = currPos;		// set start position of first field
@@ -791,12 +777,11 @@ const char*	TabFile::GetNextLine(bool checkTab)
 					if (i >= par.MinFieldCnt)				// less than number of optional fields
 						break;
 					else {									// less than number of required fields
-						SetError(Err::TF_FIELD,
-							LineNumbToStr(),
+						SetError(Err::TF_FIELD, LineNumbToStr(),
 							": " + to_string(i) + " against " + to_string(par.MinFieldCnt) + "; wrong format?");
 						return _currLine = NULL;
 					}
-		line[RecordLength() - 1] = cNULL;	// replace '\'n by 0
+		line[RecordLength() - 1] = cNULL;	// replace '\n' by 0
 
 		// this version when _fieldPos is not initialized in TxtFile::GetNextRecord(): a bit more slower
 		//for(BYTE i=1; i<_cntFields; i++) {
@@ -1152,7 +1137,7 @@ void FaFile::CountN(chrlen startPos, chrlen NCnt)
 const char* FaFile::GetLineWitnNControl() 
 {
 	chrlen nCnt = 0;	// number of 'N' in line
-	const char* line = GetNextRecord(&nCnt);
+	const char* line = GetNextRecord(nCnt);
 	if(line) {
 		chrlen len = LineLength();
 		if(nCnt)
@@ -1189,7 +1174,7 @@ FaFile::FaFile(const string& fName, ChromDefRegions* rgns) : TxtInFile(fName, eA
 
 #endif	// _ISCHIP, _READDENS, _BIOCC
 #endif	// no _FQSTATN
-#if defined _FRAGDIST || defined _FQSTATN
+#if defined _CALLDIST || defined _FQSTATN
 
 /************************ FqFile ************************/
 

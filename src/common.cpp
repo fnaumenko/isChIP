@@ -19,6 +19,23 @@ Provides common functionality
 
 /************************ common Functions ************************/
 
+// Returns number of ones in an bynary integer
+int OnesCnt(int n)
+{
+	int cnt = 0;
+	//for (; n; n >>= 1)  cnt += n & 1;		// 11001: 5 cycles
+	for (; n; n &= n - 1)   cnt++;			// 11001: 3 cycles
+	return cnt;
+}
+
+// Returns right position of right one in an bynary integer
+int RightOnePos(int n)
+{
+	int pos = 0;
+	for (; n ^ 1; n >>= 1)	pos++;
+	return pos;
+}
+
 // Gets number of digist in a integral value
 //	@val: integral value
 //	@isLocale: if true then adds number of '1000' separators
@@ -1111,11 +1128,11 @@ bool FS::GetFiles	(vector<string>& files, const string& dirName, const string& e
 		files.reserve(count);
 		// fill files
 		hFind = FindFirstFile( fileTempl.c_str(), &ffd );
-		do	files.push_back( string(ffd.cFileName) );
+		do	files.emplace_back(ffd.cFileName);
 		while (FindNextFile(hFind, &ffd));
 	}
 	else
-		files.push_back( string(ffd.cFileName) );
+		files.emplace_back(ffd.cFileName);
 	FindClose(hFind);
 	return true;
 #else
@@ -1394,7 +1411,7 @@ chrid Chrom::ValidateID(const char* cName, size_t prefixLen)
 	return CaseInsHeteroID(*cName);				// heterosome
 }
 
-#ifdef _FRAGDIST
+#ifdef _CALLDIST
 // Validates all chrom ID by SAM header data and sets custom ID
 void Chrom::Validate(const string& samHeader)
 {

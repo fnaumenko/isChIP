@@ -2,7 +2,7 @@
 common.h (c) 2014 Fedor Naumenko (fedor.naumenko@gmail.com)
 All rights reserved.
 -------------------------
-Last modified: 3.12.2020
+Last modified: 15.03.2021
 -------------------------
 Provides common functionality
 ***********************************************************/
@@ -23,7 +23,7 @@ Provides common functionality
 	#include <stdlib.h>
 	#include <memory.h>
 	#include <limits.h>
-	#include <math.h>
+	//#include <math.h>
 	#include <dirent.h>
 	#include <stdio.h>
 #ifdef _MULTITHREAD
@@ -42,9 +42,7 @@ Provides common functionality
 	typedef unsigned long long ULLONG;
 	typedef long long LLONG;
 	typedef struct stat struct_stat64;
-	//typedef off64_t __int64;
 	typedef void*	thrRetValType;
-	//#define retThreadValTrue	(void*)1
 
 	#define _stricmp strcasecmp	// case-sensitive comparison
 	#define _fseeki64 fseeko64
@@ -52,10 +50,10 @@ Provides common functionality
 	#define _fileno	fileno
 	#define _gcvt	gcvt
 	#define _stat64 stat
-	#define _isnan	std::isnan
-#define fopen	fopen64
+	#define fopen	fopen64
 	#define TRUE	1
 	#define FALSE	0
+	#define isNaN(x)	(x!=x)	// will not work by using --ffast-math compiler flag
 	#define	LOCALE_ENG	"en_US.utf8"
 	//#define SLASH '/'	// standard Linux path separator
 	//#define F_READ_MODE O_RDONLY
@@ -71,12 +69,9 @@ Provides common functionality
 	typedef __int64 LLONG;
 	typedef struct __stat64 struct_stat64;
 	typedef UINT	thrRetValType;
-	//#define retThreadValTrue	1
 
-	//#define atol _atoi64
+	#define isNaN isnan
 	#define	LOCALE_ENG	"English"
-	//#define SLASH '\\'		// standard Windows path separator
-	//#define REAL_SLASH '/'	// is permitted in Windows too
 #endif
 
 #ifndef _NO_ZLIB
@@ -157,12 +152,12 @@ static const char* sSumm = "summ";		// to invoke app from bioStat
 static const string sFileDuplBegin = "duplicate standard output to specified file\nor to ";
 static const string sFileDuplEnd = " if file is not specified";
 #endif
-#if defined _ISCHIP || defined _FRAGDIST
+#if defined _ISCHIP || defined _CALLDIST
 static const char* SepGroup = ";  ";
 static const char* sMean = "mean";
-static const char* sSigma = "std.dev";
+static const char* sSigma = "sigma";
 static const char* sDistrib = "distribution";
-#endif	// _ISCHIP || _FRAGDIST
+#endif	// _ISCHIP || _CALLDIST
 #if !defined _WIGREG && !defined _FQSTATN
 static const char* sTemplate = "template";
 #endif
@@ -210,11 +205,20 @@ BYTE	PrintDelimNumbToBuff(char* const buf, char delim, T numb) {
 	return BYTE(s.size() + 1);
 }
 
+// Gets number of members in static array
+#define ArrCnt(arr)	sizeof(arr)/sizeof(arr[0])
+
 // Digital to STRing
 // Returns value's string representation. http://rootdirectory.de/wiki/NSTR()
 // Instead of std::to_string(x) [C++11] because of compatibility
 //#define NSTR(x) static_cast<ostringstream&>( ostringstream() << dec << (x) ).str()
 #define NSTR(x) std::to_string(x)
+
+// Returns number of ones in an bynary integer
+int OnesCnt(int n);
+
+// Returns right position of right one in an bynary integer
+int RightOnePos(int n);
 
 // Gets number of digist in a integral value
 //	@val: integral value
@@ -636,9 +640,9 @@ public:
 	inline static int GetIVal	(int opt)	{ return int(List[opt].NVal); }
 
 	// Returns true if the option value is assigned by user
-	inline static bool Assigned	(int opt)	{ return List[opt].Sign.Is(fTrimmed); }
+	static bool Assigned	(int opt)	{ return List[opt].Sign.Is(fTrimmed); }
 	// True if maximal enum value is setting
-	inline static bool IsMaxEnum(int opt)	{ return List[opt].NVal == List[opt].MaxNVal - 1; }
+	static bool IsMaxEnum	(int opt)	{ return List[opt].NVal == List[opt].MaxNVal - 1; }
 	// Get maximal permissible numeric value by index
 	inline static UINT GetMaxIVal(int opt)	{ return UINT(List[opt].MaxNVal); }
 	// Returns C string 'ON' or 'OFF'
@@ -1378,7 +1382,7 @@ public:
 	//	@cName: string of arbitrary length, starting with chrom's name
 	inline static chrid ValidateIDbyAbbrName(const char* cName) { return ValidateID(cName, strlen(Abbr)); }
 
-#ifdef _FRAGDIST
+#ifdef _CALLDIST
 	// Validates all chrom ID by SAM header data and sets custom ID
 	static void Validate(const string& samHeader);
 #endif
