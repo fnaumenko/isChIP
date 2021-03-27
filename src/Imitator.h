@@ -2,7 +2,7 @@
 Imitator.h (c) 2014 Fedor Naumenko (fedor.naumenko@gmail.com)
 All rights reserved.
 -------------------------
-Last modified: 16.22.2019
+Last modified: 25.03.2021
 -------------------------
 Provides chip-seq imitation functionality
 ***********************************************************/
@@ -231,7 +231,8 @@ class Imitator
 			//	@max: random max limit
 			void SizeSelLimits(fraglen& min, fraglen& max)
 			{
-				float ssDev = ssFactor0 * float(sqrt(log(ssFactor1 / DRand())));
+				const float ssDev = ssFactor0 * float(sqrt(log(ssFactor1 / DRand())));
+				
 				min = fraglen(DistrParams::ssMean - ssDev);
 				if(min < Read::FixedLen)		min = Read::FixedLen;
 				max = fraglen(DistrParams::ssMean + ssDev);
@@ -253,35 +254,22 @@ class Imitator
 		};
 
 	private:
+		typedef pair<fraglen, fraglen> Fraction;	// first: frac shift, second: frac length
+
 		// 'MDA' implements Multiple Displacement Amplification
-		class MDA
+		class MDA : public vector<Fraction>
 		{
-		private:
-			typedef pair<fraglen,fraglen> Fraction;
+			Random&	_rng;		// used to invoke Range() only
 
-			vector<Fraction> _fracs;
-			fraglen		 _minLen;
-			Random&		_rng;		// used to invoke Range() only
-			//a_cycle	_iterCnt;	// number of iteration (displacement reaction)
-			vector<Fraction>::const_iterator _it;
-
-			void	Split	(fraglen shift, fraglen len);
-
+			void Split(fraglen shift, fraglen len, fraglen minLen);
 		public:
-			inline MDA(Random& rng) :_rng(rng) {
-				_fracs.reserve(Imitator::IsMDA ? size_t(2*Imitator::SelFragAvr / Read::FixedLen) : 1);
-			}
+			MDA(Random& rng) :_rng(rng)
+			{ reserve(IsMDA ? size_t(4 * SelFragAvr / Read::FixedLen) : 1); }
 
-			// Prepare instance to the new generating cycle
-			//	@fragLen: current fragment length
-			//	@fragLenMin: current minimal fragment length
-			void  Reset (fraglen fragLen, fraglen fragLenMin);
-	
-			// Gets next fraction in a cycle.
-			//	@shift: shift of fraction
-			//	return: length of fraction exceeded min frag length, established in Reset(),
-			//	or 0 if fractions are ended
-			fraglen GetFraction (fraglen* shift);
+			// Generats amplified fragment collection
+			//	@fLen: current fragment length
+			//	@fLenMin: current minimal fragment length
+			void  Generate (fraglen fLen, fraglen fLenMin);
 		};
 
 		static fraglen	_SsDev;			// deviation of frag size selection
@@ -289,7 +277,7 @@ class Imitator
 		
 		bool		_slave;		// if true then this instance is slave
 		GM::eMode	_gMode;		// generating mode: 0 - Test, 1 - Control
-		Output*	_output;	// partial output files
+		Output*		_output;	// partial output files
 		FragCnts	_fragCnt;	// numbers of selected/recorded fragments for FG & BG, for both Teat & Input
 		FragDistr	_fragDistr;	// normal & lognormal random number generator
 		MDA			_ampl;
@@ -328,10 +316,11 @@ class Imitator
 		}
 
 		// Returns sample of Flattening of binding site suburb
-		//	@fragStart: tested frag's start
-		//	@fragEnd: tested frag's end
-		//	@feature: binding site
-		void GetFlattSample(chrlen fragStart, chrlen fragEnd, const Featr& feature, bool& initSample);
+		//	@fStart: tested frag's start
+		//	@fEnd: tested frag's end
+		//	@ft: binding site
+		//	@sample: corrected sample
+		void GetFlattSample(chrlen fStart, chrlen fEnd, const Featr& ft, bool& sample);
 
 	public:
 		// Returns true if PCR amplification is established
@@ -359,16 +348,15 @@ class Imitator
 		thrRetValType Execute(const effPartition::Subset& cSubset);
 		
 		// Cuts chromosome until reaching end position of current treated feature
-		//	@seq: cutted reference chromosome
-		//	@fragStart: fragment start position
-		//	@feature: current treated feature
+		//	@cLen: chromosome's 'end' position
+		//	@fStart: fragment start position
+		//	@ft: current treated feature
 		//	@bg: if true then generate background (swap foreground and background)
-		//	@fragStat: statistics of selected fragments average counter, or NULL under work mode
+		//	@fStat: statistics of selected fragments average counter, or NULL under work mode
 		//	return: 0 if success,
 		//		1 if end chromosome is reached (continue treatment),
 		//		-1 if limit is achieved (cancel treatment)
-		int	CutChrom (const RefSeq& seq, chrlen& fragStart, const Featr& feature,
-			bool bg, FragLenStat* fragStat = NULL);
+		int	CutChrom (chrlen cLen, chrlen& fStart, const Featr& ft, bool bg, FragLenStat* fStat = NULL);
 	};
 
 	// 'ChromView' provides template and methods for viewing chrom's treatment results
@@ -613,7 +601,7 @@ class Imitator
 	void SetSample	();
 
 public:
-	static bool	UniformScore;	// true if template features scores are ignored
+	static bool	UniScore;	// true if template features scores are ignored
 	static BYTE	ThrCnt;			// actual number of threads
 	static bool	IsExo;
 	static bool	IsMDA;

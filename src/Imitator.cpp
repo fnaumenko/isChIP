@@ -2,7 +2,7 @@
 Imitator.cpp (c) 2014 Fedor Naumenko (fedor.naumenko@gmail.com)
 All rights reserved.
 -------------------------
-Last modified: 27.11.2020
+Last modified: 25.03.2021
 -------------------------
 Provides chip-seq imitation functionality
 ***********************************************************/
@@ -50,41 +50,27 @@ Normal(): mean = 0, SD = 1
 
 /************************  Amplification ************************/
 
-void Imitator::ChromCutter::MDA::Split(fraglen shift, fraglen len)
+void Imitator::ChromCutter::MDA::Split(fraglen shift, fraglen len, fraglen minLen)
 {
-	if(len < _minLen)		return;
-	_fracs.push_back(make_pair(shift, len));
-	if(!Imitator::IsMDA)	return;
+	if(len < minLen)		return;
+	emplace_back(shift, len);
 	fraglen len1 = fraglen(_rng.Range(len));	// new right fraction relative position
-	Split(shift + len1, len - len1);			// split right fraction
-	Split(shift, len1 - 1);						// split left fraction
+	Split(shift, len1 - 1, minLen);				// split left fraction
+	Split(shift + len1, len - len1, minLen);	// split right fraction
 }
 
-// Prepare instance to the new generating cycle
-//	@fragLen: current fragment length
-//	@fragLenMin: current minimal fragment length
-void Imitator::ChromCutter::MDA::Reset(fraglen fragLen, fraglen fragLenMin)
+// Generats amplified fragment collection
+//	@fLen: current fragment length
+//	@fLenMin: current minimal fragment length
+void Imitator::ChromCutter::MDA::Generate(fraglen fLen, fraglen fLenMin)
 {
-	_fracs.clear();
-	_minLen = fragLenMin;
-	Split(0, fragLen);
-	_it = _fracs.begin();
+	clear();
+	if (fLen >= fLenMin)
+		if (IsMDA)	Split(0, fLen, fLenMin);
+		else 		emplace_back(0, fLen);		// original fragment
 	
-	//cout << "total " << _fracs.size() << LF;
-	//for(vector<Frac>::const_iterator it=_fracs.cbegin(); it!=_fracs.cend(); it++)
-	//	cout << it->Shift << TAB << it->Len << LF;
-	//cout << LF;
-}
-
-// Gets length and shift of amplificated fraction (MDA)
-//  shift: returned shift of fraction
-//  return: length of fraction exceeded min frag length, established in Reset(),
-//	or 0 if fractions are ended
-fraglen Imitator::ChromCutter::MDA::GetFraction	(fraglen* shift)
-{
-	if(_it == _fracs.end())	return 0;
-	*shift = _it->first;
-	return _it++->second;
+	//cout << "MDA " << size() << LF;
+	//for(Fraction f : *this)	cout << f.first << TAB << f.second << LF;
 }
 
 /************************  Amplification: end ************************/
@@ -143,8 +129,8 @@ public:
 		TabFile file(_fName = ss.str(), FT::eType::INI, TxtFile::eAction::READ_ANY);
 		_avrs.reserve(3);		// with a margin
 		while(file.GetNextLine())
-			_avrs.push_back(AvrFrag(
-				file.IntField(0), file.FloatField(1), file.FloatField(2), file.FloatField(3)));
+			_avrs.emplace_back(
+				file.IntField(0), file.FloatField(1), file.FloatField(2), file.FloatField(3));
 	}
 	
 	// Writes instance to a file if it's changed.
@@ -179,14 +165,15 @@ public:
 			for(_it=_avrs.begin() + 1; _it<_avrs.end(); _it++)
 				if(_it->ReadLen == Read::FixedLen)
 					return *_it;
-			_avrs.push_back(AvrFrag());
+			//_avrs.push_back(AvrFrag());
+			_avrs.emplace_back();
 			_isChanged = true;
 			return *(_it = _avrs.end() - 1);
 		}
 		else
 		{		// empty container
-			_avrs.push_back(AvrFrag());
-			_avrs.push_back(AvrFrag());
+			_avrs.emplace_back();
+			_avrs.emplace_back();
 			_isChanged = true;
 			return *(_it = _avrs.begin() + 1);
 		}
@@ -503,16 +490,17 @@ thrRetValType Imitator::ChromCutter::Execute(const effPartition::Subset& cIDSet)
 				enrRegLen = Templ->EnrRegLength(cit, 0, SelFragAvr);
 			}
 			else	enrRegLen = fCnt = 0;
-			RefSeq seq(*it, _cSizes);
+			const RefSeq seq(*it, _cSizes);
+			const chrlen cLen = seq.End();		// chrom 'end' position
 			_output->BeginWriteChrom(seq);
 
 			for(n = 0; n < cellCnt; n++) {
 				currPos = seq.Start() + _fragDistr.RandFragLen();	// random shift from the beginning
 				for(k=0; k < fCnt; k++)
-					if(res = CutChrom(seq, currPos, Templ->Feature(cit, k), false))
+					if(res = CutChrom(cLen, currPos, Templ->Feature(cit, k), false))
 						goto A;			// achievement of Reads limit
 				// add background after last 'end' position
-				if((res = CutChrom(seq, currPos, seq.DefRegion(), true)) < 0)
+				if((res = CutChrom(cLen, currPos, seq.DefRegion(), true)) < 0)
 					break;				// achievement of Reads limit
 			}
 A:			PrintChrom(seq, enrRegLen, timer, res < 0);		// timer stops and printed in here
@@ -523,7 +511,7 @@ A:			PrintChrom(seq, enrRegLen, timer, res < 0);		// timer stops and printed in 
 				cellCnt = ULONG(PrepareCutting(GM::eMode::Control, seq.ID(), timer));
 				for(n = 0; n < cellCnt; n++) {
 					currPos = seq.Start() + _fragDistr.RandFragLen();	// random shift from the beginning
-					CutChrom(seq, currPos, seq.DefRegion(), true);
+					CutChrom(cLen, currPos, seq.DefRegion(), true);
 				}
 				PrintChrom(seq, enrRegLen, timer, false);		// timer stops in here
 				IncrTotalSelFragCount();
@@ -546,60 +534,52 @@ A:			PrintChrom(seq, enrRegLen, timer, res < 0);		// timer stops and printed in 
 typedef pair<fraglen, fraglen>	frag;
 
 // Returns sample of Flattening of binding site suburb
-//	@fragStart: tested frag's start
-//	@fragEnd: tested frag's end
-//	@feature: binding site
-void Imitator::ChromCutter::GetFlattSample(chrlen fragStart, chrlen fragEnd, const Featr& feature, bool& sample)
+//	@fStart: tested frag's start
+//	@fEnd: tested frag's end
+//	@ft: binding site
+//	@sample: corrected sample
+void Imitator::ChromCutter::GetFlattSample(chrlen fStart, chrlen fEnd, const Featr& ft, bool& sample)
 {
-	short uZone = short(fragEnd - feature.Start);	// ustable zone, 
-													// with increasing probability of frag binding
-	if (uZone > FlatLen)							// is frags end in unstable zone?
-		uZone = short(feature.End - fragStart);				// is frags start in unstable zone?
-	if (uZone <= FlatLen)									// is frags start or end in unstable zone?
+	short uZone = short(fEnd - ft.Start);	// ustable zone, 
+											// with increasing probability of frag binding
+	if (uZone > FlatLen)					// is frags end in unstable zone?
+		uZone = short(ft.End - fStart);		// is frags start in unstable zone?
+	if (uZone <= FlatLen)					// is frags start or end in unstable zone?
 		sample = _fragDistr.Sample(float(uZone) / FlatLen);	// new unstable select
 }
 
 // Cuts chromosome until reaching end position of current treated feature
-//	@seq: cutted reference chromosome
-//	@fragStart: fragment start position
-//	@feature: current treated feature
+//	@cLen: chromosome's 'end' position
+//	@fStart: fragment start position
+//	@ft: current treated feature
 //	@bg: if true then generate background (swap foreground and background)
-//	@fragStat: statistics of selected fragments average counter, or NULL under work mode
+//	@fStat: statistics of selected fragments average counter, or NULL under work mode
 //	return: 0 if success,
 //		1 if end chromosome is reached (continue treatment),
 //		-1 if Reads limit is achieved (cancel treatment)
 int Imitator::ChromCutter::CutChrom	(
-	const RefSeq& seq,
-	chrlen& fragStart,
-	const Featr& feature,
+	chrlen cLen,
+	chrlen& fStart,
+	const Featr& ft,
 	bool bg,
-	FragLenStat* fragStat
+	FragLenStat* fStat
 	)
 {
-	const chrlen cLen = seq.End();		// chrom defined 'end' position
-	bool	select;						// selection by corrected bounds; always true for BG
-	Gr::eType g;						// ground: 0 - FG, 1 - BG
-	fraglen	fragLen,					// fragment's length
-			fragLenMin = Read::FixedLen,		// minimal fragment's length after size selection
-			fragLenMax = FRAG_MAX,		// maximal fragment's length after size selection
-			fracLen,					// fraction's length
-			fracShift;					// fraction's start position within fragment
-	chrlen	fragEnd;					// fragment's end position
-	a_cycle	i;							// PCR amplification counter
-	const BYTE	fCnt = IsExo ? 4 : 2;	// number of original sheared fragments
-	const float featScore[] = { UniformScore ? 1 : feature.Value, 1 };	// FG, BG feature's score
+	const float ftScore[] = { UniScore ? 1 : ft.Value, 1 };	// FG, BG feature's score
+	fraglen	fLenMin = Read::FixedLen;	// minimal fragment's length after size selection
+	fraglen	fLenMax = FRAG_MAX;			// maximal fragment's length after size selection
 	Region frags[4];		// [0],[1] - sheared fragments of forward and backward strand DNA,
 							// [2],[3] - additional fragments generated by EXO
 
-	for(; fragStart<=feature.End; fragStart += fragLen + 1) {	// ChIP: control right mark
-		fragLen = _fragDistr.LognormNext();
-		fragEnd = fragStart + fragLen;
-		if(fragEnd > cLen)	
-			if(fragStart >= cLen - Read::FixedLen)	return 1;	// end of chrom
-			else	fragLen = (fragEnd = cLen) - fragStart;	// cut last fragment
+	for(fraglen	fLen = 0; fStart<=ft.End; fStart += fLen + 1) {	// ChIP: control right mark
+		fLen = _fragDistr.LognormNext();
+		chrlen fEnd = fStart + fLen;						// fragment's end position
+		if(fEnd > cLen)	
+			if(fStart >= cLen - Read::FixedLen)	return 1;	// end of chrom
+			else	fLen = (fEnd = cLen) - fStart;			// cut last fragment
 		
 		if(DistrParams::IsSS())								// get next size seletion limits?
-			_fragDistr.SizeSelLimits(fragLenMin, fragLenMax);
+			_fragDistr.SizeSelLimits(fLenMin, fLenMax);
 		/*
 		 * Since the lower limit of the fragment length after size selection remains unchanged
 		 * after amplification, in order to increase the efficiency, it is cut off immediately.
@@ -607,60 +587,54 @@ int Imitator::ChromCutter::CutChrom	(
 		 */
 
 		 //== size selection check 1: skip short fragment
-		if(fragLen < fragLenMin)	continue;
+		if(fLen < fLenMin)	continue;
 		/* 
 		 * control left mark: 
 		 * TestMode: foreground (g==0) is inside and background (g==1) outside template features;
 		 * for other chromosomes background (g==0) is inside feature==chrom's length.
 		 * ControlMode: foreground (g==0) is always inside feature==chrom's length
 		 */
-		fracLen = fragLen;
-		g = Gr::eType(!bg ^ (fragEnd >= feature.Start));
+		Gr::eType g = Gr::eType(!bg ^ (fEnd >= ft.Start));
 
 		//== EXO processing
-		frags[0].Start = frags[1].Start = fragStart;
-		frags[0].End = frags[1].End = fragEnd;
+		frags[0].Start = frags[1].Start = fStart;
+		frags[0].End = frags[1].End = fEnd;
 		if (IsExo) {
-			int diff = feature.Start - fragStart - _fragDistr.Expo();	// left difference
-			if (diff < 0)	diff = 0;
-			frags[0].Start += diff;
-			diff = fragEnd - feature.End - _fragDistr.Expo();			// right difference
-			if (diff < 0)	diff = 0;
-			frags[1].End -= diff;
-
-			for (BYTE i = 0; i < 2; i++)
-				if (frags[i].Length() < Read::FixedLen)	frags[i].End = 0;
+			int diff = ft.Start - fStart - _fragDistr.Expo();	// left difference
+			if (diff > 0)	frags[0].Start += diff;
+			diff = fEnd - ft.End - _fragDistr.Expo();			// right difference
+			if (diff > 0)	frags[1].End -= diff;
 			frags[2] = frags[1];
 			frags[3] = frags[0];
 		}
 
 		//== sequencing
-		if(!(select = bool(g))					// foreground; for background select == true always
-		&& (select = fragEnd >= feature.Start)	// fragment captures feature?
-		&& FlatLen)								// flattening is ON?
-			GetFlattSample(fragStart, fragEnd, feature, select);
+		bool select = bool(g);				// selection by corrected bounds
+		if (!select							// foreground; always true for BG
+		&& (select = fEnd >= ft.Start)		// fragment captures feature?
+		&& FlatLen)							// flattening is ON?
+			GetFlattSample(fStart, fEnd, ft, select);
 			
-		if (select && _fragDistr.Sample(featScore[g])) {	// selection by bounds & feature score
-			for (BYTE x = 0; x < fCnt; x++) {
-				if (!PerSample(g)					// FG/BG loss
-				|| !frags[x].End)		continue;	// too short fragment
-				// ** MDA amplification
-				_ampl.Reset(frags[x].Length(), fragLenMin);
-				for (bool primer = true; fracLen = _ampl.GetFraction(&fracShift); primer = false)
-					if (PerAutoSample()					// adjusted sample
-					&& fracLen <= fragLenMax)			// ** size selection 2: skip long fragments
-						// ** PCR amplification
-						for (i = 0; i < _PCRdcycles; primer = false, i++)	// _PCRdcycles is number of read doubling cycles 
-							// while BG or without MDA fracShift is always 0
-							if (!_output->AddRead(frags[x].Start + fracShift, fracLen, x%2)
+		if (select && _fragDistr.Sample(ftScore[g]))	// selection by bounds & feature score
+			for (int x = (2 << IsExo) - 1; x >= 0; x--)	// loop through the fragments from frags[]: 2 or 4
+				if (PerSample(g) && frags[x].Length() >= Read::FixedLen) {	// FG/BG loss && not short fragment after EXO
+					// ** MDA amplification
+					bool primer = true;
+					_ampl.Generate(frags[x].Length(), fLenMin);
+					for (const Fraction& frac : _ampl)
+						if (PerAutoSample()				// adjusted sample
+						&& frac.second <= fLenMax)		// ** size selection 2: skip long fragments
+							// ** PCR amplification: _PCRdcycles is number of read doubling cycles
+							for (a_cycle i = 0; i < _PCRdcycles; primer = false, i++)
+								// while BG or without MDA frac.first is always 0
+								if (!_output->AddRead(frags[x].Start + frac.first, frac.second, x % 2)
 								&& IncrRecFragCount(g, primer))		// recorded reads
-								return -1;						// Reads limit is exceeded
-			}
-		}
+									return -1;						// Reads limit is exceeded
+				}
 		//== size selection check 2: statistics record
-		if(fragLen <= fragLenMax) {
+		if(fLen <= fLenMax) {
 			_fragCnt[g].SelIncr();
-			if(fragStat)	fragStat->TakeFragLen(fragLen);
+			if(fStat)	fStat->TakeFragLen(fLen);
 		}
 	}
 	return 0;
@@ -677,18 +651,18 @@ ULONG	Imitator::TreatedLen[] = {0,0};	// FG, BF genome treated length
 float	Imitator::AutoSample = 1;		// adjusted FG sample to stay in limit
 //readlen	Imitator::BindLen;
 short	Imitator::FlatLen = 0;		// BS edge flattening length
-a_coeff	Imitator::PCRCoeff = 0;	// user-stated amplification coefficient
+a_coeff	Imitator::PCRCoeff = 0;		// user-stated amplification coefficient
 eVerb	Imitator::Verb;
 BYTE	Imitator::ThrCnt;			// actual number of threads
 bool	Imitator::IsExo;
 bool	Imitator::IsMDA;
 bool	Imitator::MakeControl;		// true if control file (input) should be produced
-bool	Imitator::UniformScore;
+bool	Imitator::UniScore;
 bool	Imitator::All;
 eMode	Imitator::TMode;			// Current task mode
 float	Imitator::SelFragAvr;		// mean length of selected fragments
-Imitator	*Imitator::Imit = NULL;
-const Features	*Imitator::Templ = NULL;
+Imitator *Imitator::Imit = NULL;
+const Features *Imitator::Templ = NULL;
 
 // Prints chromosome's name
 //	@cID: chromosomes ID, or CHRID_UNDEF to print "total" instead chrom name
@@ -723,7 +697,7 @@ void Imitator::PrintChromInfo(
 void Imitator::PrintHeader(bool header)
 {
 	if(!Verbose(eVerb::RT))	return;
-	static int w = 0;
+	static int w = 0;	// width
 
 	if(header) {
 		w = 0;
@@ -789,7 +763,7 @@ void	Imitator::Init(
 	a_coeff	amplCoeff,			// coefficient of PCR
 	UINT	verb,				// verbosity level
 	bool	allBg,				// true if all background mode is assigned
-	bool	uniformScore,		// true if uniform template score is assigned
+	bool	uniScore,			// true if uniform template score is assigned
 	//readlen bindLen,
 	//const pairVal& flattens
 	UINT	unstBindLen			// unstable binding length
@@ -803,19 +777,17 @@ void	Imitator::Init(
 	ChromCutter::FragDistr::Init();
 	Verb = eVerb(verb);
 	All = (tmode == CONTROL) || allBg;
-	UniformScore = uniformScore;
+	UniScore = uniScore;
 	//BindLen = bindLen;
 	//FlatLen = flattens.first + flattens.second;
 	FlatLen = unstBindLen;
 	SelFragAvr = DistrParams::LnMean();	// for the Sample(), before set actual ln mean
-	if (DistrParams::IsRVL()) {			// Read variable length mode is set
+	if (DistrParams::IsRVL())			// Read variable length mode is set
 		if (!isReadLenAssigned)
 			Read::FixedLen = Read::VarMinLen;
-		else
-			if (Read::FixedLen > Read::VarMinLen && Verb >= eVerb::CRIT)
-				Err(string("assigned read length exceeds the default value of ")
-					+ to_string(Read::VarMinLen) + " when read variable mode is activated!").Warning();
-	}
+		else if (Read::FixedLen > Read::VarMinLen && Verb >= eVerb::CRIT)
+			Err(string("assigned read length exceeds the default value of ")
+				+ to_string(Read::VarMinLen) + " when read variable mode is activated!").Warning();
 }
 
 // Runs task in current mode and write result to output files
@@ -883,11 +855,12 @@ ULLONG Imitator::CutForSample(Average& genFrAvr, FragLenStat* fLenStat)
 	chrlen		pos = 0;
 	ChromCutter cCutter(this, &genFrAvr, false);
 	const RefSeq seq(_cSizes[0]);
+	const chrlen cLen = seq.End();		// chrom defined 'end' position
 	
 	// generate statistics based on first chrom; Reads are not recorded
 	GlobContext[int(GM::eMode::Test)].SetSample(1.0);
 	for(int i=0; i<2; pos=0, i++)
-		cCutter.CutChrom(seq, pos, seq.DefRegion(), false, fLenStat);
+		cCutter.CutChrom(cLen, pos, seq.DefRegion(), false, fLenStat);
 	GlobContext[int(GM::eMode::Test)].ClearFragCounters();
 	return cCutter.RecFgFragCnt();
 }

@@ -31,30 +31,21 @@ const string OutFileTip = "location of output files or existing folder\n[TEST mo
 	DefFileName[TEST] + ".*, " +
 	"CONTROL mode: " + DefFileName[CONTROL] + ".*]";
 
-// options groups
-enum { gTREAT, gFRAG, gREAD, gOUTPUT, gOTHER };	// gOTHER should be the last one
-
-const char* Options::OptGroups[] = {
-	"Processing", "Fragment size distribution", "Reads", "Output", "Other"
-};
-const BYTE Options::GroupCount = sizeof(Options::OptGroups) / sizeof(char*);
-
 // --smode option
-const char* smodes[] = { "SE","PE" };					// corresponds to OutFile::eMode
+const char* smodes[] = { "SE","PE" };						// corresponds to OutFile::eMode
 // --format option: format notations
 const char* formats[] = { "FQ","BED","SAM","BG","FDENS","RDENS","FDIST","RDIST" };	// corresponds to Output::oFormat	
-const BYTE	formatCnt = sizeof(formats) / sizeof(char*);
 // --verbose option: verbose notations
 const char* verbs[] = { "SL","RES","RT","PAR","DBG" };
 // --ground option
-const Options::PairVals grounds(50, 1, 0, 0, 100, 100);	// defFG, defBG, minFG, minBG, maxFG, maxFG
+const Options::PairVals grounds(50, 1, 0, 0, 100, 100);		// defFG, defBG, minFG, minBG, maxFG, maxFG
 // --lndist option
 const Options::PairVals lnd(5.26f, 0.3f, 3, 0.3f, 9, 1);	// defMean, defSD, minMean, minSD, maxMean, maxSD
 //const Options::PairVals lnd(5.46f, 0.4f, 3, 0.03f, 9, 1);	// defMean, defSD, minMean, minSD, maxMean, maxSD
 // --ssddist option
 const Options::PairVals ssd(vUNDEF, 30, 50, 2, 2000, 500);	// "auto", defSD, minMean, minSD, maxMean, maxSD
 // --rd-dist option
-const Options::PairVals rdd(200, 20, 50, 2, 1000, 300);	// defMean, defSD, minMean, minSD, maxMean, maxSD
+const Options::PairVals rdd(200, 20, 50, 2, 1000, 300);		// defMean, defSD, minMean, minSD, maxMean, maxSD
 // --flat-len option
 //const Options::PairVals flattens(0, 0, 0, 0, 50, 50);
 
@@ -63,6 +54,14 @@ const string UnstableBSLen = "unstable binding length";
 
 //using flags = Options::Signs::oSign;
 //typedef Options::Signs::Flags flag;
+
+// *** Options definition
+
+enum { gTREAT, gFRAG, gREAD, gOUTPUT, gOTHER };	// gOTHER should be the last one
+const char* Options::OptGroups[] = {
+	"Processing", "Fragment size distribution", "Reads", "Output", "Other"
+};
+const BYTE Options::GroupCount = ArrCnt(Options::OptGroups);
 
 // { char, str, Signs, type, group, defVal, minVal, maxVal, strVal, descr, addDescr }
 // defVal: vUNDEF if no default value should be printed
@@ -85,7 +84,7 @@ If the option is not specified, ChIP-exo is not applied", NULL },
 	{ HPH,"bg-all",	fNone,	tENUM,	gTREAT, TRUE, 0, 2, (char*)Options::Booleans,
 	"turn on/off generation background for all chromosomes.\n", ForTest },
 	//{ HPH, "bind-len", fNone,	tINT,	gTREAT, 1, 1, 100, NULL, "minimum binding length.", ForTest },
-	{ 'm', "smode",	fNone,	tENUM,	gTREAT, Seq::SE, Seq::SE, Seq::Undef, (char*)smodes,
+	{ 'm', "smode",	fNone,	tENUM,	gTREAT, Seq::SE, Seq::SE, ArrCnt(smodes), (char*)smodes,
 	"sequencing mode: ? - single end, ? - paired end", NULL },
 	{ 's',"bscore",	fAllow0,tINT,	gTREAT, 5, 4, 12, NULL,
 	"index of the template field used to score each binding event.\n\
@@ -122,8 +121,8 @@ If the option is not specified, the read length is fixed", NULL },
 	{ HPH,"rd-ql-patt",	fNone,	tNAME,	gREAD, vUNDEF, 0, 0, NULL, "read quality scores pattern", NULL },
 	{ HPH,"rd-ql-map",	fNone,	tINT,	gREAD, 255, 0, 255, NULL,
 	"read mapping quality in SAM and BED output", NULL },
-	{ 'f',"format",	fNone,	tCOMB,	gOUTPUT, float(Output::eFormat::FG), float(Output::eFormat::FG), formatCnt, (char*)formats,
-	"format of output data, in any order", NULL },
+	{ 'f',"format",	fNone,	tCOMB,	gOUTPUT, float(Output::eFormat::FG), float(Output::eFormat::FG), ArrCnt(formats),
+	(char*)formats,	"format of output data, in any order", NULL },
 	{ 'C',"control",fNone,	tENUM,	gOUTPUT, FALSE,	vUNDEF, 2, NULL,
 	"generate control simultaneously with test", NULL },
 	{ 'x',"strand",	fNone,	tENUM,	gOUTPUT, FALSE,	vUNDEF, 2, NULL,
@@ -134,17 +133,17 @@ If the option is not specified, the read length is fixed", NULL },
 	{ 'z',"gzip",	fNone,	tENUM,	gOUTPUT, FALSE, vUNDEF, 2, NULL, "compress the output", NULL},
 #endif
 	{ 't',	sTime,	fNone,	tENUM,	gOTHER,	FALSE,	vUNDEF, 2, NULL, sPrTime, NULL },
-	{ 'V',"verbose",fNone,	tENUM,	gOTHER, float(eVerb::PAR), float(eVerb::CRIT), int(eVerb::DBG) + 1, (char*)verbs,
+	{ 'V',"verbose",fNone,	tENUM,	gOTHER, float(eVerb::PAR), float(eVerb::CRIT), ArrCnt(verbs), (char*)verbs,
 	"set verbose level:\n? -\tsilent mode (show critical messages only)\n? -\tshow result summary\n?  -\tshow run-time information\n? -\tshow actual parameters\n? -\tshow debug messages", NULL },
 	{ 'v',	sVers,	fNone,	tVERS,	gOTHER,	vUNDEF, vUNDEF, 0, NULL, sPrVersion, NULL },
 	{ 'h',	sHelp,	fNone,	tHELP,	gOTHER,	vUNDEF, vUNDEF, 0, NULL, sPrUsage, NULL }
 };
-const BYTE	Options::OptCount = sizeof(Options::List) / sizeof(Options::Option);
+const BYTE	Options::OptCount = ArrCnt(Options::List);
 
 const Options::Usage Options::Usages[] = {	// content of 'Usage' variants in help
 	{ vUNDEF, "<template>", false, "bed file whose features specify binding site"	},
 };
-const BYTE Options::UsageCount = sizeof(Options::Usages) / sizeof(Options::Usage);
+const BYTE Options::UsageCount = ArrCnt(Options::Usages);
 
 // Returns common name of output files
 string GetOutFileName();
@@ -288,7 +287,7 @@ void PrintParams(const ChromSizesExt& cSizes, const char* templName,
 		cout << SignPar << sTemplate << SepCl << templName << SepCl;
 		templ->PrintItemCount(false);
 		cout << SepSCl;
-		if (Imitator::UniformScore)		cout << "uniform score\n";
+		if (Imitator::UniScore)		cout << "uniform score\n";
 		else	cout << "score index" << Equel << Options::GetIVal(oBS_SCORE) << LF;
 	}
 	oFile.PrintFormat(SignPar);		// print output formats, sequencing mode

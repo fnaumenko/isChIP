@@ -910,7 +910,7 @@ Output::DistrFiles::~DistrFiles()
 
 	for(BYTE i=0; i<ND; ++i)
 		if (_dist[i]) {
-			LenFreq::eType dtype = LenFreq::eType::NORM;
+			LenFreq::eCType dtype = LenFreq::eCType::NORM;
 			ofstream s;
 			s.open(FileName(i));
 			if (s.is_open()) {
@@ -921,7 +921,7 @@ Output::DistrFiles::~DistrFiles()
 						s << sSet << "constant " << Read::title << " length" << LF;
 				else {		// fragments
 					DistrParams::PrintFragDistr(s, sSet, false);
-					if (!DistrParams::IsSS())	dtype = LenFreq::eType::LNORM;
+					if (!DistrParams::IsSS())	dtype = LenFreq::eCType::LNORM;
 				}
 				_dist[i]->Print(s, dtype);
 				s.close();
