@@ -40,8 +40,7 @@ const char* verbs[] = { "SL","RES","RT","PAR","DBG" };
 // --ground option
 const Options::PairVals grounds(50, 1, 0, 0, 100, 100);		// defFG, defBG, minFG, minBG, maxFG, maxFG
 // --lndist option
-const Options::PairVals lnd(5.26f, 0.3f, 3, 0.3f, 9, 1);	// defMean, defSD, minMean, minSD, maxMean, maxSD
-//const Options::PairVals lnd(5.46f, 0.4f, 3, 0.03f, 9, 1);	// defMean, defSD, minMean, minSD, maxMean, maxSD
+const Options::PairVals lnd(5.26f, 0.3f, 3, 0.01f, 9, 1);	// defMean, defSD, minMean, minSD, maxMean, maxSD
 // --ssddist option
 const Options::PairVals ssd(vUNDEF, 30, 50, 2, 2000, 500);	// "auto", defSD, minMean, minSD, maxMean, maxSD
 // --rd-dist option
