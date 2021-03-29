@@ -1380,7 +1380,7 @@ private:
 	inline static bool IsType(eCType cType, eCType type) { return cType & type; }
 
 	// Calls distribution parameters by consecutive distribution type
-	//	@keypts: key pointers: X-coord of highest point, X-coord of right middle hight point
+	//	@keypts: key points: X-coord of highest point, X-coord of right middle hight point
 	//	@params: returned mean(alpha) & sigma(beta)
 	//	Defined as a member of the class only to use the private short name lghRatio
 	static void (*SetParams[])(const fpair& keypts, fpair& params);
@@ -1397,10 +1397,10 @@ private:
 	//	return: estimated base, or 0 in case of degenerate distribution
 	fraglen GetBase();
 
-	// Defines key pointers
+	// Defines key points
 	//	@base: moving window half-length
 	//	@summit: returned X,Y coordinates of spliced (smoothed) summit
-	//	return: key pointers: X-coord of highest point, X-coord of right middle hight point
+	//	return: key points: X-coord of highest point, X-coord of right middle hight point
 	fpair GetKeyPoints(fraglen base, point& summit) const;
 
 	// Compares this sequence with calculated one by given mean & sigma, and returns PCC
@@ -1413,7 +1413,7 @@ private:
 
 	// Calculates distribution parameters
 	//	@type: consecutive distribution type
-	//	@keyPts: key pointers: X-coord of highest point, X-coord of right middle hight point
+	//	@keyPts: key points: X-coord of highest point, X-coord of right middle hight point
 	//	@dParams: returned PCC, mean(alpha) & sigma(beta)
 	//	@Mode: X-coordinate of summit
 	void SetPCC(dtype type, const fpair& keypts, DParams& dParams, fraglen Mode) const;

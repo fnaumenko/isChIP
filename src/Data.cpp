@@ -1339,7 +1339,7 @@ float(*GetMean[])(const fpair& params) = {
 };
 
 // Calls distribution parameters by consecutive distribution type as index
-//	@keypts: key pointers: X-coord of highest point, X-coord of right middle hight point
+//	@keypts: key points: X-coord of highest point, X-coord of right middle hight point
 //	@params: returned mean(alpha) & sigma(beta)
 //	Defined as a member of the class only to use the private short 'lghRatio'
 void (*LenFreq::SetParams[])(const fpair& keypts, fpair& params) = {
@@ -1564,10 +1564,10 @@ fraglen LenFreq::GetBase()
 #endif
 }
 
-// Defines key pointers
+// Defines key points
 //	@base: moving window half-length
 //	@summit: returned X,Y coordinates of spliced (smoothed) summit
-//	return: key pointers: X-coord of highest point, X-coord of right middle hight point
+//	return: key points: X-coord of highest point, X-coord of right middle hight point
 fpair LenFreq::GetKeyPoints(fraglen base, point& summit) const
 {
 	const fraglen baseSMM = base <= smoothBase ? 0 : base;
@@ -1653,7 +1653,7 @@ void LenFreq::CalcPCC(dtype type, DParams& dParams, fraglen Mode, bool full) con
 
 // Calculates distribution parameters
 //	@type: consecutive distribution type
-//	@keyPts: key pointers: X-coord of highest point, X-coord of right middle hight point
+//	@keyPts: key points: X-coord of highest point, X-coord of right middle hight point
 //	@dParams: returned PCC, mean(alpha) & sigma(beta)
 //	@Mode: X-coordinate of summit
 void LenFreq::SetPCC(dtype type, const fpair& keypts, DParams& dParams, fraglen Mode) const
