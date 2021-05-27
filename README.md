@@ -4,6 +4,11 @@
 The modelling of the chromatin immunoprecipitaion followed by next generation sequencing process is based primarily on Illumina protocol. 
 In addition, extra flexibility is implemented for the isChIP’s options to be straightforwardly re-formulated in other formats, 
 such as Ion Torrent, Roche454, etc.<br>
+Adjustment of fragment length and size selection distribution parameters.<br>
+Supports PCR, MDA amplification; SE, PE sequencing; ChIP-exo.<br>
+Output formats: FastQ, SAM, BED, BedGraph.<br>
+Can generate a control (input) output along with a test.
+
 More details of the model are provided in the section [Model: brief description](#model-brief-description).<br>
 Suitable for [single cell simulation](#example-of-single-cell-simulation).
 
