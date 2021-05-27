@@ -7,10 +7,10 @@ such as Ion Torrent, Roche454, etc.<br>
 Adjustment of fragment length and size selection distribution parameters.<br>
 Supports PCR, MDA amplification; SE, PE sequencing; ChIP-exo.<br>
 Output formats: FastQ, SAM, BED, BedGraph.<br>
-Can generate a control (input) output along with a test one.
+Can generate a control (input) output along with a test one.<br>
+Suitable for [single cell simulation](#example-of-single-cell-simulation).
 
 More details of the model are provided in the section [Model: brief description](#model-brief-description).<br>
-Suitable for [single cell simulation](#example-of-single-cell-simulation).
 
 ### Performance
 On 2.5 GHz RAID HPC by default values of ground samples, in one-thread mode, within 1 minute **isChIP** records:<br>
