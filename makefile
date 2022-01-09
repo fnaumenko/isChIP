@@ -20,7 +20,7 @@ all: print_warning $(HDR) $(SRC) $(PROG)
 $(PROG): $(OBJ)
 	$(CC) $(LOPT) $(OBJ) -o $@
 	@echo "$(PROG) compilation complete."
-#	cp $@ ..
+	cp $@ ..
 
 .cpp.o:
 	$(CC) $(COPT) $< -o $@
