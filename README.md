@@ -6,8 +6,8 @@ In addition, extra flexibility is implemented for the isChIP’s options to be s
 such as Ion Torrent, Roche454, etc.
 
 Supports:
-* adjastable fragment length and size selection distribution parameters
 * generation of peaks with specified location, width and efficiency (score)
+* adjastable fragment length and size selection distribution parameters
 * SE/PE sequencing
 * PCR, MDA amplification
 * issuance reads with fixed/variable length
