@@ -2,7 +2,7 @@
 Imitator.cpp (c) 2014 Fedor Naumenko (fedor.naumenko@gmail.com)
 All rights reserved.
 -------------------------
-Last modified: 25.03.2021
+Last modified: 07.01.2022
 -------------------------
 Provides chip-seq imitation functionality
 ***********************************************************/
@@ -13,8 +13,9 @@ Provides chip-seq imitation functionality
 #include <cfloat>		// FLT_MAX
 #include <cwchar>		// long '-'
 #include <random>		// std::exponential_distribution
+#include <thread>
 
-//#define PI 3.141593
+const char* Gr::title[] = { "FG","BG" };	// if change, correct TitleLength
 
 /************************  class Average ************************/
 UINT Imitator::Average::operator+=(UINT val)
@@ -165,7 +166,6 @@ public:
 			for(_it=_avrs.begin() + 1; _it<_avrs.end(); _it++)
 				if(_it->ReadLen == Read::FixedLen)
 					return *_it;
-			//_avrs.push_back(AvrFrag());
 			_avrs.emplace_back();
 			_isChanged = true;
 			return *(_it = _avrs.end() - 1);
@@ -180,10 +180,10 @@ public:
 	}
 
 	// Returns min frag len from the first line if it's not empty, otherwise 0
-	inline chrlen GetMin() const { return _avrs.size() ? _avrs.begin()->RecLen : 0; }
+	inline chrlen GetMin() const { return _avrs.size() ? chrlen(_avrs.begin()->RecLen) : 0; }
 
 	// Returns max frag len from the first line if it's not empty, otherwise 0
-	inline chrlen GetMax() const { return _avrs.size() ? _avrs.begin()->MdaLen : 0; }
+	inline chrlen GetMax() const { return _avrs.size() ? chrlen(_avrs.begin()->MdaLen) : 0; }
 
 	// Writes min, max values to the second line
 	void SetMinMax(fraglen min, fraglen max)
@@ -317,7 +317,7 @@ void Imitator::ChromView::PrintReads(GM::eMode gMode, const FragCnt fragCnt, chr
 {
 	ULONG rCnt = ULONG(fragCnt.RecCnt() << Seq::Mode());	// count of reads
 
-	if(TestMode)						// Ground title
+	if(TestMode)							// Ground title
 		if(gMode == GM::eMode::Control)		// can be true only if Imitator::MakeControl is true
 			PrintMarg(Gr::TitleLength + 1);					// print blanks instead of Gr title
 		else
@@ -327,7 +327,8 @@ void Imitator::ChromView::PrintReads(GM::eMode gMode, const FragCnt fragCnt, chr
 	if(Imitator::IsMDA || PCRCoeff)
 		PrFittedFloat(false, fragCnt.RealAmplCoeff(), AmplPr, marg_A + AmplW);			// MDA coef
 	PrFittedFloat(false, LinearDens(rCnt, densLen), DensPr, marg_D + DensW, DensWRP);	// density
-	if(GrType == Gr::FG)		PrintMarg(margD_);
+	if(GrType == Gr::FG)		
+		PrintMarg(margD_);
 }
 
 // Prints chroms gaps statistics
@@ -352,7 +353,7 @@ void Imitator::ChromView::Init(ULONG maxCnt, float sample, float maxDens)
 	//else if(sample < 10.1)	SampleW = 4;	// 9.9%
 	//else if(sample < 100)	SampleW = 3;	// 99%
 	//else					SampleW = 4;	// 100%
-	SampleWRP = sample * 100 > 9.9;		// '9.9% '
+	SampleWRP = BYTE(sample * 100 > 9.9);		// '9.9% '
 	DensWRP = 0;
 	if(maxDens < 0.015)		DensPr = 3;				// 0.0012
 	else if(maxDens < 0.15)	DensPr = 3;				// 0.012
@@ -416,18 +417,18 @@ void Imitator::ChromCutter::IncrTotalSelFragCount()
 // Creates instance
 //	@imitator: the owner
 //	@avr: recorded frags average (trial for sampling), or NULL
-//	@slave: if true then this instance it slave
-Imitator::ChromCutter::ChromCutter(const Imitator* imitator, Average* avr, bool slave) :
+//	@master: if true then this instance it slave
+Imitator::ChromCutter::ChromCutter(const Imitator* imitator, Average* avr, bool master) :
 	_cSizes(imitator->_cSizes),
 	_ampl(_fragDistr),
 	_fragDistr(avr),
-	_slave(slave),
+	_master(master),
 	_gMode(GM::eMode::Test)
 {
 	Output::SetSeqMode(avr);
 	_fragCnt.Clear();
 	_fragCnt.SetGMode(GM::eMode::Test);
-	_output = slave ? new Output(imitator->_oFile) : &(imitator->_oFile);
+	_output = master ? &(imitator->_oFile) : new Output(imitator->_oFile);
 }
 
 // Prints thread-safe info about treated chroms and stops timer
@@ -439,10 +440,10 @@ void Imitator::ChromCutter::PrintChrom (
 	const RefSeq& seq, chrlen enrRegLen, Timer& timer, bool excLimit)
 {
 	if( !Verbose(eVerb::RT) )	return;
-	const ULONG rgnLens[] = { enrRegLen, seq.DefRegion().Length() - enrRegLen }; // FG, BG region's lengths
 
 	Mutex::Lock(Mutex::eType::OUTPUT);
 
+	const ULONG rgnLens[] = { enrRegLen, seq.DefRegion().Length() - enrRegLen }; // FG, BG region's lengths
 	PrintChromInfo(seq.ID(), _gMode, _fragCnt.GetFragCnts(), rgnLens, !IsSingleThread());
 	if(Verbose(eVerb::PAR))
 		if(_gMode == GM::eMode::Test) {
@@ -461,17 +462,17 @@ void Imitator::ChromCutter::PrintChrom (
 	Mutex::Unlock(Mutex::eType::OUTPUT);
 }
 
-ULLONG Imitator::ChromCutter::PrepareCutting(GM::eMode gm, chrid cID, Timer& timer)
+ULONG Imitator::ChromCutter::PrepareCutting(GM::eMode gm, chrid cID, Timer& timer)
 {
 	SetGMode(gm);
 	PrintChromName(cID, gm, IsSingleThread());			// print chrom name before cutting
 	timer.Start();
-	return ULLONG(CellCnt(gm) << int(_cSizes.IsAutosome(cID)));	// multiply twice for autosomes
+	return ULONG(CellCnt(gm)) << ULONG(Chrom::IsAutosome(cID));	// multiply twice for autosomes
 }
 
 // Treats chromosomes given for current thread
 //	@cSubset: pointer to Subset - set of chrom IDs treated in this thread
-thrRetValType Imitator::ChromCutter::Execute(const effPartition::Subset& cIDSet)
+void Imitator::ChromCutter::Execute(const effPartition::Subset& cIDSet)
 {
 	Features::cIter	cit;			// template chrom's iterator
 	ULONG	n, cellCnt;				// count of cells, length of enriched regions
@@ -481,26 +482,27 @@ thrRetValType Imitator::ChromCutter::Execute(const effPartition::Subset& cIDSet)
 	Timer	timer(Verbose(eVerb::RT));	// print local time on Verbose 'runtime info and above'
 
 	try {
-		for(effPartition::numb_id_cit it=cIDSet.NumbIDs().begin(); it!=cIDSet.NumbIDs().end(); it++) {
+		for (chrid cID : cIDSet.NumbIDs()) {	// loop through chroms
 			_fragCnt.Clear();
-			cellCnt = ULONG(PrepareCutting(GM::eMode::Test, *it, timer));
+			cellCnt = PrepareCutting(GM::eMode::Test, cID, timer);
 
-			if(Templ && (cit=Templ->GetIter(*it)) != Templ->cEnd()) {
-				fCnt = Templ->ItemsCount(cit);
-				enrRegLen = Templ->EnrRegLength(cit, 0, SelFragAvr);
+			if(Templ && (cit=Templ->GetIter(cID)) != Templ->cEnd()) {
+				fCnt = Templ->ItemsCount(cID);
+				enrRegLen = Templ->EnrRegnLength(cit, 0, SelFragAvr);
 			}
 			else	enrRegLen = fCnt = 0;
-			const RefSeq seq(*it, _cSizes);
+			const RefSeq seq(cID, _cSizes);
 			const chrlen cLen = seq.End();		// chrom 'end' position
+			float scores[]{ 1,1 };
+			
 			_output->BeginWriteChrom(seq);
-
 			for(n = 0; n < cellCnt; n++) {
 				currPos = seq.Start() + _fragDistr.RandFragLen();	// random shift from the beginning
 				for(k=0; k < fCnt; k++)
-					if(res = CutChrom(cLen, currPos, Templ->Feature(cit, k), false))
+					if(res = CutChrom(cLen, currPos, Templ->Feature(cit, k), scores, false))
 						goto A;			// achievement of Reads limit
 				// add background after last 'end' position
-				if((res = CutChrom(cLen, currPos, seq.DefRegion(), true)) < 0)
+				if((res = CutChrom(cLen, currPos, seq.DefRegion(), scores, true)) < 0)
 					break;				// achievement of Reads limit
 			}
 A:			PrintChrom(seq, enrRegLen, timer, res < 0);		// timer stops and printed in here
@@ -508,10 +510,10 @@ A:			PrintChrom(seq, enrRegLen, timer, res < 0);		// timer stops and printed in 
 			// collect total enriched regions length to calculate total density
 			IncrementTotalLength(seq, enrRegLen);
 			if(MakeControl) {
-				cellCnt = ULONG(PrepareCutting(GM::eMode::Control, seq.ID(), timer));
+				cellCnt = PrepareCutting(GM::eMode::Control, seq.ID(), timer);
 				for(n = 0; n < cellCnt; n++) {
 					currPos = seq.Start() + _fragDistr.RandFragLen();	// random shift from the beginning
-					CutChrom(cLen, currPos, seq.DefRegion(), true);
+					CutChrom(cLen, currPos, seq.DefRegion(), scores, true);
 				}
 				PrintChrom(seq, enrRegLen, timer, false);		// timer stops in here
 				IncrTotalSelFragCount();
@@ -528,7 +530,6 @@ A:			PrintChrom(seq, enrRegLen, timer, res < 0);		// timer stops and printed in 
 		cout << SignDbg << sThread << int(cIDSet.ID()) << ":  end" << endl;
 		Mutex::Unlock(Mutex::eType::OUTPUT);
 	}
-	return thrRetValFalse;
 }
 
 typedef pair<fraglen, fraglen>	frag;
@@ -552,6 +553,7 @@ void Imitator::ChromCutter::GetFlattSample(chrlen fStart, chrlen fEnd, const Fea
 //	@cLen: chromosome's 'end' position
 //	@fStart: fragment start position
 //	@ft: current treated feature
+//	@scores: FG (in-feature, first) and BG (out-feature, second) scores
 //	@bg: if true then generate background (swap foreground and background)
 //	@fStat: statistics of selected fragments average counter, or NULL under work mode
 //	return: 0 if success,
@@ -561,16 +563,17 @@ int Imitator::ChromCutter::CutChrom	(
 	chrlen cLen,
 	chrlen& fStart,
 	const Featr& ft,
+	float scores[],
 	bool bg,
 	FragLenStat* fStat
 	)
 {
-	const float ftScore[] = { UniScore ? 1 : ft.Value, 1 };	// FG, BG feature's score
 	fraglen	fLenMin = Read::FixedLen;	// minimal fragment's length after size selection
 	fraglen	fLenMax = FRAG_MAX;			// maximal fragment's length after size selection
 	Region frags[4];		// [0],[1] - sheared fragments of forward and backward strand DNA,
 							// [2],[3] - additional fragments generated by EXO
 
+	scores[0] = ft.Value;
 	for(fraglen	fLen = 0; fStart<=ft.End; fStart += fLen + 1) {	// ChIP: control right mark
 		fLen = _fragDistr.LognormNext();
 		chrlen fEnd = fStart + fLen;						// fragment's end position
@@ -615,14 +618,15 @@ int Imitator::ChromCutter::CutChrom	(
 		&& FlatLen)							// flattening is ON?
 			GetFlattSample(fStart, fEnd, ft, select);
 			
-		if (select && _fragDistr.Sample(ftScore[g]))	// selection by bounds & feature score
-			for (int x = (2 << IsExo) - 1; x >= 0; x--)	// loop through the fragments from frags[]: 2 or 4
-				if (PerSample(g) && frags[x].Length() >= Read::FixedLen) {	// FG/BG loss && not short fragment after EXO
+		if (select && Sample(scores[g]))	// selection by bounds & feature score
+			for (int x = (2 << int(IsExo)) - 1; x >= 0; x--)	// loop through the fragments from frags[]: 2 or 4
+				if (Sample(Imitator::Sample(_gMode, g))
+				&& frags[x].Length() >= Read::FixedLen) {		// FG/BG loss && not short fragment after EXO
 					// ** MDA amplification
 					bool primer = true;
 					_ampl.Generate(frags[x].Length(), fLenMin);
 					for (const Fraction& frac : _ampl)
-						if (PerAutoSample()				// adjusted sample
+						if (Sample(AutoSample)			// adjusted limits sample
 						&& frac.second <= fLenMax)		// ** size selection 2: skip long fragments
 							// ** PCR amplification: _PCRdcycles is number of read doubling cycles
 							for (a_cycle i = 0; i < _PCRdcycles; primer = false, i++)
@@ -688,7 +692,8 @@ void Imitator::PrintChromInfo(
 	chrid cID, GM::eMode gMode, const FragCnt fCnts[], const ULONG rgnLens[], bool prChrName)
 {
 	PrintChromName(cID, gMode, prChrName);
-	if(TestMode)	PrintReadInfo(Gr::FG, gMode, fCnts, rgnLens);
+	if(TestMode)	
+		PrintReadInfo(Gr::FG, gMode, fCnts, rgnLens);
 	PrintReadInfo(Gr::BG, gMode, fCnts, rgnLens);
 }
 
@@ -703,7 +708,7 @@ void Imitator::PrintHeader(bool header)
 		w = 0;
 		if(Verbose(eVerb::PAR))	cout << LF;
 		if(MakeControl)
-			w += PrFittedStr(sBLANK, 2);	// "t " or "c "
+			w += PrFittedStr(sSPACE, 2);	// "t " or "c "
 		cout << setfill(SPACE) << left;
 		w += PrFittedStr(Chrom::Short.c_str(), ChromView::ChromNameW());
 		if(TestMode)
@@ -763,10 +768,10 @@ void	Imitator::Init(
 	a_coeff	amplCoeff,			// coefficient of PCR
 	UINT	verb,				// verbosity level
 	bool	allBg,				// true if all background mode is assigned
-	bool	uniScore,			// true if uniform template score is assigned
+	//bool	uniScore,			// true if uniform template score is assigned
 	//readlen bindLen,
 	//const pairVal& flattens
-	UINT	unstBindLen			// unstable binding length
+	fraglen	unstBindLen			// unstable binding length
 ) {
 	TMode = tmode;
 	MakeControl = TestMode ? input : false;
@@ -777,7 +782,7 @@ void	Imitator::Init(
 	ChromCutter::FragDistr::Init();
 	Verb = eVerb(verb);
 	All = (tmode == CONTROL) || allBg;
-	UniScore = uniScore;
+	//UniScore = uniScore;
 	//BindLen = bindLen;
 	//FlatLen = flattens.first + flattens.second;
 	FlatLen = unstBindLen;
@@ -808,24 +813,25 @@ void Imitator::Execute(Features* templ)
 	}
 }
 
+
+
 // Cuts genome into fragments and generate output
 void Imitator::CutGenome	()
 {
 	effPartition cSets(_cSizes, thrid(ThrCnt));
-	vector<Thread*> slaves;
-	slaves.reserve(ThrCnt);
 	
 	if( ThrCnt>1 && Verbose(eVerb::DBG))	cSets.Print();
 	if(FlatLen < 0)		FlatLen = -FlatLen;
 	SetSample();
 	PrintHeader(true);
-	for(BYTE i=1; i<ThrCnt; i++)	// invoke slave threads
-		slaves.push_back(new Thread(StatCutChrom, &cSets[i]));
-	CutChrom(cSets[0], false);		// invoke main thread
-	for(BYTE i=0; i<ThrCnt-1; i++) {
-		slaves[i]->WaitFor();		// wait for slave threads finishing
-		delete slaves[i];
-	}
+
+	bool master = true;
+	vector<thread> threads;
+	threads.reserve(ThrCnt);
+	for (BYTE i = 0; i < ThrCnt; master = false, i++)
+		threads.emplace_back(&Imitator::CutChrom, this, cSets[i], master);
+	for (thread& t : threads)	t.join();
+
 	PrintHeader(false);
 }
 
@@ -850,17 +856,19 @@ ULONG Imitator::GetReadsCnt(Gr::eType g, chrlen densLen, float factor,
 }
 
 // Imitates cutting chromosome to reach statistics
+//	return: estimated total number of Reads
 ULLONG Imitator::CutForSample(Average& genFrAvr, FragLenStat* fLenStat)
 {
 	chrlen		pos = 0;
 	ChromCutter cCutter(this, &genFrAvr, false);
 	const RefSeq seq(_cSizes[0]);
 	const chrlen cLen = seq.End();		// chrom defined 'end' position
+	float scores[]{ 1,1 };
 	
 	// generate statistics based on first chrom; Reads are not recorded
 	GlobContext[int(GM::eMode::Test)].SetSample(1.0);
 	for(int i=0; i<2; pos=0, i++)
-		cCutter.CutChrom(cLen, pos, seq.DefRegion(), false, fLenStat);
+		cCutter.CutChrom(cLen, pos, seq.DefRegion(), scores, false, fLenStat);
 	GlobContext[int(GM::eMode::Test)].ClearFragCounters();
 	return cCutter.RecFgFragCnt();
 }
@@ -930,18 +938,17 @@ void Imitator::SetSample()
 	const float	countFactor = float(GlobContext[int(GM::eMode::Test)].CellCnt) / 
 		(IsMDA ? avr.MdaLen : avr.RecLen);
 
-	// *** estimate total number of frags
 	for(ChromSizes::cIter it=_cSizes.cBegin(); it!=_cSizes.cEnd(); it++) {
 		if( !_cSizes.IsTreated(it) )	continue;
 		// count is estimated according to diploid (numerical) sign,
 		//	but density not, because basic length is single!
 		if( Templ && Templ->FindChrom(CID(it)) ) {
-			enRgnLen = Templ->EnrRegLength(CID(it), 0, SelFragAvr);
+			enRgnLen = Templ->EnrRegnLength(CID(it), 0, SelFragAvr);
 			totalCnt += GetReadsCnt(Gr::FG, enRgnLen, countFactor, 0, maxCnt, maxDens);
 		}
 		else	enRgnLen = 0;
 		totalCnt += GetReadsCnt(Gr::BG,	_cSizes.DefEffLength(it) - enRgnLen,
-			countFactor, _cSizes.IsAutosome(CID(it)), maxCnt, maxDens);
+			countFactor, Chrom::IsAutosome(CID(it)), maxCnt, maxDens);
 	}
 	//if (IsMDA)	totalCnt += totalCnt/5;	// empirical coefficient 1.2: right for small read cnt, but failed for big one
 	if(PCRCoeff) {

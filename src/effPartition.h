@@ -121,16 +121,12 @@ public:
 		inline static bool SortByDescend(Subset s1, Subset s2) { return s1.sumVal > s2.sumVal; }
 		inline static bool SortByAscend (Subset s1, Subset s2) { return s1.sumVal < s2.sumVal; }
 
-		// Creates an empty Subset with reserved capacity
-		//	@iCnt: expected count of numbers 
-		inline Subset(numb_id iCnt) : id(0), sumVal(0) { numbIDs.reserve(iCnt); }
-
 		// Clears instance: removes all number IDs, sets the sum of number values to zero
 		void Clear() { sumVal = 0; numbIDs.clear(); }
 
 		// Adds number
-		//	@it: number's iterator
-		void AddNumb(const numb_it& it);
+		//	@n: added Id number
+		void AddNumb(const IdNumber& n);
 
 		// Takes into account (charges) number's value
 		//	@it: number's iterator
@@ -148,6 +144,10 @@ public:
 		void Print(BYTE sumW, BYTE valW, size_t prNumbsCnt = 0) const;
 
 	public:
+		// Creates an empty Subset with reserved capacity
+		//	@iCnt: expected count of numbers 
+		inline Subset(numb_id iCnt) : id(0), sumVal(0) { numbIDs.reserve(iCnt); }
+
 		// Gets subset's ID
 		inline ss_id ID() const { return id; }
 
@@ -228,8 +228,8 @@ public:
 	inline ss_id SubsetCount() const { return result.SubsetCount(); }
 
 	// Returns a reference to the subset at position n
-	inline Subset& operator[](ss_id n) { return result.Bins[n]; }
-	//inline const Subset& operator[](ss_id n) const { return result.Bins[n]; }
+	//inline Subset& operator[](ss_id n) { return result.Bins[n]; }
+	inline const Subset& operator[](ss_id n) const { return result.Bins[n]; }
 
 	// Returns a reference to the subsets container
 	inline const std::vector<Subset>& Subsets() const { return result.Bins; }

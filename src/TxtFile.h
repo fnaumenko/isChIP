@@ -2,13 +2,17 @@
 TxtFile.h (c) 2014 Fedor Naumenko (fedor.naumenko@gmail.com)
 All rights reserved.
 -------------------------
-Last modified: 23.03.2021
+Last modified: 07.01.2022
 -------------------------
 Provides read|write text file functionality
 ***********************************************************/
 
 #pragma once
+#ifndef _TXTFILE_H
+#define _TXTFILE_H
+
 #include "common.h"
+//#include <variant>
 
 // Number of basics file's reading|writing buffer blocks.
 // Should be less than 2047 because of ULONG type of block size variable.
@@ -25,16 +29,16 @@ struct TabFilePar
 
 	const BYTE	MinFieldCnt;	// minimum number of feilds in file line; checked during initialization
 	const BYTE	MaxFieldCnt;	// maximum possible number of feilds in data line; checked by a call
-	const BYTE	LineLen;		// average line length; to reserve container size
+	const BYTE	AvrLineLen;		// average line length; to reserve container size
 	const char	Comment;		// char indicates that line is comment
 	const char* LineSpec;		// substring on which each data line is beginning
 
-	inline TabFilePar() : MinFieldCnt(0), MaxFieldCnt(0), LineLen(0), Comment(cNULL), LineSpec(NULL) {}
+	inline TabFilePar() : MinFieldCnt(0), MaxFieldCnt(0), AvrLineLen(0), Comment(cNULL), LineSpec(NULL) {}
 
-	TabFilePar(BYTE minTabCnt, BYTE maxTabCnt, BYTE lineLen = 0, char comm = HASH, const char* lSpec = NULL) :
+	TabFilePar(BYTE minTabCnt, BYTE maxTabCnt, BYTE avrLineLen = 0, char comm = HASH, const char* lSpec = NULL) :
 		MinFieldCnt(minTabCnt),
 		MaxFieldCnt(maxTabCnt<minTabCnt ? minTabCnt : maxTabCnt),
-		LineLen(lineLen),
+		AvrLineLen(avrLineLen),
 		Comment(comm),
 		LineSpec(lSpec)
 		{}
@@ -115,7 +119,7 @@ class TxtFile
  * Optimised for huge files.
  * Restriction: the default size of buffer, setting as NUMB_BLK * BasicBlockSize, 
  * should be bigger than the longest line in file. Otherwise file become invalid,
- * and less than UINT.
+ * and less than size_t.
  * If size of reading files is less than default buffer's size, 
  * the buffer's size sets exactly to be sufficient to read a whole file.
  * The reading/writing unit is a 'record', which in common case is a predifined set of lines.
@@ -137,9 +141,8 @@ protected:
 		// The first bit is set to 1 in the constructor.
 		// If CR symbol is found at the end of line,
 		//	the second bit is raised to 1, the first turn down to 0
-		F_CR		= 0x01,	// sign of Curent Return ('\r')
-		//EOLSZ		= 0x03,	// mask for the 2 first bits
-		EOLCHECKED	= 0x02,	// the presence of a symbol CR is checked; for Reading mode
+		ISCR		= 0x01,	// sign of Carriage Return ('\r')
+		LFCHECKED	= 0x02,	// the presence of a symbol CR is checked; for Reading mode
 		ZIPPED		= 0x04,	// file is zipped
 		ABORTING	= 0x08,	// invalid file should be completed by throwing exception; for Reading mode
 		ENDREAD		= 0x10,	// last call of GetNextRecord() has returned NULL; for Reading mode
@@ -149,7 +152,8 @@ protected:
 	};
 
 private:
-	const static int BlockSize = 4 * 1024 * 1024;	// 4 Mb
+	const static int BlockSize = 1024 * 1024;	// 1 Mb
+	const int CRLF = eFlag::ISCR + eFlag::LFCHECKED;	// combined 'flag'
 
 	LLONG	_fSize;			// the length of uncompressed file; for zipped file more than
 							// 4'294'967'295 its unzipped length is unpredictable
@@ -159,54 +163,55 @@ private:
 protected:
 	void *	_stream;			// FILE* (for unzipped file) or gzFile (for zipped file)
 	char *	_buff;				// basic I/O (read/write) buffer
-	UINT	_buffLen;			// the length of the basic I/O buffer
-	mutable UINT _currRecPos;	// start position of the last readed/writed record in the block
+	size_t	_buffLen;			// the length of the basic I/O buffer
+	mutable size_t _currRecPos;	// start position of the last readed/writed record in the block
 	mutable ULONG _recCnt;		// local counter of readed/writed records
 	mutable Err::eCode	_errCode;
 	//Stopwatch	_stopwatch;
 	
-	inline void RaiseFlag(eFlag f) const	{ _flag |= f; }
-	inline void SetFlag	(eFlag f, bool val)	{ val ? _flag |= f : _flag &= ~f; }
-	inline bool IsFlag	(eFlag f)	const	{ return _flag & f; }
-	inline bool IsZipped()			const	{ return IsFlag(ZIPPED); }
+	inline void SetFlag	(eFlag f, bool val)	const { val ? _flag |= f : _flag &= ~f; }
+	inline void RaiseFlag(eFlag f)	const { _flag |= f; }
+	inline bool IsFlag	(eFlag f)	const { return _flag & f; }
+	inline bool IsZipped()			const { return _flag & ZIPPED; }
+	inline bool IsClone()			const { return _flag & CLONE; }
 
 	// *** 3 methods used by TxtInFile only
 
 	// Gets the number of characters corresponded to LF
 	// In Windows LF matches '\r\n', in Linux LF matches '\n',
 	//	return: in Windows always 1, in Linux: 2 for file created in Windows, 1 for file created in Linux
-	//inline UINT EOLSize() const	{ return _flag & EOLSZ; }
-	inline UINT EOLSize() const	{ 	return 2 - (_flag & F_CR); }
+	inline size_t LFSize() const	{ 	return 2 - (_flag & ISCR); }
 
 	// Returns true if LF size is not defined
-	inline bool IsEOLundef() const { return !bool(_flag & EOLCHECKED); }
+	inline bool IsLFundef() const { return !(_flag & LFCHECKED); }
 
 	// Establishes the presence of CR symbol at the end of line.
 	//	@c: if c is CR then the second bit is raised to 1, the first turn down to 0,
-	//	so the value return by EOLSZ mask is 2, otherwise remains in state 1
-	inline void SetEOL(char c)	{ if(c==CR)	 RaiseFlag(F_CR); RaiseFlag(EOLCHECKED); }
+	//	so the value return by LFSZ mask is 2, otherwise remains in state 1
+	//inline void SetLF(char c)	{ if(c==CR)	 RaiseFlag(ISCR); RaiseFlag(LFCHECKED); }
+	inline void SetLF(char c) { if (c == CR)	_flag |= CRLF; }
 
 private:
 	// Initializes instance variables, opens a file, sets a proper error code.
 	//	@fName: valid full name of file
 	//	@mode: opening mode
-	//	@flStream: clonable file stream or NULL
+	//	@fStream: clonable file stream or NULL
 	//	return: true is success, otherwise false.
-	bool SetBasic(const string& fName, eAction mode, void* flStream);
+	bool SetBasic(const string& fName, eAction mode, void* fStream);
 	
 	// Allocates memory for the I/O buffer with checking.
 	//	return: true if successful
 	bool CreateIOBuff();
 
-	void operator=(const TxtFile&); //assignment prohibition
+	//void operator = (const TxtFile&); //assignment prohibition
 
 protected:
 	// Constructs an TxtFile instance: allocates I/O buffer, opens an assigned file.
 	//	@fName: valid full name of assigned file
 	//	@mode: opening mode
+	//	@msgFName: true if file name should be printed in the exception's message
 	//	@abortInvalid: true if invalid instance shold be completed by throwing exception
-	//	@rintName: true if file name should be printed in the exception's message
-	TxtFile(const string& fName, eAction mode, bool abortInvalid=true, bool printName=true);
+	TxtFile(const string& fName, eAction mode, bool msgFName =true, bool abortInvalid = true);
 
 #ifdef _MULTITHREAD
 	// Constructs a clone of an existing instance.
@@ -224,19 +229,14 @@ protected:
 	//	@senderSpec: sender specificator (string added to file name)
 	void SetError(Err::eCode errCode, const string& senderSpec = strEmpty, const string& spec = strEmpty) const;
 
-	// Returns true if instance is a clone.
-	inline bool IsClone() const { return IsFlag(CLONE); }
-
 	// Returns true if instance is valid.
 	inline bool IsGood() const	{ return _errCode == Err::NONE; }
-
-	// Returns true if instance is invalid.
-	inline bool IsBad()	const	{ return _errCode != Err::NONE; }
+	inline bool IsBad()  const	{ return _errCode != Err::NONE; }
 
 	// Returns current error code.
 	//inline Err::eCode ErrCode() const	{ return _errCode; }
 
-public:
+//public:
 	// Gets conditional file name: name if it's printable, otherwise empty string.
 	inline const string& CondFileName() const { return IsFlag(PRNAME) ? _fName : strEmpty; }
 
@@ -254,20 +254,20 @@ public:
 
 	// Throws exception
 	//	@msg: exception message
-	//	@isExc: if true then throw exception, otherwise warning
-	inline void ThrowExcept(const string& msg, bool isExc = true) const {
-		Err(msg, CondFileName()).Throw(isExc);
-	}
+	inline void ThrowExcept(const string& msg) const { Err(msg, CondFileName()).Throw(); }
+
+	// Throws exception
+//	@msg: exception message
+	inline void ThrowExcept(Err::eCode code) const { Err(code, CondFileName().c_str()).Throw(); }
 };
 
 // 'TxtInFile' represents TxtFile for reading.
 //	Ñorrectly reads records even if the latter does not end with LF (CR,LF) character (s)
 class TxtInFile : public TxtFile
 {
-private:
-	UINT	_recLen;		// the length of record with LF marker
-	UINT	_readedLen;		// number of actually readed chars in block
-	UINT *	_linesLen;		// array of lengths of lines in a record
+	size_t	_recLen;		// the length of record with LF marker
+	size_t	_readedLen;		// number of actually readed chars in block
+	size_t*	_linesLen;		// array of lengths of lines in a record
 	BYTE	_recLineCnt;	// number of lines in a record
 
 	// Raises ENDREAD sign an return NULL
@@ -279,37 +279,33 @@ private:
 	// Reads next block.
 	//	@offset: shift of start reading position
 	//	return: 0 if file is finished; -1 if unsuccess reading; otherwhise number of readed chars
-	int ReadBlock(const UINT offset);
+	int ReadBlock(const size_t offset);
 
 	// Returns true if block is complete, move remainder to the top
-	bool CompleteBlock(UINT currLinePos, UINT blankLineCnt);
+	bool CompleteBlock(size_t currLinePos, size_t blankLineCnt);
 
 	// Fills I/O buffer with 0, beginning from @offset position
-	//inline void ClearBuff(UINT offset = 0) { memset(_buff + offset, 0, _buffLen - offset); }
+	//inline void ClearBuff(size_t offset = 0) { memset(_buff + offset, 0, _buffLen - offset); }
 
 	// Gets string containing file name and current record number.
 	//inline const string RecordNumbToStr() const { return LineNumbToStr(0); }
 
 	// Gets number of line.
 	//	@lineInd: index of line in a record
-	inline ULONG LineNumber	(BYTE lineInd) const { return (_recCnt-1)*_recLineCnt + lineInd + 1; }
+	ULONG LineNumber(BYTE lineInd) const { return (_recCnt-1) * _recLineCnt + lineInd + 1; }
 
 protected:
 	// Constructs an TxtInFile instance: allocates buffers, opens an assigned file.
 	//	@fName: valid full name of assigned file
 	//	@mode: opening mode: READ or READ_ANY
 	//	@cntRecLines: number of lines in a record
+	//	@msgFName: true if file name should be printed in an exception's message
 	//	@abortInvalid: true if invalid instance should be completed by throwing exception
-	//	@rintName: true if file name should be printed in an exception's message
 	TxtInFile(const string& fName, eAction mode, BYTE cntRecLines,
-		bool abortInvalid=true, bool printName=true);
+		bool msgFName = true, bool abortInvalid=true);
 
 	inline ~TxtInFile() { if(_linesLen)	delete [] _linesLen; }
-public:
-	// Gets length of current reading record including LF marker.
-	//	Returns 0 after RollBackLastRecord() invoke.
-	inline UINT	RecordLength() const	{ return _recLen; }
-protected:
+
 	// Gets current record.
 	inline const char* Record() const	{ return IsFlag(ENDREAD) ? NULL : RealRecord(); }
 
@@ -335,24 +331,28 @@ protected:
 
 	// Gets length of line.
 	//	@lineInd: index of line in a record
-	//	@withoutEOL: if true then without LF marker length, otherwise without it
-	inline UINT	LineLengthByInd	(BYTE lineInd, bool withoutEOL = true) const { 
-		return _linesLen[lineInd] - withoutEOL * EOLSize();
+	//	@withoutLF: if true then without LF marker length, otherwise without it
+	inline size_t	LineLengthByInd	(BYTE lineInd, bool withoutLF = true) const { 
+		return _linesLen[lineInd] - withoutLF * LFSize();
 	}
 
 	// Throw exception if no record is readed.
 	void CheckGettingRecord() const { 
-		if( IsEOLundef() )
-			Err("attempt to get record's info without reading record", FileName().c_str()).Throw();
+		if (IsLFundef())
+			ThrowExcept("attempt to get record's oinfo without reading record");
 	}
 #endif
 
 	// Returns the read pointer to the beginning of the last read line and decreases line counter.
 	//	Zeroes length of current reading record!
 	//	@sep: field separator character
-	void RollBackLastRecord(char sep);
+	void RollBackRecord(char sep);
 
 public:
+	// Gets length of current reading record including LF marker.
+	//	Returns 0 after RollBackLastRecord() invoke.
+	inline size_t	RecordLength() const { return _recLen; }
+
 	// Gets current readed line.
 	inline const char* Line()	const { return Record(); }
 
@@ -367,21 +367,12 @@ public:
 	//	Err(_errCode=code, LineNumbToStr().c_str()).Throw();
 	//}
 
-	// Throws exception occurred in the current reading line 
+	// Throws exception with message included current reading line number
 	//	@msg: exception message
-	//inline void ThrowLineExcept(const string& msg) const {
-	//	Err(msg, LineNumbToStr().c_str()).Throw();
-	//}
+	void ThrowExceptWithLineNumb(const string& msg) const { Err(msg, LineNumbToStr().c_str()).Throw(); }
 
-	// Throws warning occurred in the current reading line 
-	//	@msg: exception message
-	//	@warnMsg: warning message
-	//inline void ThrowLineWarning(const string& msg, const string& warnMsg) const {
-	//	Err(msg, LineNumbToStr().c_str()).Warning(warnMsg);
-	//}
-	
 	// Gets length of current line without LF marker: only for single-line record!
-	inline chrlen LineLength()	const { return RecordLength() - EOLSize(); }
+	inline chrlen LineLength()	const { return RecordLength() - LFSize(); }
 };
 
 #ifdef _FILE_WRITE
@@ -396,23 +387,50 @@ public:
 	static bool	Zipped;				// true if filed should be zippped
 
 private:
-	char	_delim;			// field delimiter in line
+	//typedef void(TxtOutFile::* fAddChar)();
+	//// 'Add delimiter' methods: [0] - empty method, [1] - adds delimiter and increases current position
+	//static fAddChar fLineAddChar[2];
+
+	char	_delim;				// field delimiter in line
 	// === line write buffer
-	char*	_lineBuff;		// line write buffer; for writing mode only
-	rowlen	_lineBuffLen;	// length of line write buffer in writing mode, otherwise 0
-	rowlen	_lineBuffOffset;// current shift from the _buffLine; replaced by #define!!!
+	char*	_lineBuff = NULL;		// line write buffer; for writing mode only
+	rowlen	_lineBuffLen = 0;		// length of line write buffer in writing mode, otherwise 0
+	rowlen	_lineBuffOffset = 0;	// current shift from the _buffLine; replaced by #define!!!
 #ifdef _MULTITHREAD
 	// === total counter of writed records
 	ULONG*	_totalRecCnt;	// pointer to total counter of writed records; for clone only
 	Mutex::eType _mtype;
 #endif
 
+	//inline void AddCharEmpty() {}
+	////	Adds delimiter to the current position in the line write buffer and increases current position.
+	//inline void AddDelim() { LineAddChar(_delim); }
+
+	//	Adds delimiter to the current position in the line write buffer and increases current position.
+	//	@add: if true then adds delimiter
+	//inline void LineAddDelim(bool add) { (this->*fLineAddChar[add])(); }
+	inline void LineAddDelim(bool add) { if(add) LineAddChar(_delim); }
+
 	// Allocates memory for write line buffer with checking.
 	//	return: true if successful
 	bool CreateLineBuff(rowlen len);
 
-	//	Adds delimiter on the given shift and increases current position.
-	inline void LineAddDelim() { _lineBuff[_lineBuffOffset++] = _delim; }
+	// Closes adding record to the IO buffer: set current rec position and increases rec counter
+	//	@len: length of added record
+	void EndRecordToIOBuff(size_t len);
+
+protected:
+	// Returns current buffer write position
+	inline rowlen CurrBuffPos() const { return _lineBuffOffset; }
+
+	// Adds character to the current position in the line write buffer.
+	//	@ch: char to be set
+	inline void LineAddChar(char ch) { _lineBuff[_lineBuffOffset++] = ch; }
+
+	// Adds character to the current position in the line write buffer with optional adding delimiter
+	//	@ch: char to be set
+	//	@addDelim: if true then adds delimiter and increases current position
+	void LineAddChar(char ch, bool addDelim);
 
 	// Copies block of chars to the current position in the line write buffer,
 	//	adds delimiter after string	and increases current position.
@@ -420,22 +438,18 @@ private:
 	//	@num: number of chars
 	//	@addDelim: if true then adds delimiter and increases current position
 	//	return: new current position
-	rowlen LineAddChars(const char* src, rowlen num, bool addDelim);
+	rowlen LineAddChars(const char* src, rowlen num, bool addDelim = true);
 
-protected:
-	// Returns current buffer write position
-	inline rowlen CurrBuffPos() const { return _lineBuffOffset; }
-
-public:
+//public:
 	// Constructs an TxtOutFile instance: allocates I/O buffer, opens an assigned file.
 	//	@ftype: type of file
 	//	@fName: valid file name without extention
-	//	@abortInvalid: true if invalid instance shold be completed by throwing exception
 	//	@printName: true if file name should be printed in the exception's message
-	inline TxtOutFile(FT::eType ftype, const string& fName, char delim = TAB,
-		bool abortInvalid = true, bool printName = true) :
-		_lineBuff(NULL), _lineBuffLen(0), _lineBuffOffset(0), _delim(delim), _mtype(FT::MutexType(ftype)),
-		TxtFile(fName + FT::Ext(ftype, Zipped), eAction::WRITE, abortInvalid, printName)
+	//	@abortInvalid: true if invalid instance shold be completed by throwing exception
+	inline TxtOutFile(FT::eType ftype, const string& fName,
+		char delim = TAB, bool printName = true, bool abortInvalid = true) :
+		_delim(delim), _mtype(FT::MutexType(ftype)),
+		TxtFile(fName + FT::Ext(ftype, Zipped), eAction::WRITE, printName, abortInvalid)
 		{
 #ifdef _MULTITHREAD
 			_totalRecCnt = &_recCnt;	// for atomic increment
@@ -445,7 +459,7 @@ public:
 	// Writes nonempty buffer, deletes line buffer and closes file
 	~TxtOutFile();
 
-protected:
+//protected:
 #ifdef _MULTITHREAD
 	// Constructs a clone of an existing instance.
 	// Clone is a copy of opened file with its own separate basic I/O and write line buffers.
@@ -455,20 +469,10 @@ protected:
 #endif
 
 	// Sets current position of the line write buffer.
-	inline void LineSetOffset(rowlen offset)	{ _lineBuffOffset = offset; }
+	inline void LineSetOffset(rowlen offset = 0)	{ _lineBuffOffset = offset; }
 
 	// Increases current position by the specified len
 	inline void LineIncrOffset(rowlen len) { _lineBuffOffset += len; }
-
-	// Copies the C string to the current position in the line write buffer,
-	//	adds delimiter after string and increases current position.
-	//	@str: C string to be copied
-	//	@len: length of string to be copied
-	//	@addDelim: if true then adds delimiter and increases current position
-	//	return: new current position
-	inline rowlen LineAddStr(const char* str, int len, bool addDelim=true)	{ 
-		return LineAddChars(str, len, addDelim);
-	}
 
 	// Copies the string to the current position in the line write buffer,
 	//	adds delimiter after string and increases current position.
@@ -483,7 +487,7 @@ protected:
 	//	adds delimiter after value and increases current position.
 	//	@val: value to be set
 	//	@addDelim: if true then adds delimiter and increases current position
-	void LineAddInt(LLONG val, bool addDelim=true);
+	void LineAddInt(LLONG val, bool addDelim = true);
 
 	// Adds two integral values separated by default delimiter to the current position 
 	// of the line write buffer, adds delimiter after value and increases current position.
@@ -498,56 +502,45 @@ protected:
 	//	@val2: second value to be set
 	//	@val3: third value to be set
 	//	@addDelim: if true then adds delimiter and increases current position
-	void LineAddInts(ULONG val1, ULONG val2, ULONG val3, bool addDelim= true);
+	void LineAddInts(ULONG val1, ULONG val2, ULONG val3, bool addDelim=true);
 
 	// Adds floating point value to the current position of the line write buffer,
 	//	adds delimiter after value and increases current position.
 	//	@val: value to be set
 	//	@ndigit: number of digits to generate
 	//	@addDelim: if true then adds delimiter and increases current position
-	void LineAddFloat(float val, BYTE ndigit, bool addDelim=true);
+	//void LineAddFloat(float val, BYTE ndigit, bool addDelim=true);
 
 	// Adds line to the IO buffer (from 0 to the current position).
 	//	@num: number of bytes from the beginning of line buffer to be added to file buffer
 	//	@offset: start position for the next writing cycle
-	//	@closeLine: if true then close line by LF
-	void LineToIOBuff(rowlen offset=0, bool closeLine=true);
+	void LineToIOBuff(rowlen offset=0);
 
 	// Adds record to the IO buffer.
 	// Generates exception if writing is fall.
 	//	@src: record
 	//	@len: length of the record
-	//	@closeLine: if true then close line by LF
-	void RecordToIOBuff	(const char *src, UINT len, bool closeLine=true);
+	void RecordToIOBuff	(const char *src, size_t len);
 
-	// Adds string to IO buffer.
-	inline void StrToIOBuff	(const string& str) { RecordToIOBuff(str.c_str(), str.length()); }
+	// Adds string to IO buffer without checking buffer exceeding.
+	void StrToIOBuff(const string&& str);
 
 	// Adds commented string to the IO buffer.
 	//	@str: recorded string
 	inline void CommLineToIOBuff(const string& str) { StrToIOBuff("# " + str);	}
 
-public:
 	// Allocates line write buffer.
 	//	@len: length of buffer
 	void SetLineBuff(rowlen len);
-
-	// Adds to line int and float values and adds line to the IO buff.
-	//	@ndigit: number if float digits to write
-	//void WriteLine(int val1, float val2, BYTE ndigit);
-
-	// Adds to line int and float values and adds line to the IO buff.
-	//	@ndigit: number if float digits to write
-	//void WriteLine(int val1, float val2, float val3, BYTE ndigit, const char*str);
-
+	
 	// Adds to line 2 int values and adds line to the IO buff.
-	void WriteLine(ULONG val1, ULONG val2);
+	//void WriteLine(ULONG val1, ULONG val2);
 
-	// Adds to line C string and adds line to the IO buff.
-	void WriteLine(const char* str);
+	// Adds to line C-string with delimiter, and adds line to the IO buff.
+	//void WriteLine(const char* str);
 
-	// Adds to line string and int value and adds line to the IO buff.
-	void WriteLine(const string& str, int val);
+	// Adds to line string with delimiter and int value, and adds line to the IO buff.
+	//void WriteLine(const string& str, int val);
 
 	// Writes thread-safely current block to file.
 	void Write	() const;
@@ -564,14 +557,14 @@ public:
 class TabFile : public TxtInFile
 /*
  * Only number of fields defined in constructor is processed.
- * Number of fields can be equal 1, in that case ordinary plain text can be processed.
+ * Number of fields can be equal 1, in that case ordinary plain text is processed.
  */
 {
 	FT::eType	_fType;
-	USHORT	_lineSpecLen;	// length of line specifier; for reading only
-	short* _fieldPos;		// array of start positions in _currLine for each field
-	char*	_currLine;		// current readed line; for reading only
-	ULONG _estLineCnt = vUNDEF;	// estimated number of items
+	USHORT	_lineSpecLen = 0;		// length of line specifier; for reading only
+	short*	_fieldPos = nullptr;	// array of start positions in _currLine for each field
+	char*	_currLine = nullptr;	// current readed line; for reading only
+	ULONG	_estLineCnt = vUNDEF;	// estimated number of items
 
 	// Checks if filed valid and throws exception if not.
 	//	@fInd: field index
@@ -580,12 +573,24 @@ class TabFile : public TxtInFile
 
 	// Initializes new instance.
 	//	@type: file bioinfo type
-	void Init(FT::eType type);
+	//	@estLineCnt: if true then estimate count of lines
+	void Init(FT::eType type, bool estLineCnt);
 
 	// Frees allocated memory
 	void Release() { if (_fieldPos) delete[] _fieldPos; _fieldPos = NULL; }
 
+	// Returns the read pointer to the beginning of the last read line and decreases line counter
+	inline void RollBackLine() { RollBackRecord(TAB); }
+
 protected:
+	// Sets estimation of number of lines by currently readed line, and rolls line back
+	void SetEstLineCount();
+
+	// Sets estimation of number of lines by type (for WIGGLE)
+	void SetEstLineCount(FT::eType type) {
+		_estLineCnt = ULONG(Length() / FT::FileParams(type).AvrLineLen);
+	}
+
 	// Initializes instance by a new type, correct estimated number of lines if it's predefined
 	void ResetType(FT::eType type);
 
@@ -593,17 +598,19 @@ public:
 	// Creates new instance for reading
 	//	@fName: name of file
 	//	@type: file bioinfo type
+	//	@msgFName: true if file name should be printed in exception's message
 	//	@abortInvalid: true if invalid instance should be completed by throwing exception
-	//	@rintName: true if file name should be printed in exception's message
 	TabFile(
 		const string& fName,
 		FT::eType type = FT::eType::UNDEF,
 		eAction	mode = eAction::READ,
-		bool abortInvalid = true,
-		bool printName = true
-	) : _fType(type), _lineSpecLen(0), _fieldPos(NULL), _currLine(NULL),
-		TxtInFile(fName, mode, 1, abortInvalid, printName)
-	{	if (mode != eAction::WRITE && IsGood())	Init(_fType);	}
+		bool estLineCnt = true,
+		bool msgFName = true,
+		bool abortInvalid = true
+		) : TxtInFile(fName, mode, 1, msgFName, abortInvalid), _fType(type)
+	{	
+		if (mode != eAction::WRITE && IsGood())	
+			Init(_fType, estLineCnt);	}
 
 #if defined _ISCHIP && defined  _MULTITHREAD
 	// Creates a clone of TabFile class.
@@ -620,14 +627,32 @@ public:
 
 	inline ~TabFile()	{ Release(); }
 
+	// Returns a pointer to the substring defined by key.
+	//	@str: null-terminated string to search the key
+	//	@key: string to search for
+	//	return: a pointer to the substring after key, or NULL if key does not appear in str
+	static const char* KeyStr(const char* str, const string& key);
+
+	// Checks definition or declaration line for key
+	//	@str: null-terminated string to search the key
+	//	@key: string to search for
+	//	return: point to substring followed after the key
+	const char* CheckSpec(const char* str, const string& key);
+
+	// Returns required int value with check
+//	@str: null-terminated string to search the key
+//	@key: string to search for
+//	return: key value, or throws an exception if key does not appear in str
+	inline chrlen GetIntKey(const char* str, const string& key) { return atoi(CheckSpec(str, key) + 1); }
+
 	// Gets file bioinfo type
 	inline FT::eType Type() const { return _fType; }
 
 	// Gets count of readed lines
-	inline ULONG Count() const { return RecordCount(); }
+	inline size_t Count() const { return RecordCount(); }
 
 	// Returns estimated number of items
-	inline ULONG EstCount() const { return _estLineCnt; }
+	inline size_t EstLineCount() const { return _estLineCnt; }
 
 	// Skip commented lines and returns estimated number of uncommented lines
 	//ULONG GetUncommLineCount();
@@ -644,15 +669,15 @@ public:
 	//	return: current line.
 	const char* GetNextLine(bool checkTabs = true);
 
-	// Reads string by field's index from current line without check up.
-	//inline char* StrField(BYTE fInd) { return _currLine + _fieldPos[fInd]; }
+	// Gets current line.
+	inline char* GetLine() const { return _currLine; }
 
-	// Reads string by field's index from current line without check up.
+	// Reads null-terminated string by field's index from current line without check up.
 	inline const char* StrField	(BYTE fInd)	const {	return _currLine + _fieldPos[fInd]; }
 
-	// Reads string by field's index from current line with check up.
+	// Reads null-terminated string by field's index from current line with check up.
 	const char* StrFieldValid	(BYTE fInd)	const {
-		return IsFieldValid(fInd) ? StrField(fInd) : NULL;
+		return IsFieldValid(fInd) ? StrField(fInd) : nullptr;
 	}
 	
 	// Reads checked integer by field's index from current line without check up.
@@ -678,357 +703,10 @@ public:
 	long LongFieldValid	(BYTE fInd)	const {
 		return IsFieldValid(fInd) ? LongField(fInd) : vUNDEF;
 	}
-
-	// Returns the read pointer to the beginning of the last read line and decreases line counter
-	inline void RollBackLine() { RollBackLastRecord(TAB); }
 };
 
-// 'DataInFile' is a common program interface (PI) of bed/bam input files
-class DataInFile
-{
-protected:
-	int	_cID = vUNDEF;			// current readed chrom ID; int for BAM PI compatibility
-
-public:
-	// Returns estimated number of items
-	virtual ULONG EstItemCount() const = 0;
-	
-	// Sets the next chromosome as the current one if they are different
-	//	@shift: shift constant chrom mark position to the right
-	//	@return: true, if new chromosome is set as current one
-	virtual bool GetNextChrom(BYTE shift = 0) = 0;
-
-	// Returns current chrom
-	inline chrid GetChrom() const { return _cID; }
-
-	// Retrieves next item's record
-	virtual bool GetNextItem() = 0;
-	
-	// Returns current item start position
-	virtual chrlen ItemStart() const = 0;
-	
-	// Returns current item end position
-	virtual chrlen ItemEnd() const = 0;
-	
-	// Returns current item end position
-	inline readlen ItemLength()	const { return readlen(ItemEnd() - ItemStart()); }
-
-	// Returns true if alignment part of paired-end read
-	virtual bool ItemIsPaired() const  = 0;
-	
-	// Returns current item value
-	virtual float ItemValue() const  = 0;
-
-	// Returns current item name
-	virtual const char* ItemName() const = 0;
-	
-	// Gets string containing file name and current line number.
-	//	@code: code of error occurs
-	virtual const string LineNumbToStr(Err::eCode code = Err::EMPTY) const = 0;
-
-	// Gets conditional file name: name if it's printable, otherwise empty string.
-	virtual const string CondFileName() const = 0;
-
-	// Returns true if item contains the strand sign
-	//	Is invoked in the Feature constructor only.
-	virtual bool IsItemHoldStrand() const = 0;
-
-	// Returns current item strand: true - positive, false - negative
-	virtual bool ItemStrand() const = 0;
-};
-
-// 'BedInFile' represents unified PI for reading bed file
-class BedInFile : public DataInFile, public TabFile
-{
-	const BYTE StrandFieldInd = 5;	// index of strand field
-
-	//char _cMark[Chrom::MaxMarkLength + 1];	// chrom mark buffer
-	BYTE _scoreInd;		// index of 'score' filed (used for FBED and all WIGs)
-	BYTE _chrMarkPos;	// chrom's mark position in line (BED, BedGraph) or definition line (wiggle_0)
-	 
-public:
-	// Creates new instance for reading and open file
-	//	@fName: name of file
-	//	@type: file type; not used
-	//	@scoreNumb: number of 'score' filed (for FBED and BedGraph)
-	//	@abortInval: true if invalid instance should be completed by throwing exception
-	//	@prName: true if file name should be printed in exception's message
-	BedInFile(const string& fName, FT::eType type, BYTE scoreNumb, bool abortInval, bool prName) :
-		_scoreInd(scoreNumb ? scoreNumb-1 : 4),
-		_chrMarkPos(BYTE(strlen(Chrom::Abbr))),
-		TabFile(fName, type, eAction::READ, abortInval, prName)
-	{}
-
-	// Gets pointer to the chrom mark in current line without check up
-	//	for WIG only
-	inline const char* ChromMark() const { return StrField(0) + _chrMarkPos; }
-
-	// Returns estimated number of items
-	inline ULONG EstItemCount() const { return  EstCount(); }
-
-	// Sets the next chromosome as the current one if they are different
-	//	@shift: shift constant chrom mark position to the right
-	//	@return: true, if new chromosome is set as current one
-	bool GetNextChrom(BYTE shift = 0);
-
-	// Retrieves next item's record
-	inline bool GetNextItem()	{ return GetNextLine(); }
-
-	// Returns current item start position
-	inline chrlen ItemStart()	const { return LongField(1); }
-
-	// Returns current item end position
-	inline chrlen ItemEnd()		const { return LongField(2); }
-
-	// Returns true if alignment part of paired-end read
-	inline bool ItemIsPaired()	const { return strrchr(ItemName(), '/'); }
-
-	// Returns current item value
-	inline float ItemValue()	const { return FloatFieldValid(_scoreInd); }
-
-	// Returns current item name
-	inline const char* ItemName() const { return StrFieldValid(3); }
-
-	// Gets string containing file name and current line number.
-	//	@code: code of error occurs
-	inline const string LineNumbToStr(Err::eCode code = Err::EMPTY) const {
-		return TxtInFile::LineNumbToStr(code);
-	}
-
-	// Gets conditional file name: name if it's printable, otherwise empty string.
-	inline const string CondFileName() const { return TxtFile::CondFileName(); }
-
-	// Returns true if item contains the strand sign
-	//	Is invoked in the Feature constructor only.
-	bool IsItemHoldStrand() const;
-
-	// Returns current item strand: true - positive, false - negative
-	inline bool ItemStrand() const	{ return *StrFieldValid(StrandFieldInd) == PLUS; }
-
-#ifdef _WIG
-	// Reset WIG type, score index, chrom mark position offset and estimated number of lines
-	void ResetWigType(FT::eType type, BYTE scoreInd, BYTE cMarkPosOffset);
-
-	// Inserts '0' after chrom in current line and returns point to the next decl parameter if exists
-	//const char* SplitLineOnChrom();
-#endif //_WIG
-};
-
-#ifdef _BAM
-#ifdef _BIOSTAT		// defined in bioStat makefile
-#include "../bam/BamReader.h"	// path in bioStat package
-#else
-#include "bam/BamReader.h"
-#endif	// _BIOSTAT
-#include <algorithm>
-using namespace BamTools;
-
-// 'BamInFile' represents unified PI for reading bam file
-class BamInFile : public DataInFile
-{
-	// BamTools: http://pezmaster31.github.io/bamtools/struct_bam_tools_1_1_bam_alignment.html
-
-	bool	_prFName;
-	BamReader		_reader;
-	BamAlignment	_read;
-	mutable string	_rName;
-	ULONG _estItemCnt = vUNDEF;	// estimated number of items
-
-public:
-	// Creates new instance for reading and open file
-	//	@fName: name of file
-	//	@prName: true if file name should be printed in exception's message
-	BamInFile(const string& fName, bool prName);
-
-	// Returns estimated number of items
-	inline ULONG EstItemCount() const { return _estItemCnt; }
-
-	// returns chroms count
-	inline chrid ChromCount() const { return _reader.GetReferenceCount(); }
-
-	// Sets the next chromosome as the current one if they are different
-	//	@shift: shift constant chrom mark position to the right
-	//	@return: true, if new chromosome is set as current one
-	bool GetNextChrom(BYTE shift = 0);
-
-	// Retrieves next item's record
-	bool GetNextItem()	{ 
-		return _reader.GetNextAlignmentCore(_read)
-			&& _read.Position >= 0;	// additional check because of bag: GetNextAlignment() doesn't
-									// return false after last read while reading the whole genome
-	}
-
-	// Returns current item start position
-	inline chrlen ItemStart()	const { return _read.Position; }
-
-	// Returns current item end position
-	inline chrlen ItemEnd()		const { return _read.Position + _read.Length; }
-
-	// Returns true if alignment part of paired-end read
-	inline bool ItemIsPaired()	const { return _read.IsPaired(); }
-
-	// Returns current item value
-	inline float ItemValue()	const { return _read.MapQuality; }
-
-	// Returns current item name
-	inline const char* ItemName() const { return (_rName = _read.Name).c_str(); }
-
-	// Gets string containing file name and current line number.
-	//	@code: code of error occurs
-	inline const string LineNumbToStr(Err::eCode code = Err::EMPTY) const {	return strEmpty; }
-
-	// Gets conditional file name: name if it's printable, otherwise empty string.
-	inline const string CondFileName() const { return _prFName ? _reader.GetFilename() : strEmpty; }
-
-	// DataInFile method empty implementation.
-	inline bool IsItemHoldStrand() const { return true; }
-
-	// Returns current item strand: true - positive, false - negative
-	inline bool  ItemStrand() const	{ return !_read.IsReverseStrand(); }
-
-	// Returns SAM header data
-	inline const string GetHeaderText() const { return _reader.GetHeaderText(); }
-};
-#endif	// _BAM
 
 #ifndef _WIGREG
-
-// 'Region' represents a simple region within nucleotides array (chromosome).
-struct Region
-{
-	chrlen Start;	// start position of the region in standard chromosomal coordinates
-	chrlen End;		// end position of the region in standard chromosomal coordinates
-
-	inline Region(chrlen start=0, chrlen end=0) : Start(start), End(end) {}
-
-	// Gets length of region.
-	// The End is not included in the bases https://genome.ucsc.edu/FAQ/FAQformat.html#format1
-	inline chrlen Length()	const {	return End - Start; }
-
-	inline bool Empty()		const { return !End; }
-
-	inline chrlen Centre()	const {	return Start + (Length()>>1); }
-
-	// Initializes instance
-	inline void Set(chrlen start, chrlen end) { Start = start; End = end; }
-
-	inline bool operator==(const Region& r) const { return End == r.End && Start == r.Start; }
-
-	// Returns true if this instance is invalid
-	inline bool Invalid() const { return Start >= End; }
-
-	// Returns true if Region r is covered by this instance.
-	//	@r: tested Region; should be sorted by start position
-	inline bool BaseCover(const Region& r) const { return r.End <= End && r.Start >= Start; }
-
-	// Returns true if Region r is adjoined with this instance.
-	//	@r: tested Region; should be sorted by start position
-	inline bool Adjoin(const Region& r) const { return r.Start == End; }
-
-	// Returns true if Region r is crossed with this instance.
-	//	@r: tested Region; should be sorted by start position
-	inline bool Cross(const Region& r) const { return r.Start < End && r.End > Start; }
-
-	// Compares two Regions by start position. For sorting a container.
-	static inline bool CompareByStartPos(const Region& r1, const Region& r2) {
-		return r1.Start < r2.Start;
-	}
-
-	// Extends Region with chrom length control.
-	// If extended Region starts from negative, or ends after chrom length, it is fitted.
-	//	@extLen: extension length in both directions
-	//	@cLen: chrom length; if 0 then no check
-	void Extend(chrlen extLen, chrlen cLen);
-
-#ifdef DEBUG
-	inline void Print() const { cout << Start << TAB << End << LF; }
-#endif
-};
-
-// 'Regions' represents a container of defined regions within chromosome
-// Defined in TxtFile.h since it's used in Fa class
-class Regions
-{
-protected:
-	vector<Region> _regions;
-
-public:
-	typedef vector<Region>::const_iterator Iter;
-
-	// Iterator to region Begin position
-	inline const Iter Begin()	const { return _regions.begin(); }
-
-	// Iterator to region End position
-	inline const Iter End()		const { return _regions.end(); }
-
-	// Default (empty) constructor to form Chroms collection
-	inline Regions() {}
-	
-	// Single region constructor
-	inline Regions(chrlen start, chrlen end) { _regions.emplace_back(start, end); }
-
-	// Copying constructor
-	//inline Regions(const Regions& rgns) { _regions = rgns._regions;	}
-	
-	// Gets total length of regions.
-	//chrlen Length() const;
-	
-	// Gets count of regions.
-	inline chrlen Count()		const { return chrlen(_regions.size()); }
-	
-	// Gets first start position.
-	inline chrlen FirstStart()	const { return _regions.front().Start; }
-	
-	// Gets last end position.
-	inline chrlen LastEnd()		const { return _regions.back().End; }
-
-	// Gets conditionally defined length: distance between first start and last end
-	inline chrlen DefLength()	const { return LastEnd() - FirstStart(); }
-
-	//Regions& operator=(const Regions& rgn);
-
-	inline const Region& operator[](chrlen ind) const { return _regions[ind]; }
-
-	// Reserves container's capacity.
-	//	@count: reserved number of regions. The real number may be differ.
-	inline void Reserve(chrlen count) { _regions.reserve(count); }
-	
-	// Clears container.
-	inline void Clear()	{ _regions.clear(); }
-
-	inline void Add	(const Region& rgn)		{ _regions.push_back(rgn); }
-
-	// Copies subregions
-	inline void Copy(const vector<Region>& source, chrlen start, chrlen stop) {
-		_regions = vector<Region>(source.begin() + start, source.begin() + stop + 1);
-	}
-
-#if defined _READDENS || defined _BIOCC
-
-	// Returns an iterator referring to the past-the-end element, where end is external
-	//	@curr_it: region's const iterator, from which the search is started
-	//	@end: external pre-defined end coordinate
-	Iter ExtEnd(Iter curr_it, chrlen end) const;
-
-	// Initializes this instance by intersection of two Regions.
-	void FillOverlap(const Regions &regn1, const Regions &regn2);
-
-	// Initializes this instance by inverted external Regions.
-	//	@regn: external Regions
-	//	@masEnd: the maximum possible end-coordinate of region:
-	//	the chromosome length in case of nucleotides sequance.
-	void FillInvert(const Regions &regn, chrlen maxEnd);
-
-	// Initializes this instance by external Regions.
-	inline void Copy(const Regions& rgns)	{ _regions = rgns._regions; }
-	
-	inline void Add(chrlen start, chrlen end){ Add(Region(start, end)); }
-
-#endif	// _READDENS, _BIOCC
-#ifdef DEBUG
-	void Print() const;
-#endif
-};
 
 // 'ChromDefRegions' represents a container of defined regions within chromosome
 // Defined in TxtFile.h since it's used in Fa class
@@ -1053,7 +731,7 @@ class ChromDefRegions : public Regions
 		inline const Region& LastRegion() const { return _rgn; }
 	};
 
-	static const int DefCapacuty = 12;	// default container capacity
+	const int DefCapacuty = 12;	// default container capacity
 
 	string	_fName;
 	chrlen	_gapLen;	// total length of gaps
@@ -1063,9 +741,9 @@ public:
 	static const string Ext;	// regions file extension
 
 	// Creates new instance and initializes it from file if one exist
-	//	@cfName: chrom file name without extension
+	//	@fName: chrom file name without extension
 	//	@minGapLen: length, gaps less than which are ignored when reading; if 0 then read all regions 
-	ChromDefRegions(const string& cfName, chrlen minGapLen=2);
+	ChromDefRegions(const string& fName, chrlen minGapLen=2);
 	
 	// Returns true if instance is empty
 	inline bool Empty() const { return _new; }
@@ -1121,14 +799,13 @@ class FaFile : public TxtInFile
 		void CloseAddGaps(chrlen cLen);
 	};
 
-	typedef const char* (FaFile::*tpGetLine)();
-	static const char FaComment = '>';
-
-	chrlen		_cLen;			// length of chromosome
-	tpGetLine	_pGetLine;		// pointer to the 'GetNextLine' method
-	DefRgnMaker	*_rgnMaker;
+	const char FaComment = '>';
+	chrlen		_cLen;						// length of chromosome
+	const char* (FaFile::* _pGetLine)();	// pointer to the 'GetNextLine' method
+	unique_ptr<DefRgnMaker> _rgnMaker;		// chrom defined regions store
 
 	// Search 'N' subsequence in the current line beginning from the start position
+	// and adds complete 'N' subsequence to _rgnMaker
 	//	@startPos: starting line reading position
 	//	@NCnt: number of 'N' in the line beginning from the start position
 	//	return: true if line trimming is complete, false for single 'N'
@@ -1143,8 +820,6 @@ public:
 	//	@rgns: def regions to fill, otherwise NULL to reading without 'N' control
 	FaFile(const string& fName, ChromDefRegions* rgns=NULL);
 
-	inline ~FaFile() { if(_rgnMaker) delete _rgnMaker; }
-
 	// Gets chromosome's length
 	inline chrlen ChromLength() const { return _cLen; }
 
@@ -1157,6 +832,7 @@ public:
 
 #endif	// _WIGREG
 #endif	// no _FQSTATN
+
 #if defined _CALLDIST || defined _FQSTATN
 
 // 'FqFile' implements reading/writing file in FQ format.
@@ -1167,7 +843,7 @@ class FqFile : public TxtInFile
 public:	
 	// Creates new instance for reading by file name
 	inline FqFile(const string& fileName)
-		: TxtInFile(fileName, eAction::READ, 4, true, false) {}
+		: TxtInFile(fileName, eAction::READ, 4, false) {}
 
 	// Returns checked length of current readed Read.
 	readlen ReadLength() const;
@@ -1184,145 +860,4 @@ public:
 
 #endif	// _CALLDIST || _FQSTATN
 
-#if !defined _WIGREG && !defined _FQSTATN
-
-// 'Read' represents Read (with name and score in case of _VALIGN) as item
-class Read
-{
-public:
-	static const readlen VarMinLen = 20;	// minimum Read length in variable Read mode
-	static const readlen VarMaxLen = 3000;	// maximum Read length in variable Read mode
-	//static const readlen sVarMaxLenLen;		// length of string representation of VarMaxLen
-	static readlen	FixedLen;				// fixed length of Read
-private:
-#if defined _ISCHIP || defined _VALIGN
-	static const char	Strands[2];			// strand markers: [0] - positive, [1] - negative
-public:
-	static const char	NmDelimiter = ':';		// delimiter between progTitle and chrom
-	static const char	NmNumbDelimiter = DOT;	// delimiter between prog title and number
-	static const char	NmPos1Delimiter = ':';	// delimiter before first recorded position
-	static const char	NmPos2Delimiter = '-';	// delimiter between two recorded positions in pair
-#endif
-
-#ifdef _ISCHIP
-
-private:
-	static char		SeqQuality;			// the quality values for the sequence (ASCII)
-	static readlen	LimitN;				// maximal permitted number of 'N' in Read or vUNDEF if all
-	static bool		PosInName;			// true if Read name includes a position
-	static const char Complements[];	// template for complementing Read
-
-	typedef void (Read::* pCopyRead)(char*) const;
-
-	static pCopyRead CopyRead[2];
-	//static void (*spCopyRead[2])(const Read*, char*);
-
-	const char* _seq;
-	Region	_rgn;
-
-	// Copies complemented Read into dst
-	void CopyComplement(char* dst) const;
-
-public:
-	static const char* Title;
-	static const char* title;
-
-	// Initializes static members
-	//	@len: length of Read
-	//	@posInName: true if Read position is included in Read name
-	//	@seqQual: quality values for the sequence
-	//	@limN: maximal permitted number of 'N'
-	static void Init(readlen len, bool posInName, char seqQual, short limN);
-
-	inline static char StrandMark(bool reverse) { return Strands[int(reverse)]; }
-
-	inline static bool IsPosInName() { return PosInName; }
-
-	// Fills external buffer by quality values for the sequence
-	inline static void FillBySeqQual(char* dst, readlen rlen) { memset(dst, SeqQuality, rlen); }
-
-	// Constructor by sequence, start position and length
-	Read(const char* seq, chrlen pos, readlen len) : _seq(seq), _rgn(Region(pos, pos + len)) {}
-
-	// Gets Read's region
-	//inline const Region& Rgn() const { return _rgn; }
-
-	// Gets Read's length
-	inline readlen Length() const { return _rgn.Length();  }
-
-	// Gets Read's start position
-	inline chrlen Start() const { return _rgn.Start; }
-
-	// Gets Read's end position
-	inline chrlen End() const { return _rgn.End; }
-
-	// Gets Read's sequence
-	inline const char* Seq() const { return _seq; }
-
-	// Copies Read into dst
-	inline void Copy(char* dst) const { memcpy(dst, _seq, Length()); }
-
-	// Copies initial or complemented Read into dst
-	inline void Copy(char* dst, bool reverse) const { (this->*CopyRead[reverse])(dst); }
-
-	// Checks Read for number of 'N'
-	//	return:	1: NULL Read; 0: success; -1: N limit is exceeded
-	int CheckNLimit();
-
-	// Prints quality values for the sequence
-	inline static void PrintSeqQuality() { cout << '[' << SeqQuality << ']'; }
-
-	// Prints Read values - parameters
-	//	@signOut: output marker
-	//	@isRVL: true if Read variable length is set
-	static void PrintParams(const char* signOut, bool isRVL);
-
-#else
-public:
-	chrlen	Pos;		// Read's actual start position
-	readlen Len;		// Read's length
-	ULLONG	Numb;		// read number keeped in name
-	bool	Strand;		// true if strand is positive
-
-	chrlen Centre() const { return Pos + (Len >> 1); }
-
-#ifdef _VALIGN
-	chrlen	RecPos;		// recorded (true) Read start position
-	float	Score;		// Read's score
-	chrid	InitCID;	// initial chrom - owner
-
-	// Cobstructs extended Read
-	//	@cid: chrom ID
-	//	@num: uniq number within chrom or initial position
-	Read(const Region& rgn, ULLONG numb, bool strand, chrlen recPos, float score, chrid cid) :
-		Pos(rgn.Start),
-		Len(readlen(rgn.Length())),
-		Numb(numb),
-		Strand(strand),
-		RecPos(recPos),
-		Score(score),
-		InitCID(cid)
-	{}
-#elif defined _CALLDIST
-
-	Read(const Region& rgn, ULLONG numb, bool strand)
-		: Pos(rgn.Start), Len(readlen(rgn.Length())), Numb(numb), Strand(strand) {}
-#else	// _BIOCC
-	Read(const Region& rgn) 
-		: Pos(rgn.Start), Len(readlen(rgn.Length())), Numb(0L), Strand(true) {}
-#endif
-	// Compares two Reads by position. For sorting a container.
-	inline static bool CompareByStartPos(const Read& r1, const Read& r2) { return r1.Pos < r2.Pos; }
-
-	//inline static bool CompareByNum(const Read& r1, const Read& r2) {	return r1.Num < r2.Num; }
-
-	void inline Print() const {
-		dout << Pos << TAB << Numb
-#ifdef _VALIGN
-			<< TAB << int(Score)
-#endif
-			<< LF;
-	}
-#endif
-};
-#endif
+#endif	//_TXTFILE_H

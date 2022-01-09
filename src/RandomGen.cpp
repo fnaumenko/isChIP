@@ -25,7 +25,7 @@ int	  DistrParams::rdSigma;	// sigma of size selection normal distribution
 
 // Initializes lognorm fragment and size selection distribution values;
 //	@ln: expectation & standard deviation of frag normal distribution
-//	@isFDset: true if paramters od lognorm distr were assigned by user
+//	@isFDset: true if parameters od lognorm distr were assigned by user
 //	@ss: expectation & standard deviation of size sel normal distribution
 //	@isSSset: true if size sel is applied
 //	@rd: mean & sigma of Read length distriburion

@@ -9,6 +9,7 @@ Provides random generation functionality
 
 #pragma once
 #include "common.h"
+#include <cmath>
 //#include <random>	// std::exponential_distribution
 
 // 'DistrParams' keeps fragment initial lognormal and normal size selection (SS) distributions params
@@ -47,7 +48,6 @@ public:
 	inline static bool IsSS() { return bool(ssMean); }
 
 	// Returns true if read variable length is ON
-	//inline static bool IsRVL() { return bool(RDParams.first); }
 	inline static bool IsRVL() { return bool(rdMean); }
 
 	// Prints title and the set fragment distribution parameters

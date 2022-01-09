@@ -2,7 +2,7 @@
 common.cpp (c) 2014 Fedor Naumenko (fedor.naumenko@gmail.com)
 All rights reserved.
 -------------------------
-Last modified: 3.12.2020
+Last modified: 07.01.2022
 -------------------------
 Provides common functionality
 ***********************************************************/
@@ -20,7 +20,7 @@ Provides common functionality
 /************************ common Functions ************************/
 
 // Returns number of ones in an bynary integer
-int OnesCnt(int n)
+int OnesCount(int n)
 {
 	int cnt = 0;
 	//for (; n; n >>= 1)  cnt += n & 1;		// 11001: 5 cycles
@@ -50,35 +50,38 @@ int DigitsCount (LLONG val, bool isLocale)
 
 // Returns string represents the percent of part relatively total
 //	@percent: value of percent
-//	@precision: count of mapped digits; 
+//	@precision: count of fractional digits; 
 //	if count of value's mapped digits is more then that, printed "<X%", or exactly by default
-//	@fieldWith: the width of the display field insine parentheses, or exactly by default;
-//	should include '%' and possible '<' marks
+//	@fieldWith: displayed width of value and '%' or '<' sign (excluding parentheses), or exactly if 0;
 //	@parentheses: if true then parenthesize the value (not considering fieldWith)
 string	sPercent(float val, BYTE precision, BYTE fieldWith, bool parentheses)
 {
 	float threshold = (float)pow(10., -precision);
-	stringstream sout;
-	if(parentheses)		sout << " (";
-	if( val && val < threshold ) {
-		if(fieldWith) {
-			int blankCnt = fieldWith - precision - 4;
-			if(blankCnt > 0)	sout << setw(blankCnt) << SPACE;
+	stringstream ss;
+	ss << SPACE;
+	if(parentheses)		ss << '(';
+	//if(fieldWith)	ss << setw(--fieldWith);	// decrease to account '%' sign
+	if (val && val < threshold) {
+		if (fieldWith) {
+			int blankCnt = fieldWith - precision - 5;
+			if (blankCnt > 0)	ss << setw(blankCnt) << SPACE;
 		}
-		sout << '<' << threshold;
+		ss << '<' << threshold;
 	}
 	else {
-		if(precision && val) {
-			if(val >= 100)	precision = 3;
-			else if(val < 1)	sout << fixed;
-			sout << setprecision(precision);
+		if (precision && val) {
+			if (val >= 100)	precision = 3;
+			else if (val < 1)	ss << fixed;
+			ss << setprecision(precision);
 		}
-		if(fieldWith)	sout << setw(fieldWith-1);	// decrease for '%'
-		sout << val;
+		//if(val - int(val) != 0)	
+		//	ss << fixed << setprecision(precision);
+		if (fieldWith)	ss << setw(fieldWith-=2);	// decrease one for SPACE, one for '%'
+		ss << val;
 	}
-	sout << PERS;
-	if(parentheses)		sout << ')';
-	return sout.str();
+	ss << PERS;
+	if(parentheses)		ss << ')';
+	return ss.str();
 }
 
 // Prints horizontal line
@@ -87,9 +90,12 @@ void PrintHorLine(int w)
 {
 #ifdef OS_Windows
 	wcout << setw(++w) << setfill(L'\304') << L'\n';
+#ifdef _DUP_OUTPUT
+	dout.ToFile(string(w, HPH) + LF);
+#endif
 #else
-	for(int i=0; i<w; cout << "─", i++);	cout << LF;
-	//cout << setw(w+1) << setfill('─') << LF;
+	for(int i=0; i<w; dout << "─", i++);	dout << LF;
+	//dout << setw(++w) << setfill('─') << LF;
 #endif
 }
 
@@ -133,7 +139,8 @@ chrlen AlignPos(chrlen pos, BYTE res, BYTE relative)
 
 /************************ end of common Functions ************************/
 
-#ifndef _NO_DOUT
+#ifdef _DUP_OUTPUT
+
 // Open output file with given name
 //	return: true if file is open
 bool dostream::OpenFile(const string fname)
@@ -142,9 +149,8 @@ bool dostream::OpenFile(const string fname)
 	file.open(fname.c_str());
 	return true;
 }
-#endif
 
-const char* Gr::title[] = {"FG","BG"};	// if change, correct TitleLength
+#endif
 
 /************************ class Options ************************/
 #define ENUM_REPLACE '?'	// symbol in description that is replaced by enum value
@@ -227,7 +233,7 @@ void PrintTransformDescr(char* buff, const char** vals, short* cnt)
 // First string is printed from current stdout position.
 // Last substring doesn't include LF.
 //	@buff: external buffer to copy and output temporary string
-//	@str: input string with possible EOLs
+//	@str: input string with possible LFs
 //	@subStr: substring of input string to the first LF, or NULL if input string is not ended by LF
 //	@vals: enum/combi values or NULL for other types
 //	@cnt: external counter of enum/combi values
@@ -441,7 +447,7 @@ string Options::Option::ToStr(bool prVal) const
 {
 	string res(optTitle);
 	res += NameToStr(true);
-	if(prVal)	res += sBLANK + string(SVal);
+	if(prVal)	res += sSPACE + string(SVal);
 	return res;
 }
 
@@ -704,12 +710,12 @@ int Options::PrintUsage (bool title)
 //	@argv: array of main() parameters
 string const Options::CommandLine(int argc, char* argv[])
 {
-	ostringstream oss;
-	int i;
-	for (i = 0; i < argc-1; i++)
-		oss << argv[i] << SPACE;
-	oss << argv[i];
-	return oss.str();
+	ostringstream ss;
+	int i = 0;
+	argc--;
+	while (i < argc)	ss << argv[i++] << SPACE;
+	ss << argv[i];
+	return ss.str();
 }
 
 // Parses and checks main() parameters and their values. Output message if some of them is wrong.
@@ -788,18 +794,16 @@ const char* Err::_msgs [] = {
 /* F_OPEN */	"could not open",
 /* F_CLOSE */	"could not close",
 /* F_READ */	"could not read",
+/* F_EMPTY */	"empty",
 /* F_BIGLINE */	"buffer is less than length of line",
 /* FZ_MEM */	"not enough internal gzip buffer",
 /* FZ_OPEN */	"wrong reading mode READ_ANY for zipped file",
 /* FZ_BUILD */	"this build does not support zipped files",
 /* F_WRITE */	"could not write",
+///* F_FORMAT */	"wrong format",
 #ifndef _FQSTATN
 /* TF_FIELD */	"number of fields is less than required",
-/* TF_EMPTY */	"no",
-/* B_BADEND */	"'start' position is equal or more than 'end'",
-/* B_NEGPOS */	"negative position",
-/* ARR_OUTRANGE */	"out of range",
-/* SUM_EXCEED */	"exceeded digital limit while S calculated. Anormous density. Calculate P only",
+/* TF_EMPTY */	"no records",
 #endif
 /* EMPTY */		""
 };
@@ -821,7 +825,7 @@ void Err::set_message(const char* sender, const char *txt, const char *specTxt)
 	}
 	strcat(_outText, txt);
 	if (specTxt) {
-		if (*specTxt != ':')		strcat(_outText, sBLANK);
+		if (*specTxt != ':')		strcat(_outText, sSPACE);
 		strcat(_outText, specTxt);
 	}
 }
@@ -855,7 +859,7 @@ Err::Err(const Err & src)
 
 // Throws exception or outputs Err message.
 //	@throwExc: if true then throws exception, otherwise outputs Err message
-//	@eol: if true then carriage should be return while output Err message
+//	if true then carriage return after Err message
 void Err::Throw(bool throwExc, bool eol) {
 	if (throwExc)
 		throw* this;
@@ -866,14 +870,16 @@ void Err::Throw(bool throwExc, bool eol) {
 	}
 }
 
-// Outputs warning with prefix "WARNING" and additional text, if it is setting.
-void Err::Warning(string const& addText) {
+// Outputs warning
+//	@prefix: output ": " before "WARNING"
+//	@eol: if true then carriage return after Err message
+void Err::Warning(bool eol, bool prefix)
+{
+	if (prefix)	dout << SepCl;
 	dout << _msgs[ErrWARNING];
 	if(*what() != ':') dout << SepCl;	// check if sender is not recorded
 	dout << what();
-	if( !addText.empty() )	
-		dout << addText;
-	dout << LF;
+	if(eol)	dout << LF;
 	fflush(stdout);
 }
 
@@ -907,8 +913,7 @@ bool FS::IsExist(const char* name, int st_mode)
 //	return: true if file or directory doesn't exist
 bool FS::CheckExist	(const char* name,  int st_mode, bool throwExcept, Err::eCode ecode)
 {
-	if(IsExist(name, st_mode))	
-		return false;
+	if(IsExist(name, st_mode))	return false;
 	Err(ecode, name).Throw(throwExcept);
 	return true;
 }
@@ -1113,8 +1118,8 @@ string const FS::MakePath(const string& name)
 //	return: true if files with given extention are found
 bool FS::GetFiles	(vector<string>& files, const string& dirName, const string& ext, bool all)
 {
-	int count = 0;
 #ifdef OS_Windows
+	int count = 0;
 	string fileTempl = FS::MakePath(dirName) + '*' + ext;
 	WIN32_FIND_DATA ffd;
 
@@ -1161,8 +1166,8 @@ bool FS::GetFiles	(vector<string>& files, const string& dirName, const string& e
 // Prints elapsed time
 //	@elapsed: elapsed time in seconds
 //	@watch: true if time should be printed as a stopwatch (with decimal places and without empty minutes)
-//	@isEOL: if true then ended output by LF
-void PrintTime(long elapsed, bool watch, bool parentheses, bool isEOL)
+//	@isLF: if true then ended output by LF
+void PrintTime(long elapsed, bool watch, bool parentheses, bool isLF)
 {
 	int hours = elapsed/60;
 	int mins = hours%60;
@@ -1175,7 +1180,7 @@ void PrintTime(long elapsed, bool watch, bool parentheses, bool isEOL)
 	if(watch)	dout << setw(5) << fixed << setprecision(2) << (elapsed - mins*60);
 	else		dout << setw(2) << long(elapsed)%60;
 	if(parentheses)	dout << ')';
-	if(isEOL)	dout << LF, fflush(stdout);
+	if(isLF)	dout << LF, fflush(stdout);
 }
 
 bool	TimerBasic::Enabled = false;
@@ -1192,11 +1197,11 @@ long TimerBasic::GetElapsed() const
 //	@elapsed: elapsed time in seconds 
 //	@title: string printed before time output
 //	@parentheses: if true then output time in parentheses
-//	@isEOL: if true then ended output by LF
-void TimerBasic::Print(long elapsed, const char *title, bool parentheses, bool isEOL)
+//	@isLF: if true then ended output by LF
+void TimerBasic::Print(long elapsed, const char *title, bool parentheses, bool isLF)
 {
 	if(title)	dout << title;
-	PrintTime(elapsed, false, parentheses, isEOL);
+	PrintTime(elapsed, false, parentheses, isLF);
 }
 
 /************************  end ofclass TimerBasic ************************/
@@ -1206,12 +1211,12 @@ clock_t	Timer::_StartCPUClock;
 
 // Stops enabled timer and prints elapsed time
 //	@offset: space before time output
-//	@isEOL: if true then ended output by LF
-void Timer::Stop(BYTE offset, bool isEOL)
+//	@isLF: if true then ended output by LF
+void Timer::Stop(int offset, bool parentheses, bool isLF)
 {
 	if(_enabled) {
 		if(offset)	dout << setw(offset) << SPACE;
-		PrintTime(GetElapsed(), false, false, isEOL);
+		PrintTime(GetElapsed(), NULL, parentheses, isLF);
 	}
 }
 
@@ -1226,7 +1231,7 @@ void Stopwatch::Stop(const string title) const
 {
 	if(!_isStarted)		return;
 	_sumTime += GetElapsed();
-	if(title!=strEmpty)	PrintTime(_sumTime, (title + sBLANK).c_str(), false, true);
+	if(title!=strEmpty)	PrintTime(_sumTime, (title + sSPACE).c_str(), false, true);
 }
 
 /************************  end of class Stopwatch ************************/
@@ -1236,13 +1241,13 @@ void Stopwatch::Stop(const string title) const
 // Stops StopwatchCPU
 //	@title: string printed before time output
 //	@print: if true time should be printed
-//	@isEOL: if true then ended output by LF
-void StopwatchCPU::Stop(const char* title, bool print, bool isEOL)
+//	@isLF: if true then ended output by LF
+void StopwatchCPU::Stop(const char* title, bool print, bool isLF)
 {
 	_sumclock += clock() - _clock;
 	if(print) {
 		if(title)	dout << title;
-		PrintTime(_sumclock/CLOCKS_PER_SEC, false, false, isEOL);
+		PrintTime(_sumclock/CLOCKS_PER_SEC, false, false, isLF);
 	}
 }
 
@@ -1250,103 +1255,41 @@ void StopwatchCPU::Stop(const char* title, bool print, bool isEOL)
 
 #ifdef _MULTITHREAD
 /************************  class Mutex ************************/
-pthread_mutex_t	Mutex::_mutexes[Mutex::Count];
+
 bool	Mutex::_active;		// true if the mutex really should work
-
-void Mutex::Init(bool active) {
-	if(_active = active)
-		for(BYTE i=0; i<Count; i++)
-#ifdef OS_Windows
-			InitializeCriticalSection(&_mutexes[i]);
-#else
-			pthread_mutex_init(&_mutexes[i], NULL);
-#endif
-}
-
-void Mutex::Finalize() {
-	if(_active)
-		for(BYTE i=0; i<Count; i++)
-#ifdef OS_Windows
-			DeleteCriticalSection(&_mutexes[i]);
-#else
-			pthread_mutex_destroy(&_mutexes[i]);
-#endif
-}
-
-void Mutex::Lock(const eType type) {
-	if(_active)
-#ifdef OS_Windows
-		EnterCriticalSection(&_mutexes[int(type)]);
-#else
-		pthread_mutex_lock(&_mutexes[int(type)]);
-#endif
-}
-
-void Mutex::Unlock(const eType type) {
-	if(_active)
-#ifdef OS_Windows
-		LeaveCriticalSection(&_mutexes[int(type)]);
-#else
-		pthread_mutex_unlock(&_mutexes[int(type)]);
-#endif
-}
+mutex	Mutex::_mutexes[int(Mutex::eType::NONE)];
 
 /************************  end of class Mutex ************************/
-
-/************************  class Thread ************************/
-
-//Thread::Thread(thrRetValType(
-//	#ifdef OS_Windows
-//	__stdcall 
-//	#endif
-//	*proc)(void*), void *arglist)
-//{
-//#ifdef OS_Windows
-//	//_thread = (HANDLE) _beginthread(proc, 0, arglist);	// gets unstable call WaitForSingleObject
-//	_thread = (HANDLE) _beginthreadex(NULL, 0, proc, arglist, 0, NULL);
-//#else
-//	pthread_create(&_thread, NULL, proc, arglist);
-//	//int code = pthread_create(&_thread, NULL, proc, arglist);
-//	//if (code) { 
-//	//	char buf[256]; 
-//	//	strerror_r(code, buf, sizeof buf);
-//	//	cout << "Thread constructor: " << buf << endl;
-//	//}
-//#endif
-//}
-
-/********************  end of class Thread *********************/
 #endif	// _MULTITHREAD
 
 /************************ class Chrom ************************/
 
 const char*		Chrom::Abbr = "chr";
-const BYTE		Chrom::MaxAbbrNameLength = BYTE(strlen(Chrom::Abbr)) + MaxMarkLength;
+const BYTE		Chrom::MaxAbbrNameLength = BYTE(strlen(Abbr)) + MaxMarkLength;
 #ifndef _FQSTATN
 const char*		Chrom::Marks = "XYM";
 const string	Chrom::UndefName = "UNDEF";
 const string	Chrom::Short = "chrom";
 const string	Chrom::sTitle = "chromosome";
-const BYTE		Chrom::MaxShortNameLength = BYTE(Chrom::Short.length()) + MaxMarkLength;
-const BYTE		Chrom::MaxNamedPosLength = 
-					BYTE(strlen(Chrom::Abbr)) + MaxMarkLength + CHRLEN_CAPAC + 1;
+const BYTE		Chrom::MaxShortNameLength = BYTE(Short.length()) + MaxMarkLength;
+const BYTE		Chrom::MaxNamedPosLength = BYTE(strlen(Abbr)) + MaxMarkLength + CHRLEN_CAPAC + 1;
 	  BYTE		Chrom::CustomOpt;
 
 chrid Chrom::cID = UnID;		// user-defined chrom ID
-chrid Chrom::firstHeteroID = 0;	// relative ID
+chrid Chrom::firstHeteroID = 0;	// first heterosome (X,Y) ID
 
 // Gets somatic (letter) chrom's ID by mark without control, or undefined ID
 chrid Chrom::HeteroID	(const char cMark)
 {
-	if(firstHeteroID) {		// relative ID
-		for(size_t i=0; i<strlen(Marks); i++)
-			if(cMark == Marks[i])	return chrid(firstHeteroID + i);
-		return UnID;
-	}
-	else return cMark;		// absolute ID
+	if(!IsRelativeID())		return cMark;		// absolute ID
+	for(size_t i=0; i<strlen(Marks); i++)
+		if(cMark == Marks[i])
+			return chrid(firstHeteroID + i);	// relative ID
+	return UnID;
 }
 
 // Gets chrom ID by case insensitive mark
+//	firstHeteroID should be initialized!
 chrid Chrom::CaseInsID	(const char* cMark)
 {
 	if(isdigit(*cMark))	{				// autosome
@@ -1356,7 +1299,7 @@ chrid Chrom::CaseInsID	(const char* cMark)
 	return CaseInsHeteroID(*cMark);		// heterosome
 }
 
-// Returns a pointer to the first occurrence of C sunstring. Recurcive.
+// Returns a pointer to the first occurrence of C substring. Recurcive.
 //	@str: C string to find in
 //	@templ: C string to be located
 //	@templLen: length of templ (extern because of avoiding recursive recalculate)
@@ -1403,50 +1346,36 @@ chrid Chrom::ValidateID(const char* cName, size_t prefixLen)
 	cName += prefixLen;							// skip prefix
 	for(int i=1; i<=MaxMarkLength; i++)
 		if(cName[i] == USCORE)	return UnID;	// exclude chroms with '_'
+
 	if(isdigit(*cName))	{						// autosome
 		chrid id = atoi(cName);
-		if(firstHeteroID && id > firstHeteroID)		firstHeteroID = id;
+		if(/*IsRelativeID() && */id > firstHeteroID)	firstHeteroID = id;
 		return id - 1;
 	}
 	return CaseInsHeteroID(*cName);				// heterosome
 }
 
-#ifdef _CALLDIST
-// Validates all chrom ID by SAM header data and sets custom ID
-void Chrom::Validate(const string& samHeader)
-{
-	const char* header = samHeader.c_str();
-	const char* start;
-	char buf[MaxMarkLength + 1];
-
-	while(header = strstr(header, Abbr)) {
-		start = header + strlen(Abbr);
-		memset(buf, 0, MaxMarkLength + 1);
-		memcpy(buf, start, strchr(start, TAB) - start);
-		ValidateID(buf);
-		header += 15;
-	}
-	SetCustomID(true);
-}
-#endif
-
 // Sets custom chrom ID with control
+//	@prColon: if true then print ": " before exception message
 void Chrom::SetCustomID(bool prColon)
 { 
-	const char* mark = Options::GetSVal(CustomOpt);
-	if(mark && (cID = CaseInsID(mark)) == UnID) {
-		if(prColon)		dout << COLON;
-		Err("no such chromosome in this genome", Options::OptionToStr(CustomOpt, true)).Throw();
+	const char* mark = Options::GetSVal(CustomOpt);		// null if no chrom is set by user
+	if (mark && (cID = CaseInsID(mark)) == UnID) {
+		ostringstream ss;
+		ss << "no such " << sTitle << " in this genome";
+		if (prColon)	ss << SepCl;
+		ss << Options::OptionToStr(CustomOpt, true);
+		Err(ss.str()).Throw();
 	}
 }
 
 // Sets number of 'custom chrom' progr option
-//	@absID: true if absolute discipline is applied
-void Chrom::SetCustomOption(int opt, bool absID)
+//	@absIDNumb: true if absolute ID numbering discipline is applied
+void Chrom::SetCustomOption(int opt/*, bool absIDNumb*/)
 {
 	CustomOpt = opt;
-	if( !(firstHeteroID = !absID) )
-		cID = ValidateID(Options::GetSVal(CustomOpt));
+	if( !(firstHeteroID/* = !absIDNumb*/) )
+		cID = ValidateID(Options::GetSVal(opt));	// apply absolute numeration discipline
 }
 
 inline const string AutosomeToStr(chrid cid) {	return to_string(cid + 1); }
@@ -1455,10 +1384,10 @@ inline const string AutosomeToStr(chrid cid) {	return to_string(cid + 1); }
 const string Chrom::Mark(chrid cid)
 {
 	if(cid == UnID)		return UndefName;
-	if(firstHeteroID)		// relative ID
+	if(IsRelativeID())
 		return cid < firstHeteroID ? AutosomeToStr(cid) :
 			(cid > firstHeteroID + 2) ? UndefName : string(1, Marks[cid - firstHeteroID]);
-	return cid < '9' ? AutosomeToStr(cid) : string(1, cid);
+	return cid < '9' ? AutosomeToStr(cid) : to_string(cid);
 }
 
 // Locate chrom mark in string.
@@ -1474,17 +1403,131 @@ const char* Chrom::FindMark(const char* str)
 //	@numbSep: if true then separate chrom's number
 string Chrom::AbbrName(chrid cid, bool numbSep)
 { 
-	return Abbr + (numbSep ? sBLANK : strEmpty) + Mark(cid);
+	return Abbr + (numbSep ? sSPACE : strEmpty) + Mark(cid);
 }
 
-//char* Chrom::LongToShortName(char* name) 
-//{
-//	short shift = PrefixLength(name);
-//	return shift > 0 ? name + shift : NULL;
-//}
 #endif	// _FQSTATN
 
 /************************ end of class Chrom ************************/
+
+/************************ struct Region ************************/
+
+// Extends Region with chrom length control.
+// If extended Region starts from negative, or ends after chrom length, it is fitted.
+//	@extLen: extension length in both directions
+//	@cLen: chrom length; if 0 then no check
+void Region::Extend(chrlen extLen, chrlen cLen)
+{
+	Start -= extLen > Start ? Start : extLen;
+	End += extLen;
+	if (cLen && End > cLen)	End = cLen;
+}
+
+/************************ end of struct Region ************************/
+
+/************************ class Regions ************************/
+
+// Geta total length of regions.
+//chrlen Regions::Length () const
+//{
+//	chrlen len = 0;
+//	for(Iter it=_regions.begin(); it<_regions.end(); it++)
+//		len += it->Length();
+//	return len;
+//}
+
+//Regions& Regions::operator=(const Regions& rgn)
+//{
+//	_regions = rgn._regions;
+//	return *this;
+//}
+
+#if defined _READDENS || defined _BIOCC
+
+// Returns an iterator referring to the past-the-end element, where end is external
+//	@curr_it: region's const iterator, from which the search is started
+//	@end: external pre-defined end coordinate
+Regions::Iter Regions::ExtEnd(Iter curr_it, chrlen end) const
+{
+	Iter it = curr_it;
+	for (; it != _regions.end(); it++)
+		if (it->End > end)	break;
+	return it;
+}
+
+// Initializes this instance by intersection of two Regions.
+//	Typically for that purpose is used Interval Tree,
+//	but this implementation uses Regions ordering and is simpler.
+void Regions::FillOverlap(const Regions& regn1, const Regions& regn2)
+{
+	chrlen start = 0, end = 0, start1, start2, end1, end2;
+	Iter it1 = regn1._regions.begin();
+	Iter it2 = regn2._regions.begin();
+	Reserve(max(regn1.Count(), regn2.Count()));
+	for (; it1 != regn1._regions.end(); it1++) {
+		start1 = it1->Start;	end1 = it1->End;
+		start2 = it2->Start;	end2 = it2->End;
+		if (start1 < start2) {
+			if (end1 > start2) {
+				start = start2;
+				if (end1 > end2) { end = end2;	it2++; it1--; }
+				else				end = end1;
+			}
+		}
+		else
+			if (start1 >= end2) { it2++; it1--; }
+			else {
+				start = max(start1, start2);
+				if (end1 > end2) { end = end2;	it2++; it1--; }
+				else				end = end1;
+			}
+		if (end) {
+			Add(start, end);
+			if (it2 == regn2._regions.end())		return;
+			end = 0;
+		}
+	}
+}
+
+// Initializes this instance by inverted external Regions,
+// so the regions turns to the gaps and vice versa.
+// Each new region is less than proper old gap by 1 from each side.
+//	@regn: external Regions
+//	@maxEnd: the maximum possible end-coordinate of region:
+//	the chromosome length in case of nucleotides sequance.
+void Regions::FillInvert(const Regions& regn, chrlen maxEnd)
+{
+	Region rgn;
+	Iter it = regn._regions.begin();
+
+	Reserve(regn.Count() + 1);
+	for (; it != regn._regions.end(); it++) {
+		rgn.End = it->Start - 1;
+		Add(rgn);
+		rgn.Start = it->End + 1;
+	}
+	if (rgn.Start < (maxEnd + 1)) {
+		rgn.End = maxEnd;
+		Add(rgn);
+	}
+}
+
+#endif	// _READDENS, _BIOCC
+
+#ifdef DEBUG
+void Regions::Print() const
+{
+	int i = 0;
+	cout << "Regions:\n";
+	for (Iter it = _regions.begin(); it < _regions.end(); it++)
+		cout <<
+		//setw(2) << 
+		++i << COLON << TAB <<
+		//setw(9) << 
+		it->Start << TAB << it->End << endl;
+}
+#endif
+/************************ end of class Regions ************************/
 
 /************************  MemStatus ************************/
 

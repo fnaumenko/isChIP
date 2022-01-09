@@ -37,14 +37,14 @@ effPartition::IdNumbers::IdNumbers(const ChromSizesExt& cSizes)
 	reserve(cSizes.TreatedCount());
 	for(ChromSizes::cIter it=cSizes.cBegin(); it!=cSizes.cEnd(); it++)
 		if(cSizes.IsTreated(it))
-			push_back(IdNumber(CID(it), cSizes.DefEffLength(it)));
+			emplace_back(CID(it), cSizes.DefEffLength(it));
 }
 
 		// Initializes instance by numbers
 void effPartition::IdNumbers::Init(const IdNumbers& numbers)
 {
 	reserve(numbers.size());
-	for(effPartition::numb_cit it=numbers.begin(); it!=numbers.end(); push_back(IdNumber(*it++)));
+	for (auto it = numbers.begin(); it != numbers.end(); emplace_back(*it++));
 }
 
 // Returns minimum accuracy with which the available space of the average sum should be measured
@@ -78,12 +78,13 @@ void effPartition::IdNumbers::Reset() { for(numb_it it=begin(); it!=end(); it++-
 // ********** Subset **********
 
 // Adds number
-//	@it: number's iterator
-void effPartition::Subset::AddNumb(const numb_it& it)
+//	@n: added Id number
+void effPartition::Subset::AddNumb(const IdNumber& n)
 {
-	sumVal += it->Val;
-	numbIDs.push_back(it->Id);
+	sumVal += n.Val;
+	numbIDs.push_back(n.Id);
 }
+
 
 // Takes into account (charges) number's value
 //	@it: number's iterator
@@ -132,7 +133,7 @@ void effPartition::Result::Init(size_t nCnt, ss_id ssCnt)
 	SumDiff = SUM_MAX;
 	Bins.reserve(ssCnt);
 	for(ss_id i=0; i<ssCnt; i++)
-		Bins.push_back(Subset(rowlen(nCnt)/ssCnt + 2));
+		Bins.emplace_back(rowlen(nCnt) / ssCnt + 2);
 }
 
 // Sorts subsets in descending order and sets subsets ID starting with 1
@@ -158,8 +159,8 @@ void effPartition::Result::Fill(effPartition::IdNumbers& numbers, char ind, numb
 {
 	ss_id ssCnt = SubsetCount() - ind;	// count of subsets minus first index
 	Clear();
-	for(numb_it it=numbers.begin(); it!=numbers.end(); it++)
-		Bins[ssCnt-it->BinIInd].AddNumb(it);
+	for(const auto& n : numbers)
+		Bins[ssCnt - n.BinIInd].AddNumb(n);
 	SumDiff = diff;
 	SetIDs();
 }
@@ -198,8 +199,8 @@ void effPartition::Result::Print(BYTE valW, size_t prNumbsCnt) const
 {
 	if(!Bins.size())	return;
 	BYTE sumW = DigitsCnt(Bins[0].sumVal);	// max sum width (count of digits); first sum is the biggest
-	for(vector<Subset>::const_iterator it = Bins.begin(); it != Bins.end(); it++)
-		it->Print(sumW, valW, prNumbsCnt);
+	for(const auto& b : Bins)
+		b.Print(sumW, valW, prNumbsCnt);
 }
 
 // ********** Partition *********
@@ -261,11 +262,11 @@ class Partition
 	{
 		int i = 0, shift = 1;
 
-		for(effPartition::numb_it it=numbers.begin(); it!=numbers.end(); it++) {
-			finalResult.Bins[i].AddNumb(it);
+		for (const auto& n : numbers) {
+			finalResult.Bins[i].AddNumb(n);
 			i += shift;
-			if(i/ssCnt > 0)	{ i--; shift = -1; }	// last subset, flip to reverse round order
-			else if(i < 0)	{ i++; shift = 1; }		// first subset, flip to direct  round order
+			if (i / ssCnt > 0) { i--; shift = -1; }	// last subset, flip to reverse round order
+			else if (i < 0) { i++; shift = 1; }		// first subset, flip to direct  round order
 		}
 		SetRange(finalResult);		// set minSum, maxSum, sumDiff
 		finalResult.SetIDs();		// set subsets ID
@@ -426,7 +427,7 @@ public:
 	//	@limMult: DSTree() call's limit multiplier; if 0 then omit DSTree method invoking
 	Partition(effPartition::IdNumbers& numbers, effPartition::Result& res, float avr, UINT limMult)
 		: numbers(numbers), finalResult(res), avrSum(avr), sumDiff(SUM_MAX),
-		isAvrFract(int(avrSum) != avrSum), callLimit(minCallLimit * limMult)
+		isAvrFract(int(avrSum) != avrSum), callLimit(ULLONG(minCallLimit * limMult))
 	{
 		const ss_id ssCnt = finalResult.SubsetCount();
 		currResult.Init(numbers.size(), ssCnt);		// doesn't need if finished by UGreedy,
@@ -462,7 +463,7 @@ void effPartition::Init(IdNumbers& numbers, ss_id ssCnt, UINT limMult)
 	if(ssCnt == 0) return;
 	numbIDWidth = DigitsCnt(numbers.MaxID());
 	if(ssCnt > 1)	numbers.Sort();		// sorted by chrom length, but disrupts chromosome order
-	Partition(numbers, result, avr = numbers.AvrSum(ssCnt), limMult);
+	Partition p(numbers, result, avr = numbers.AvrSum(ssCnt), limMult);
 }
 
 // Creates numbers partition by identified values, with sums sorted in descending order

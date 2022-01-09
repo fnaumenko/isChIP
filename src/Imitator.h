@@ -2,12 +2,12 @@
 Imitator.h (c) 2014 Fedor Naumenko (fedor.naumenko@gmail.com)
 All rights reserved.
 -------------------------
-Last modified: 25.03.2021
+Last modified: 07.01.2022
 -------------------------
 Provides chip-seq imitation functionality
 ***********************************************************/
 #pragma once
-#include "OutTxtFile.h"
+#include "DataOutFile.h"
 #include "effPartition.h"
 //#include <math.h>       /* log */
 
@@ -35,6 +35,26 @@ enum class eVerb {	// verbose level
 #define SignPar	"# "	// Marker of output parameter in Usage
 #define	TestMode	(Imitator::TMode==TEST)
 #define	ControlMode (Imitator::TMode==CONTROL)
+
+// 'Gr' defines ground types
+static class Gr
+{
+	static const char* title[];
+public:
+	enum eType {		// using 'class' in this case is inconvenient
+		FG = 0,	// foreground
+		BG = 1	// background
+	};
+	// Count of grounds
+	static const int Cnt = 2;
+
+	// Maximum title length
+	static const BYTE TitleLength = 2;
+
+	// Gets ground title
+	inline static const char* Title(eType g) { return title[g]; }
+} ground;
+
 
 
 // 'Imitator' implements main algorithm of simulation.
@@ -275,7 +295,7 @@ class Imitator
 		static fraglen	_SsDev;			// deviation of frag size selection
 		static a_cycle	_PCRdcycles;	// PCR cycles: read doubling cycles
 		
-		bool		_slave;		// if true then this instance is slave
+		bool		_master;	// if true then this instance is master
 		GM::eMode	_gMode;		// generating mode: 0 - Test, 1 - Control
 		Output*		_output;	// partial output files
 		FragCnts	_fragCnt;	// numbers of selected/recorded fragments for FG & BG, for both Teat & Input
@@ -295,11 +315,8 @@ class Imitator
 		// Increments counter of total selected fragments thread-safely
 		void IncrTotalSelFragCount();
 
-		// Returns random true or false per ground sample
-		inline bool PerSample(Gr::eType g) { return _fragDistr.Sample(Sample(_gMode, g)); }
-
-		// Returns random true or false per auto sample
-		inline bool PerAutoSample()	{ return _fragDistr.Sample(AutoSample); }
+		// Returns local (instance-defined) random true or false according to rate
+		inline bool Sample(float rate) { return _fragDistr.Sample(rate); }
 
 		// Prints thread-safe info about treated chroms and stops timer
 		//  @seq: current reference chromosome
@@ -332,31 +349,33 @@ class Imitator
 		// Creates instance
 		//	@imitator: the owner
 		//	@avr: recorded frags average (trial for sampling), or NULL
-		//	@slave: if true then this instance is slave
-		ChromCutter(const Imitator* imitator, Average* avr, bool slave);
+		//	@master: if true then this instance is master
+		ChromCutter(const Imitator* imitator, Average* avr, bool master);
 		
-		inline ~ChromCutter () { if(_slave)	delete _output; }
+		inline ~ChromCutter () { if(!_master)	delete _output; }
 
 		// Returns number of FG recorded frags
 		inline ULLONG RecFgFragCnt() const { return _fragCnt[Gr::FG].RecCnt(); }
 		
 		// Set mode, print chrom name, start timer, return number of cells
-		ULLONG PrepareCutting(GM::eMode gm, chrid cID, Timer& timer);
+		ULONG PrepareCutting(GM::eMode gm, chrid cID, Timer& timer);
 
 		// Treats chromosomes given for current thread
 		//	@cSubset: pointer to ChrSubset - set of chrom IDs treated in this thread
-		thrRetValType Execute(const effPartition::Subset& cSubset);
+		void Execute(const effPartition::Subset& cSubset);
 		
 		// Cuts chromosome until reaching end position of current treated feature
 		//	@cLen: chromosome's 'end' position
 		//	@fStart: fragment start position
 		//	@ft: current treated feature
+		//	@scores: FG (in-feature, first) and BG (out-feature, second) scores
 		//	@bg: if true then generate background (swap foreground and background)
 		//	@fStat: statistics of selected fragments average counter, or NULL under work mode
 		//	return: 0 if success,
 		//		1 if end chromosome is reached (continue treatment),
 		//		-1 if limit is achieved (cancel treatment)
-		int	CutChrom (chrlen cLen, chrlen& fStart, const Featr& ft, bool bg, FragLenStat* fStat = NULL);
+		int	CutChrom (chrlen cLen, chrlen& fStart, const Featr& ft, 
+			float scores[], bool bg, FragLenStat* fStat = NULL);
 	};
 
 	// 'ChromView' provides template and methods for viewing chrom's treatment results
@@ -520,10 +539,9 @@ class Imitator
 	//	@print: true if chromosomes name should be printed
 	static void PrintChromName(chrid cID, GM::eMode gm, bool print);
 
-	inline static void PrintReadInfo(Gr::eType gr, GM::eMode gMode, const FragCnt fCnts[], const ULONG rgnLens[])
-	{
-		ChrView[gr].PrintReads(gMode, fCnts[gr], rgnLens[gr]);
-	}
+	inline static void PrintReadInfo(
+		Gr::eType gr, GM::eMode gMode, const FragCnt fCnts[], const ULONG rgnLens[])
+	{ ChrView[gr].PrintReads(gMode, fCnts[gr], rgnLens[gr]); }
 
 	// Prints chromosome's name and full statistics
 	//	@cID: chromosomes ID, or CHRID_UNDEF to print "total" instead chrom name
@@ -579,20 +597,12 @@ class Imitator
 	
 	// Cuts genome into fragments and generate output
 	//	@arg: pointer to ChrSubset - set of chrom IDs treated in this thread
-	//	@slave: if true then this instance it slave
-	inline thrRetValType CutChrom(const effPartition::Subset& arg, bool slave)
-	{ 	return ChromCutter(this, NULL, slave).Execute(arg);	}
-
-	// Starts cutting chrom in a separate thread
-	//	@arg: pointer to ChrSubset - set of chrom IDs treated in this thread
-	static inline thrRetValType 
-		#ifdef OS_Windows
-		__stdcall 
-		#endif
-		StatCutChrom(void* arg)	// arg should be void*
-		{	return Imit->CutChrom(*(effPartition::Subset*)arg, true); }
+	//	@master: if true then this instance it master
+	inline void CutChrom(const effPartition::Subset& arg, bool master)
+	{ ChromCutter(this, NULL, master).Execute(arg); }
 
 	// Imitates cutting chromosome to reach statistics
+	//	return: estimated total number of Reads
 	ULLONG CutForSample(Average& genFrAvr, FragLenStat* frLenStat);
 
 	// Sets adjusted Sample and clear all counter and means.
@@ -642,7 +652,7 @@ public:
 		a_coeff	amplCoeff,			// coefficient of PCR
 		UINT	verb,				// verbosity level
 		bool	allBg,				// true if all background mode is assigned
-		bool	uniformScore,		// true if uniform template score is assigned
+		//bool	uniformScore,		// true if uniform template score is assigned
 		//readlen bindLen,
 		//const pairVal& flattens
 		UINT	unstBindLen			// unstable binding length

@@ -2,9 +2,9 @@
 isChIP (In-Silico ChIP) is a fast realistic ChIP-seq simulator.
 The model is based on the real protocol of ChIP-seq
 
-Copyright (C) 2014-2020 Fedor Naumenko (fedor.naumenko@gmail.com)
+Copyright (C) 2014-2022 Fedor Naumenko (fedor.naumenko@gmail.com)
 -------------------------
-Last modified: 17.11.2020
+Last modified: 02.01.2022
 -------------------------
 
 This program is free software.
@@ -23,7 +23,7 @@ Ensembl hg38 genome:	ftp://ftp.ensembl.org/pub/release-100/fasta/homo_sapiens/dn
 using namespace std;
 
 const string Product::Title = "isChIP";
-const string Product::Version = "1.0";
+const string Product::Version = "2.0";
 const string Product::Descr = "ChIP-seq simulator";
 
 const string DefFileName[] = { "mTest", "mInput" };
@@ -56,9 +56,9 @@ const string UnstableBSLen = "unstable binding length";
 
 // *** Options definition
 
-enum { gTREAT, gFRAG, gREAD, gOUTPUT, gOTHER };	// gOTHER should be the last one
+enum { gTREAT, gTEMPL, gFRAG, gREAD, gOUTPUT, gOTHER };	// gOTHER should be the last one
 const char* Options::OptGroups[] = {
-	"Processing", "Fragment size distribution", "Reads", "Output", "Other"
+	"Processing", "Template", "Fragment size distribution", "Reads", "Output", "Other"
 };
 const BYTE Options::GroupCount = ArrCnt(Options::OptGroups);
 
@@ -74,7 +74,7 @@ Options::Option Options::List[] = {
 	"fore- and background levels:\nnumber of selected fragments inside/outside binding sites,\n\
 in percent of all/foreground.\nIn control mode background is ignored ", NULL },
 	{ 'E',"exo",	fOptnal,tINT,	gTREAT,	6,	0, 20, NULL,
-	"apply ChIP-exo protocol modification with specified exonuclease 'headroom' length\n\
+	"apply ChIP-exo protocol with specified exonuclease 'headroom' length.\n\
 If the option is not specified, ChIP-exo is not applied", NULL },
 	{ 'D',"mda",	fNone,	tENUM,	gTREAT,	FALSE,	vUNDEF, 2, NULL, "apply MDA technique", NULL },
 	{ 'a',"pcr",	fNone,	tINT,	gTREAT, 0, 0, 500, NULL, "number of PCR cycles", NULL },
@@ -85,9 +85,6 @@ If the option is not specified, ChIP-exo is not applied", NULL },
 	//{ HPH, "bind-len", fNone,	tINT,	gTREAT, 1, 1, 100, NULL, "minimum binding length.", ForTest },
 	{ 'm', "smode",	fNone,	tENUM,	gTREAT, Seq::SE, Seq::SE, ArrCnt(smodes), (char*)smodes,
 	"sequencing mode: ? - single end, ? - paired end", NULL },
-	{ 's',"bscore",	fAllow0,tINT,	gTREAT, 5, 4, 12, NULL,
-	"index of the template field used to score each binding event.\n\
-Value '0' means ignore template scores.", ForTest },
 	//{ HPH, "flat-len",	fNone,	tPR_INT,	gTREAT, 0, 0, 0, (char*)&flattens,
 	//"inside, outside BS boundary flattening length.", ForTest },
 	{ HPH, "edge-len",	fNone,	tINT,	gTREAT, 0, 0, 10, NULL,
@@ -101,6 +98,11 @@ Value '0' means ignore template scores.", ForTest },
 	"folder to store service files [-g|--gen]", NULL },
 	{ HPH, "seed",	fNone,	tINT,	gTREAT, 0, 0, 1000, NULL,
 	"fix random emission with given seed, or 0 if don't fix", NULL },
+	{ 'o', "overl",	fNone,	tENUM,	gTEMPL, FALSE,	0, 2, (char*)Options::Booleans,
+	"allow (and merge) overlapping template features", NULL },
+	{ 's',"bscore",	fAllow0,tINT,	gTEMPL, 5, 4, 12, NULL,
+	"index of the template field used to score each binding event.\n\
+Value '0' means ignore template scores.", ForTest },
 	{ 'L',"ln",	fNone,	tPR_FL,	gFRAG, 0, 0, 0, (char*)&lnd,
 	"mean and stand dev of fragment lognormal distribution", NULL },
 	{ 'S',"ss",	fOptnal,tPR_INT,gFRAG, 0, 0, 0, (char*)&ssd,
@@ -111,7 +113,7 @@ If the option is not specified, size selection is disabled", NULL },
 	{ 'R',"rd-dist",fOptnal,tPR_INT,gREAD, 0, 0, 0, (char*)&rdd,
 	"mean and stand dev of variable read normal distribution,\naccording to Ion Torrent/Roche454 protocol.\n\
 If the option is not specified, the read length is fixed", NULL },
-	{ HPH,"rd-pos",	fNone,	tENUM,	gREAD, FALSE, vUNDEF, 2, NULL,"add read position to its name", NULL },
+	{ 'l',"rd-pos",	fNone,	tENUM,	gREAD, FALSE, vUNDEF, 2, NULL,"add read position (location) to its name", NULL },
 	{ HPH,"rd-Nlim",fNone,	tINT,	gREAD, vUNDEF, 0, 500, NULL,
 	"maximum permitted number of ambiguous code N in read [OFF]", NULL },
 	{ HPH,"rd-lim",	fNone,	tLONG,	gREAD, 2e8, 1e5, (float)ULONG_MAX, NULL,
@@ -126,8 +128,8 @@ If the option is not specified, the read length is fixed", NULL },
 	"generate control simultaneously with test", NULL },
 	{ 'x',"strand",	fNone,	tENUM,	gOUTPUT, FALSE,	vUNDEF, 2, NULL,
 	"generate two additional wig files, each one per strand", NULL },
+	{ 'O', sOutput,	fNone,	tNAME,	gOUTPUT, vUNDEF, 0, 0, NULL, OutFileTip.c_str()	},
 	{ 'T', "sep",	fNone,	tENUM,	gOUTPUT, FALSE,	vUNDEF, 2, NULL, "use 1000 separator in output", NULL },
-	{ 'o', sOutput,	fNone,	tNAME,	gOUTPUT, vUNDEF, 0, 0, NULL, OutFileTip.c_str()	},
 #ifndef _NO_ZLIB
 	{ 'z',"gzip",	fNone,	tENUM,	gOUTPUT, FALSE, vUNDEF, 2, NULL, "compress the output", NULL},
 #endif
@@ -158,7 +160,6 @@ int main(int argc, char* argv[])
 	Features* templ = NULL;
 	const char* fBedName = fileInd == argc ? NULL : argv[fileInd];	// template name
 
-	Chrom::SetCustomOption(oCHROM);
 	// initialize Seq before Read::Init()
 	Seq::Init(Options::GetIVal(oSMODE), ULONG(Options::GetFVal(oRD_LIMIT)));
 	// initialize Read before Output::Init()
@@ -167,6 +168,12 @@ int main(int argc, char* argv[])
 		Options::GetBVal(oRD_NAME),
 		char(Options::GetFVal(oRD_QUAL)),
 		Options::GetUIVal(oRD_LIMIT_N)
+	);
+	// initialize DistrParams before Imitator and Output!!
+	DistrParams::Init(
+		lnd.Values(), Options::Assigned(oFR_DIST),
+		ssd.Values(), Options::Assigned(oSS_DIST),
+		rdd.Values(), Options::Assigned(oRD_DIST)
 	);
 	Output::Init(
 		Options::GetIVal(oFORMAT),
@@ -179,15 +186,6 @@ int main(int argc, char* argv[])
 		Options::GetBVal(oGZIP)
 #endif
 	);
-	// initialize DistrParams before Imitator !!
-	DistrParams::Init(
-		lnd.Values(),
-		Options::Assigned(oFR_DIST),
-		ssd.Values(),
-		Options::Assigned(oSS_DIST),
-		rdd.Values(),
-		Options::Assigned(oRD_DIST)
-	);
 	Imitator::Init(
 		fBedName != NULL ? TEST : CONTROL,	// fBedName should be set
 		Options::GetBVal(oMAKE_INPUT),
@@ -198,7 +196,7 @@ int main(int argc, char* argv[])
 		a_coeff(Options::GetFVal(oPCR_CYCLES)),
 		Options::GetUIVal(oVERB),
 		Options::GetBVal(oBG_ALL) * bool(SAMPLE_BG()),	// bg all: always false if bg level is 0
-		!Options::GetBVal(oBS_SCORE),
+		//!Options::GetBVal(oBS_SCORE),
 		//readlen(Options::GetUIVal(oBS_LEN)),
 		//flattens.Values()
 		Options::GetUIVal(oFLAT_LEN)
@@ -219,27 +217,27 @@ int main(int argc, char* argv[])
 		Output::SetReadQualPatt(FS::CheckedFileName(oRD_QUAL_PATT));	// read quality pattern file name
 
 		ChromSizesExt cSizes(
-			Options::GetSVal(oGEN), Options::GetSVal(oSERV), Imitator::Verbose(eVerb::RT));
+			Options::GetSVal(oGEN), oCHROM, Imitator::Verbose(eVerb::RT), Options::GetSVal(oSERV));
 
 		if (fBedName) {
-			//Obj::Ambig::SetSupplAlarm(Obj::Ambig::SHORT, "for given binding length");
-			templ = new Features(sTemplate, fBedName, cSizes,
-				Imitator::Verbose(eVerb::DBG) ? Obj::eInfo::STAT : Obj::eInfo::NONE,
-				false,
+			//Obj::Ambig::SetSupplAlarm(Obj::Ambig::SHORT, "for given binding Imitator::FlatLenlength");
+			templ = new Features(fBedName, cSizes,
+				Options::GetBVal(oOVERL),
 				Options::GetIVal(oBS_SCORE),
 				0, //readlen(Options::GetUIVal(oBS_LEN)),		// binding length
-				Imitator::Verbose(eVerb::DBG)						// print ambigs alarm
+				true											// print name
+				//Imitator::Verbose(eVerb::DBG)						// print ambigs alarm
 			);
 			//templ->Print();
 			//if(flattens.Values().second)
 			//	templ->Extend(flattens.Values().second, cSizes, Obj::iLAC);
 			//templ->Extend(10000, cSizes, Obj::iSTAT);
 
-			short halfMinFLen = short(templ->GetMinFeatureLength() / 2);
-			if (halfMinFLen < Imitator::FlatLen) {
+			chrlen halfMinFLen = templ->GetMinFeatureLength() / 2;
+			if (halfMinFLen < chrlen(Imitator::FlatLen)) {
 				Imitator::FlatLen = halfMinFLen;
 				if (Imitator::Verbose(eVerb::RT))
-					Err(UnstableBSLen + " reduced to " + NSTR(halfMinFLen)
+					Err(UnstableBSLen + " reduced to " + to_string(halfMinFLen)
 						+ " due to minimum template feature length").Warning();
 			}
 		}
@@ -259,7 +257,7 @@ int main(int argc, char* argv[])
 	catch (const exception & e) { ret = 1; cerr << e.what() << LF; }
 	//catch(...)					{ ret = 1; cerr << "Unregistered error" << endl; }
 	if (templ)	delete templ;
-	Mutex::Finalize();
+	//Mutex::Finalize();
 	if (!ret)
 		Timer::StopCPU(false),
 		timer.Stop("\twall-clock: ", false, true);
@@ -274,19 +272,20 @@ void PrintParams(const ChromSizesExt& cSizes, const char* templName,
 	if (!Imitator::Verbose(eVerb::PAR))		return;
 	cout << SignPar << "Reference" << SepDCl << "genome" << SepCl << cSizes.RefPath();
 	cout << SepCm << Chrom::TitleName() << COLON;
-	if (!Chrom::NoCustom())
+	if (!Chrom::IsCustom())
 		cout << SPACE << Chrom::Mark(Chrom::CustomID());
 	else 
 		cSizes.PrintTreatedChroms();
 	cout << LF;
+
 	if (!cSizes.IsServAsRef())
 		cout << SignPar << "Service folder" << SepCl << cSizes.ServPath() << LF;
 
 	if (templName) {
 		cout << SignPar << sTemplate << SepCl << templName << SepCl;
-		templ->PrintItemCount(false);
+		templ->PrintItemCount(FT::eType::BED, false);
 		cout << SepSCl;
-		if (Imitator::UniScore)		cout << "uniform score\n";
+		if (templ->IsUniScore())		cout << "uniform score\n";
 		else	cout << "score index" << Equel << Options::GetIVal(oBS_SCORE) << LF;
 	}
 	oFile.PrintFormat(SignPar);		// print output formats, sequencing mode

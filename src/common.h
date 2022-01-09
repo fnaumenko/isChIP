@@ -2,12 +2,15 @@
 common.h (c) 2014 Fedor Naumenko (fedor.naumenko@gmail.com)
 All rights reserved.
 -------------------------
-Last modified: 15.03.2021
+Last modified: 07.01.2022
 -------------------------
 Provides common functionality
 ***********************************************************/
 
 #pragma once
+#ifndef _COMMON_H
+#define _COMMON_H
+
 #include "def.h"
 #include <stdint.h>		// uint32_t
 #include <string>
@@ -17,23 +20,25 @@ Provides common functionality
 #include <vector>
 #include <sys/stat.h>	// struct stat
 #include <limits>       // std::numeric_limits
+#ifdef _MULTITHREAD
+#include <mutex>
+#endif
 
 #ifdef __unix__
 	#include <unistd.h>
 	#include <stdlib.h>
-	#include <memory.h>
+	#include <memory>
 	#include <limits.h>
 	//#include <math.h>
 	#include <dirent.h>
 	#include <stdio.h>
 #ifdef _MULTITHREAD
-	#include <pthread.h>
+	//#include <pthread.h>
 	#define InterlockedExchangeAdd	__sync_fetch_and_add
 	#define InterlockedIncrement(p)	__sync_add_and_fetch(p, 1)
 #endif
 	#include <string.h>		// strerror_r()
 	#include <stdexcept>	// throw std exceptions
-	//#include <errno.h>	// pthread_join errcodes
 
 	typedef unsigned char	BYTE;
 	typedef	unsigned short	USHORT;
@@ -42,7 +47,7 @@ Provides common functionality
 	typedef unsigned long long ULLONG;
 	typedef long long LLONG;
 	typedef struct stat struct_stat64;
-	typedef void*	thrRetValType;
+	//typedef void*	thrRetValType;
 
 	#define _stricmp strcasecmp	// case-sensitive comparison
 	#define _fseeki64 fseeko64
@@ -60,19 +65,16 @@ Provides common functionality
 #elif defined _WIN32
 	#define OS_Windows
 	#include <windows.h>
-#ifdef _MULTITHREAD
-	#include <process.h>	    // _beginthread, _endthread
-	#define pthread_t HANDLE
-	#define pthread_mutex_t CRITICAL_SECTION
-#endif		// OS Windows
+//#ifdef _MULTITHREAD
+	//#define pthread_mutex_t CRITICAL_SECTION
+//#endif	
 	typedef unsigned __int64 ULLONG;
 	typedef __int64 LLONG;
 	typedef struct __stat64 struct_stat64;
-	typedef UINT	thrRetValType;
 
 	#define isNaN isnan
 	#define	LOCALE_ENG	"English"
-#endif
+#endif		// OS Windows
 
 #ifndef _NO_ZLIB
 	#ifdef OS_Windows
@@ -89,14 +91,13 @@ Provides common functionality
 // specific types
 typedef BYTE		thrid;		// type number of thread
 typedef BYTE		chrid;		// type number of chromosome
-typedef USHORT		readlen;	// type length of Read
+typedef uint16_t	readlen;	// type length of Read
 typedef uint32_t	chrlen;		// type length of chromosome
 typedef chrlen		fraglen;	// type length of fragment
-typedef ULONG		genlen;		// type length of genome
+typedef uint64_t	genlen;		// type length of genome
 
 #define	CHRLEN_UNDEF	-1	// undefined length of chromosome
 #define	CHRLEN_MAX		-1	// max length of chromosome
-#define thrRetValFalse	0
 //#define CHRLEN_CAPAC	10	// capacity of max chrom length;
 							// may be count by DigitsCount() every time,
 							// but is the same if chrlen defined as int or long,
@@ -107,7 +108,7 @@ typedef ULONG		genlen;		// type length of genome
 #define HPH		'-'
 #define USCORE	'_'
 #define SPACE	' '
-#define sBLANK	" "
+#define sSPACE	" "
 #define QUOT	'\''
 #define DOT		'.'
 #define COLON	':'
@@ -127,14 +128,14 @@ static const chrlen CHRLEN_CAPAC = numeric_limits<chrlen>::digits10 + 1;
 
 static const std::string ZipFileExt = ".gz";
 static const string strEmpty = "";
-
-static const char* SepCm = ", ";		// comma separator
 static const char* SepCl = ": ";		// colon separator
-static const char* SepDCl = ":: ";		// double colon separator
 static const char* SepSCl = "; ";		// semicolon separator
-static const char* SepClTab = ":\t";	// colon + tab separator
+#ifdef _CONST_MARKS
+static const char* SepCm = ", ";		// comma separator
+static const char* SepDCl = ":: ";		// double colon separator
+//static const char* SepClTab = ":\t";	// colon + tab separator
 static const char* Equel = " = ";
-
+#endif
 // common help string
 static const char* sGen = "gen";		// isChIP, readDens
 static const char* sOutput = "out";
@@ -147,11 +148,11 @@ static const char* sUnitDens = "r/kbp";	// unit of density measure; isChIP, read
 static const char* sTotal = "total";
 //static const string sTotal = "total";
 
-#ifdef _DUP_OUTPUT
+//#ifdef _DUP_OUTPUT
 static const char* sSumm = "summ";		// to invoke app from bioStat
 static const string sFileDuplBegin = "duplicate standard output to specified file\nor to ";
 static const string sFileDuplEnd = " if file is not specified";
-#endif
+//#endif
 #if defined _ISCHIP || defined _CALLDIST
 static const char* SepGroup = ";  ";
 static const char* sMean = "mean";
@@ -169,27 +170,31 @@ static const char* sTemplate = "template";
 #define NO_DEF	-1	// do not print option default value
 
 /*************************************************************
-* time testing itoa, to_string, sprintf,
+* time testing integer to char[]
 * printing string <numb><char><numb>[<char><numb>] and returing number of charachters printed
 * 
-* func		string	time, mm:ss		string		time, mm:ss	
-*					Windows	linux				Windows	linux
+* func		string			len	time, ss.mcs
+*								Windows	Linux
 * ------------------------------------------------------------
-* itoa		11-11	00:05	  -		11-11-11	00:08	  -
-* to_string	22-22	00:02	00:16	22-22-22	00:03	00:25
-* sprintf	44-44   00:11	00:05	44-44-44	00:18	00:07
+itoa    123456789-123456789	19	04.79
+to_str  123456789-123456789	19	02.46	03.99
+sprintf 123456789-123456789	19	03.59	01.47	common the best
+oss     123456789-123456789	19	23.36	04.98
+one oss 123456789-123456789	19	18.76	01.67
 **************************************************************/
+
 // Prints number to buffer without checkup
 //	@buf: buffer to print
 //	@numb: number to print
 //	return: total number of characters written
 //	NOT USED in Linux (sprintf() is used instead due to performance) 
-template <typename T>
-BYTE	PrintNumbToBuff(char* const buf, T numb) {
-	const string s = to_string(numb);
-	memcpy(buf, s.c_str(), s.size());
-	return BYTE(s.size());
-}
+//template <typename T>
+//BYTE	PrintNumbToBuff(char* const buf, T numb)
+//{
+//	const string s = to_string(numb);
+//	move(s.begin(), s.end(), buf);
+//	return BYTE(s.size());
+//}
 
 // Prints the number following the delimiter to buffer without checkup
 //	@buf: buffer to print
@@ -197,13 +202,11 @@ BYTE	PrintNumbToBuff(char* const buf, T numb) {
 //	@numb: number to print
 //	return: total number of characters written
 //	NOT USED in Linux (sprintf() is used instead due to performance) 
-template <typename T>
-BYTE	PrintDelimNumbToBuff(char* const buf, char delim, T numb) {
-	*buf = delim;
-	const string s = to_string(numb);
-	memcpy(buf + 1, s.c_str(), s.size());
-	return BYTE(s.size() + 1);
-}
+//template <typename T>
+//BYTE	PrintDelimNumbToBuff(char* const buf, char delim, T numb) {
+//	*buf = delim;
+//	return PrintNumbToBuff(buf + 1, numb) + 1;
+//}
 
 // Gets number of members in static array
 #define ArrCnt(arr)	sizeof(arr)/sizeof(arr[0])
@@ -211,11 +214,10 @@ BYTE	PrintDelimNumbToBuff(char* const buf, char delim, T numb) {
 // Digital to STRing
 // Returns value's string representation. http://rootdirectory.de/wiki/NSTR()
 // Instead of std::to_string(x) [C++11] because of compatibility
-//#define NSTR(x) static_cast<ostringstream&>( ostringstream() << dec << (x) ).str()
-#define NSTR(x) std::to_string(x)
+//#define NSTR(x) std::to_string(x)
 
 // Returns number of ones in an bynary integer
-int OnesCnt(int n);
+int OnesCount(int n);
 
 // Returns right position of right one in an bynary integer
 int RightOnePos(int n);
@@ -233,12 +235,11 @@ inline float Percent(ULLONG part, ULLONG total) {
 
 // Returns string represents the percent of part relatively total
 //	@percent: value of percent
-//	@precision: count of mapped digits; 
+//	@precision: count of fractional digits; 
 //	if count of value's mapped digits is more then that, printed "<X%", or exactly by default
-//	@fieldWith: the width of the display field insine parentheses, or exactly by default;
-//	should include '%' and possible '<' marks
+//	@fieldWith: displayed width of value and '%' or '<' sign (excluding parentheses), or exactly if 0;
 //	@parentheses: if true then parenthesize the value (not considering fieldWith)
-string	sPercent(float percent, BYTE precision=0, BYTE fieldWith=0, bool parentheses=false);
+string sPercent(float percent, BYTE precision=0, BYTE fieldWith=0, bool parentheses=false);
 
 // Returns string represents the percent of part relatively total
 //	@part: value represents desired %
@@ -249,7 +250,7 @@ string	sPercent(float percent, BYTE precision=0, BYTE fieldWith=0, bool parenthe
 //	@fieldWith: the width of the display field insine parentheses or exactly by default;
 //	should include a '%' mark
 //	@parentheses: if true parenthesize the value
-inline string	sPercent(ULLONG part, ULLONG total,
+inline string sPercent(ULONG part, ULONG total,
 	BYTE precision=0, BYTE fieldWith=0, bool parentheses=false) {
 		return sPercent(Percent(part, total), precision, fieldWith, parentheses);
 }
@@ -285,35 +286,31 @@ chrlen AlignPos(chrlen pos, BYTE res, BYTE relative);
 
 /*** end of COMMON FUNCTION ***/
 
-#ifdef _NO_DOUT
-	#define dout	cout
-	#define dostream ostream
-#elif defined _WIGREG
-	#define dout	cerr
-#else
+#ifdef _DUP_OUTPUT
 #include <fstream>
 // 'dostream' duplicates outstream to stdout & file
 class dostream : public std::ostream
 {
-    //std::ostream& dupl;
-    std::ofstream file;
+	std::ofstream file;
 public:
-    //inline dostream(std::ostream& s) : dupl(s), std::ostream(cout.rdbuf()) {}
-	inline dostream(std::ostream& s) : std::ostream(cout.rdbuf()) {}
+	//inline dostream(std::ostream& s) : std::ostream(cout.rdbuf()) {}
 
 	inline dostream() : std::ostream(cout.rdbuf()) {}
 
-	inline ~dostream() { if(file.is_open())	file.close(); }		// in case of exception or holding execution by user
+	inline ~dostream() { if (file.is_open())	file.close(); }		// in case of exception or holding execution by user
 
 	// Open output file with given name
 	//	return: true if file is open
 	bool OpenFile(const string fname);
-	
+
 	template <typename T> dostream& operator<< (T val) {
 		cout << val;
 		file << val;
 		return *this;
 	}
+
+	template <typename T> 
+	inline void ToFile(T val) { file << val; }
 };
 
 //class dostream
@@ -330,29 +327,14 @@ public:
 //};
 
 extern dostream dout;		// stream's duplicator
+#elif defined _WIGREG
+	#define dout	cerr
+#else
+	#define dout	cout
+	#define dostream ostream
+#endif	// _DUP_OUTPUT
 
-#endif	// _NO_DOUT
-
-// 'Gr' defines ground types
-static class Gr
-{
-	static const char* title[];
-public:
-	enum eType {		// using 'class' in this case is inconvenient
-		FG = 0,	// foreground
-		BG = 1	// background
-	};
-	// Count of grounds
-	static const int Cnt = 2;
-
-	// Maximum title length
-	static const BYTE TitleLength = 2;
-
-	// Gets ground title
-	inline static const char* Title(eType g) { return title[g]; }
-} ground;
-
-// 'Product' keeps Product info
+// 'Product' keeps Product oinfo
 static struct Product
 {
 	static const string	Title;
@@ -367,7 +349,7 @@ static struct Product
 	//inline static const string& Name() { return Title + string(1, HPH) + string(Version); }
 } product;
 
-typedef pair<float,float> pairVal;	// pair of values
+typedef pair<float,float> pairVal;	// pair of float values
 
 // 'Options' implements main() options and parameters treatment.
 static class Options
@@ -638,6 +620,10 @@ public:
 	inline static UINT GetUIVal	(int opt)	{ return UINT(List[opt].NVal); }
 	// Get int value by index
 	inline static int GetIVal	(int opt)	{ return int(List[opt].NVal); }
+#ifdef _READS
+	// Get read duplicates level
+	inline static char GetRDuplLevel(int opt) { return GetBVal(opt) ? vUNDEF : 0; }
+#endif
 
 	// Returns true if the option value is assigned by user
 	static bool Assigned	(int opt)	{ return List[opt].Sign.Is(fTrimmed); }
@@ -675,18 +661,16 @@ public:
 		F_OPEN,		// TxtFile(): file open error
 		F_CLOSE,	// TxtFile(): file close error
 		F_READ,		// TxtFile(): file read error
+		F_EMPTY,
 		F_BIGLINE,	// TxtFile(): too big line
 		FZ_MEM,		// TxtFile(): not enough gzip buffer
 		FZ_OPEN,	// TxtFile(): gzip open error
 		FZ_BUILD,	// TxtFile(): doen't support gzip
 		F_WRITE,	// file write error
+		//F_FORMAT,
 #ifndef _FQSTATN
 		TF_FIELD,	// TabFile: number of fields is less than expected
-		TF_EMPTY,	// TabFile: none item (should be specified)
-		B_BADEND,	// bed: start is is equal or more than end
-		B_NEGPOS,	// bed: negative position
-		ARR_OUTRANGE,
-		SUM_EXCEED,
+		TF_EMPTY,	// TabFile: no records
 #endif
 		EMPTY
 	};
@@ -761,16 +745,10 @@ public:
 		set_message(sender.c_str(), text.c_str());
 	}
 
-	// empty constructor for silent quit
-	//inline Err() { set_message(NULL, strEmpty.c_str()); }
-
 	// copy constructor
 	Err(const Err& src);
 
-	~Err() {
-		if (_outText) {	delete[] _outText; _outText = NULL;
-		}
-	}
+	~Err() { delete[] _outText; _outText = NULL; }
 
 	inline const char* what() const /*throw()*/ { return _outText; }
 
@@ -781,11 +759,13 @@ public:
 
 	// Throws exception or outputs Err message.
 	//	@throwExc: if true then throws exception, otherwise outputs Err message
-	//	@eol: if true then carriage should be return while output Err message
-	void	Throw(bool throwExc = true, bool eol = true);
+	//	@eol: if true then carriage return after Err message
+	void Throw(bool throwExc = true, bool eol = true);
 	
-	// Outputs warning with prefix "WARNING" and additional text, if it is setting.
-	void	Warning	(string const & addText = strEmpty);
+	// Outputs warning
+	//	@prefix: output ": " before "WARNING"
+	//	@eol: if true then carriage return after Err message
+	void Warning(bool eol = true, bool prefix = false);
 };
 
 // 'FileSystem' implements common file system routines
@@ -997,8 +977,8 @@ protected:
 	//	@elapsed: elapsed time in seconds
 	//	@title: string printed before time output
 	//	@parentheses: if true then output time in parentheses
-	//	@isEOL: if true then ended output by LF
-	static void Print(long elapsed, const char *title, bool parentheses, bool isEOL);
+	//	@isLF: if true then ended output by LF
+	static void Print(long elapsed, const char *title, bool parentheses, bool isLF);
 
 	mutable time_t	_startTime;
 	mutable bool	_enabled;	// True if local timing is enabled
@@ -1032,9 +1012,9 @@ public:
 	inline static void StartCPU()	{ if( Enabled ) _StartCPUClock = clock(); }
 	
 	// Stops enabled CPU timer and print elapsed time
-	//	@isEOL: if true then ended output by LF
-	static void StopCPU(bool isEOL=true) {
-		if(Enabled)	Print((clock()-_StartCPUClock)/CLOCKS_PER_SEC, "CPU: ", false, isEOL);
+	//	@isLF: if true then ended output by LF
+	static void StopCPU(bool isLF=true) {
+		if(Enabled)	Print((clock()-_StartCPUClock)/CLOCKS_PER_SEC, "CPU: ", false, isLF);
 	}
 
 	// Creates a new Timer and starts it if timing is enabled
@@ -1044,21 +1024,22 @@ public:
 	// Stops enabled timer and prints elapsed time with title
 	//	@title: string printed before time output
 	//	@parentheses: if true then output time in parentheses
-	//	@isEOL: if true then ended output by LF
-	void Stop(const char *title, bool parentheses, bool isEOL) {
-		if(_enabled)	Print(GetElapsed(), title, parentheses, isEOL);
+	//	@isLF: if true then ended output by LF
+	void Stop(const char *title, bool parentheses, bool isLF) {
+		if(_enabled)	Print(GetElapsed(), title, parentheses, isLF);
 	}
 
 	// Stops enabled timer and prints elapsed time
 	//	@offset: space before time output
-	//	@isEOL: if true then ended output by LF
-	void Stop(BYTE offset, bool isEOL = false);
+	//	@parentheses: if true then output time in parentheses
+	//	@isLF: if true then ended output by LF
+	void Stop(int offset = 0, bool parentheses = false, bool isLF = false);
 
 	// Stops enabled timer and prints elapsed time
 	//	@parentheses: if true then output time in parentheses
-	//	@isEOL: if true then ended output by LF
-	inline void Stop(bool parentheses = false, bool isEOL = true)	{
-		Stop(NULL, parentheses, isEOL); }
+	//	@isLF: if true then ended output by LF
+	//inline void Stop(bool parentheses = false, bool isLF = true)	{
+	//	Stop(NULL, parentheses, isLF); }
 };
 
 #ifdef _TEST
@@ -1099,212 +1080,63 @@ class StopwatchCPU
 		// Stops StopwatchCPU
 		//	@title: string printed before time output
 		//	@print: if true time should be printed
-		//	@isEOL: if true then ended output by LF
-		void Stop(const char* title, bool print = false, bool isEOL = false);
+		//	@isLF: if true then ended output by LF
+		void Stop(const char* title, bool print = false, bool isLF = false);
 };
 
 static class Mutex
 {
 public:
-	enum class eType { NONE, OUTPUT, INCR_SUM, WR_BED, WR_SAM, WR_FQ, WR_RDENS, WR_BG, WR_BG1, WR_BG2 };
+	enum class eType { OUTPUT, INCR_SUM, WR_BED, WR_SAM, WR_FQ, 
+#ifdef _ISCHIP
+		WR_RDENS, WR_BG, WR_BGPOS, WR_BGNEG,
+#endif
+		NONE };
 #ifdef _MULTITHREAD
 private:
-	static pthread_mutex_t	_mutexes[];
 	static bool	_active;	// true if the mutex really should work
-	static const BYTE Count = 10;
+	//static pthread_mutex_t	_mutexes[];
+	static mutex	_mutexes[];
 public:
-	static void Init(bool);
-	static void Finalize();
-	static void Lock(const eType type);
-	static void Unlock(const eType type);
+	// Returns true if Mutex type is not NONE
+	inline static bool IsReal(eType mtype) { return mtype != eType::NONE;	}
+	inline static void Init(bool active) { _active = active; }
+	//inline static void Finalize() {};
+	static void Lock(eType type) { if (_active) _mutexes[int(type)].lock();	}
+	static void Unlock(eType type) { if (_active) _mutexes[int(type)].unlock(); }
 #endif
-} mutex;
-
-#ifdef _MULTITHREAD
-class Thread
-{
-private:
-	pthread_t _thread;
-
-public:
-	inline Thread(thrRetValType(
-		#ifdef OS_Windows
-		__stdcall
-		#endif
-		*proc)( void*), void *arglist)
-	{
-	#ifdef OS_Windows
-		//_thread = (HANDLE) _beginthread(proc, 0, arglist);	// gets unstable call WaitForSingleObject
-		_thread = (HANDLE) _beginthreadex(NULL, 0, proc, arglist, 0, NULL);
-	#else
-		pthread_create(&_thread, NULL, proc, arglist);
-		//int code = pthread_create(&_thread, NULL, proc, arglist);
-		//if (code) { 
-		//	char buf[256]; 
-		//	strerror_r(code, buf, sizeof buf);
-		//	cout << "Thread constructor: " << buf << endl;
-		//}
-	#endif
-	}
-
-	inline ~Thread()
-	{
-	#ifdef OS_Windows
-		CloseHandle(_thread);
-	#endif
-	}
-
-	// Waits for a thread to terminate and detaches the thread.
-	inline void WaitFor()
-	{
-#ifdef OS_Windows
-		//DWORD res = WaitForSingleObject(_thread, INFINITE);
-		//switch(res) {
-		//	case WAIT_ABANDONED: cout << " WAIT_ABANDONED\n"; break;
-		//	case WAIT_OBJECT_0:	cout << " WAIT_OBJECT_0\n"; break;
-		//	case WAIT_TIMEOUT: cout << " WAIT_TIMEOUT\n"; break;
-		//	case WAIT_FAILED: cout << " WAIT_FAILED\n"; break;
-		//}
-		WaitForSingleObject(_thread, INFINITE);
-#else
-		//int res = pthread_join(_thread, NULL);
-		//switch(res) {
-		//	case 0: cout << " WELL\n"; break;
-		//	case EINVAL: cout << " EINVAL\n"; break;
-		//	case ESRCH:	cout << " ESRCH\n"; break;
-		//	case EDEADLK: cout << " EDEADLK\n"; break;
-		//}
-		pthread_join(_thread, NULL);
-#endif
-	}
-
-// Terminates the calling thread. Does not used because of uninvoke destructors under Windows
-//	void Thread::EndThread()
-//	{
-//#ifdef OS_Windows
-//		_endthread();
-//#else
-//		pthread_exit(NULL);
-//#endif
-//	}
-};
-
-#endif	// _MULTITHREAD
-
-template <typename T> class Array
-{
-protected:
-	T*	_data;
-
-private:
-	ULONG	_len;
-
-	//void Dump() { if(_len) { delete [] _data; _len = 0; } }
-
-	// Prepaires memory array to initialization or copying
-	 ULONG MakeData(ULONG len) {	
-		 if(len) _data = new T[_len = len];
-		 return len;
-	 }
-
-public:
-	// Creates an instance with capacity, initialized by 0.
-	//	@len: capacity
-	Array(ULONG len=0) : _len(0), _data(NULL)	// inline is forbidden because of T& Chroms::AddEmptyElem()
-	{ Reserve(len); }
-
-	//inline Array(const Array& arr) { Copy(arr); }
-
-	inline ~Array()		// only the data created in the constructor or MakeData() is freed
-	{ if(_len) delete [] _data; _len = 0; }
-
-	inline bool Empty() const	{ return !_len; }
-
-	inline ULONG Length() const	{ return _len; }
-
-	// Access data
-	//	returns: a direct pointer to the memory array used internally
-	inline T* Data() const	{ return _data; }
-
-	inline T& operator[](const ULONG i)				{ return _data[i]; }
-
-	inline const T& operator[](const ULONG i) const	{ return _data[i]; }
-
-	inline Array& operator=(const Array& arr) { Copy(arr); return *this; }
-
-	inline void Copy (const Array& arr)
-	{ if(MakeData(arr._len))	copy(arr._data, arr._data + _len, _data); }
-
-	// Deletes previous data and reserves array capacity, initialized by 0.
-	//	@len: capacity
-	inline void Reserve(long len)
-	{ if(MakeData(len)) memset(_data, 0, _len*sizeof(T)); }	// no control of existing data
-
-	// CLears an instance: set all members to zero
-	inline void Clear() { if(_len)	memset(_data, 0, _len*sizeof(T)); }
-
-#ifndef _FQSTATN
-	//---------- extended methods
-
-	// Adds array to this instance.
-	//	@src: added array
-	//	@start: position from which array should be added
-	//	@startSrc: start position in added array; start of added array by default
-	//	@size: length of added region; whole added array by default
-	void Concat(const Array& src, ULONG start, ULONG startSrc=0, ULONG size=0) {
-		if( !size )	size = src._len - startSrc;
-		if( start + size > _len )
-			Err(Err::ARR_OUTRANGE, "Array.Concat()", NSTR(start + size) + " > " + NSTR(_len)).Throw();
-		memcpy(_data + start, src._data + startSrc, size*sizeof(T));
-	}
-
-	// Fills subarray by value
-	//	@begin: first position of subarray
-	//	@end: last position of subarray
-	//	@val: value to fill
-	void Fill(long begin, long end, T val) {
-		if( end > long(_len) )
-			Err(Err::ARR_OUTRANGE, "Array.Fill()", NSTR(_len)).Throw();
-		for(long i=begin; i<=end; i++)
-			_data[i] = val;
-	}
-#endif	// _FQSTATN
-#ifdef DEBUG
-	void Print(long begin=0, long end=0) const {
-		if( !end )	end = _len;
-		for (long i=begin; i<end; i++)
-			dout << i << TAB << _data[i] << LF;
-	}
-#endif	// _DEBUG
-};
+} myMutex;
 
 // 'Chrom' establishes correspondence between chromosome's ID and it's name.
 static class Chrom
 /**********************************************************************************
-TERMS.
-MARK: human view of chromo's number:	1, ..., Y
-ABBREVIATION CHROM's NAME:				chr1, ..., chrY
-SHORT CHROM's NAME:						chrom 1, ..., chrom Y
-TITLE CHROM's NAME:						chromosome X, ..., chromosome Y
-PREFIX: substring before chrom's mark:	chr, chromosome.
 
-CHROM's ID NUMBERING.
-There are two ID numbering discipline: absolute and relative.
+===== TERMS ======
+MARK: human view of chrom's number:	1, ..., Y
+ABBREVIATION CHROM's NAME:			chr1, ..., chrY
+SHORT CHROM's NAME:					chrom 1, ..., chrom Y
+TITLE CHROM's NAME:					chromosome X, ..., chromosome Y
+PREFIX: substring before mark:		chr | chrom | chromosome.
 
-Relative discipline is applied when there is an extern list of chroms.
-This list can be a reference  genome library or chrom.sizes file (explicit or embedded in the SAM format).
-The autosomes' ID correspond to the chrom human number reduced by 1 (0-based numbering)
-The heterosomes' ID start with the last autosomes' ID plus 1, in the next order: X, Y, M
-This discipline is maintained by BamTools API.
-It allows to control the presence in the genome of an user-specified ID.
+===== CHROM DATA DEPENDENCIES =====
+User selectable chromosome (customization)		needs:	absolute | relative chrom ID discipline
+Control of the item belonging to the chromosome	needs:	absolute | relative chrom ID discipline
+Chrom size control								needs:	absolute | relative chrom ID discipline + ChromSizes
+Using BAM										needs:	relative chrom ID discipline
 
-Absolute discipline is applied when there is no extern list of chroms.
+===== CHROM's ID NUMBERING DISCIPLINES =====
+RELATIVE DISCIPLINE:
+The autosomes' ID corresponds to the chrom number reduced by 1 (0-based numbering)
+The heterosomes' ID starts with the last autosomes' ID plus 1, in the next order: X, Y, M
+This discipline is coming from BamTools API.
+
+ABSOLUTE DISCIPLINE:
 The autosomes' ID numering is the same as relative.
-The heterosomes' ID is just a code of mark character.
-It doesn't allow to control the presence in the genome of an user-specified ID.
+The heterosomes' ID is a code of mark character.
 
 Chrom class distinguishes these disciplines by the value of the 'firstHeteroID' variable:
 a zero value indicates an absolute discipline, a non-zero value indicates a relative one.
+
 ***********************************************************************************/
 {
 public:
@@ -1319,13 +1151,16 @@ public:
 	static const BYTE	MaxNamedPosLength;	// Maximal length of named chrom's position 'chrX:12345'
 
 private:
-	static const string	sTitle;				// Chromosome title; do not convert to string in run-time
+	static const string	sTitle;		// Chromosome title; do not convert to string in run-time
 	static		 BYTE	CustomOpt;	// user chrom option number; used to set custom cID
 	static const char*	Marks;		// heterosome marks
 	static const string	UndefName;	// string not to convert in run-time
 
 	static chrid cID;				// user-defined chrom ID
 	static chrid firstHeteroID;		// first heterosome (X,Y) ID
+
+	// Returns true if relative ID numbering discipline is used
+	inline static bool IsRelativeID() { return firstHeteroID; }
 
 	// Gets heterosome ID by mark without control, or undefined ID
 	static chrid HeteroID	(const char cMark);
@@ -1334,19 +1169,20 @@ private:
 	inline static chrid CaseInsHeteroID(const char cMark) { return HeteroID( toupper(cMark) ); }
 
 	// Gets chrom ID by case insensitive mark
+	//	firstHeteroID should be initialized!
 	static chrid CaseInsID	(const char* cMark);
 
 public:
 	//*** common methods
 
-	// Returns true if chrom is autosome, false for somatic
+	// Returns true if chrom is autosome, false for somatic; for relative ID discipline only
 	inline static bool IsAutosome(chrid cid) { return cid < firstHeteroID; }
 
 	// Gets the length of prefix, or -1 if name is not finded
 	static short PrefixLength(const char* cName);
 
 	// Sets relative ID numbering
-	inline static void SetRelativeID() { if(!firstHeteroID)	firstHeteroID = 1; }
+	//static void SetRelativeID() { if(!IsRelativeID()) firstHeteroID = 1; }
 	
 	//*** ID getters
 
@@ -1366,8 +1202,8 @@ public:
 
 	//*** validation methods
 
-	// Checks chrom ID and returns this ID or undefined ID; used in BamInFile
-	inline static chrid ValidateID(chrid cID) { return cID < firstHeteroID + 3 ? cID : UnID; }
+	// Checks chrom ID and returns this ID or undefined ID; used in BamInFile::GetNextChrom() only
+	inline static chrid ValidateID(chrid cID) { return cID < firstHeteroID + strlen(Marks) ? cID : UnID; }
 
 	// Validates chrom name and returns chrom ID
 	//	@cName: string of arbitrary length containing chrom's name
@@ -1382,32 +1218,38 @@ public:
 	//	@cName: string of arbitrary length, starting with chrom's name
 	inline static chrid ValidateIDbyAbbrName(const char* cName) { return ValidateID(cName, strlen(Abbr)); }
 
-#ifdef _CALLDIST
-	// Validates all chrom ID by SAM header data and sets custom ID
-	static void Validate(const string& samHeader);
-#endif
+	// Validates all chrom ID by SAM header data, establishes relative ID discipline, and sets custom ID
+	template<typename Functor>
+	static void ValidateIDs(const string& samHeader, Functor f)
+	{
+		for (const char* header = samHeader.c_str();
+			header = strstr(header, Abbr);
+			header = strchr(header, LF) + strlen("\n@SQ\tSN:") )
+		{
+			chrid cID = ValidateIDbyAbbrName(header);
+			header = strchr(header, TAB) + strlen("\tLN:");
+			f(cID, header);
+		}	
+		SetCustomID(true);
+	}
 
 	//*** custom ID getters, setters
 
 	// Gets custom chrom's ID
 	inline static chrid CustomID()	{ return cID; }
 
-	// Returns true if no custom chrom at all
-	inline static bool NoCustom()	{ return cID == UnID; }
-
-	// Returns true if no custom chrom chrom is set by user
-	inline static bool IsCustom(chrid cid) { return cID == UnID || cID == cid; }
-
-	// Sets custom chrom without control; used in bioCC
-	inline static void SetCustomID(chrid cid) { cID = cid; }
+	// Returns true if chrom is set by user, or if no chroms have been set by user (by default)
+	//	@cid: chrom id specified by user
+	inline static bool IsCustom(chrid cid = UnID) { return cID == UnID || cID == cid; }
 
 	// Sets custom chrom ID with control
+	//	@prColon: if true then print ": " before exception message
 	//	exception: wrong chrom
 	static void SetCustomID(bool prColon = false);
 
 	// Sets number of 'custom chrom' progr option
-	//	@absID: true if absolute discipline is applied
-	static void SetCustomOption(int opt, bool absID = false);
+	//	@absIDNumb: true if absolute ID numbering discipline is applied
+	static void SetCustomOption(int opt/*, bool absIDNumb = false*/);
 
 	//*** work with name
 
@@ -1426,7 +1268,7 @@ public:
 	//	return: pointer to the chrom number in str, or a null pointer if Chrom::Abbr is not part of str
 	static const char* FindMark(const char* str);
 
-	// Gets chrom's abbreviation name by ID
+	// Gets chrom's abbreviation name'chrX'
 	//	@numbSep: if true then separate chrom's number
 	static string AbbrName(chrid cid, bool numbSep = false);
 
@@ -1441,9 +1283,147 @@ public:
 		return AbbrName(cid) + " is absent in " + what + " file: skipped";
 	}
 
-	//static char* LongToShortName(char* longName) ;
 #endif	// _FQSTATN
 } chrom;
+
+// 'Region' represents a simple region within nucleotides array (chromosome).
+struct Region
+{
+	chrlen Start;	// start position of the region in standard chromosomal coordinates
+	chrlen End;		// end position of the region in standard chromosomal coordinates
+
+	inline Region(chrlen start = 0, chrlen end = 0) : Start(start), End(end) {}
+
+	// Gets length of region.
+	// The End is not included in the bases https://genome.ucsc.edu/FAQ/FAQformat.html#format1
+	inline chrlen Length()	const { return End - Start; }
+
+	inline bool Empty()		const { return !End; }
+
+	inline chrlen Centre()	const { return Start + (Length() >> 1); }
+
+	// Initializes instance
+	inline void Set(chrlen start = 0, chrlen end = 0) { Start = start; End = end; }
+
+	inline bool operator==(const Region& r) const { return Start == r.Start && End == r.End; }
+	inline bool operator!=(const Region& r) const { return Start != r.Start || End != r.End; }
+
+	// Returns true if this instance is invalid
+	inline bool Invalid() const { return Start >= End; }
+
+	// Returns true if Region r is covered by this instance.
+	//	@r: tested Region; should be sorted by start position
+	bool PlainCover(const Region& r) const { return r.End <= End && r.Start >= Start; }
+
+	// Returns true if Region r is adjoined with this instance.
+	//	@r: tested Region; should be sorted by start position
+	inline bool Adjoin(const Region& r) const { return r.Start == End; }
+
+	// Returns true if Region r is crossed with this instance.
+	//	@r: tested Region; should be sorted by start position
+	inline bool Cross(const Region& r) const { return r.Start < End&& r.End > Start; }
+
+	// Compares two Regions by start position. For sorting a container.
+	static inline bool CompareByStartPos(const Region& r1, const Region& r2) {
+		return r1.Start < r2.Start;
+	}
+
+	// Extends Region with chrom length control.
+	// If extended Region starts from negative, or ends after chrom length, it is fitted.
+	//	@extLen: extension length in both directions
+	//	@cLen: chrom length; if 0 then no check
+	void Extend(chrlen extLen, chrlen cLen);
+
+#ifdef _DEBUG
+	inline void Print() const { cout << Start << TAB << End << LF; }
+#endif
+};
+
+// 'Regions' represents a container of defined regions within chromosome
+// Defined in TxtFile.h since it's used in Fa class
+class Regions
+{
+protected:
+	vector<Region> _regions;
+
+public:
+	typedef vector<Region>::const_iterator Iter;
+
+	// Iterator to region Begin position
+	inline const Iter Begin()	const { return _regions.begin(); }
+
+	// Iterator to region End position
+	inline const Iter End()		const { return _regions.end(); }
+
+	// Default (empty) constructor to form Chroms collection
+	inline Regions() {}
+
+	// Single region constructor
+	inline Regions(chrlen start, chrlen end) { _regions.emplace_back(start, end); }
+
+	// Copying constructor
+	//inline Regions(const Regions& rgns) { _regions = rgns._regions;	}
+
+	// Gets total length of regions.
+	//chrlen Length() const;
+
+	// Gets count of regions.
+	inline chrlen Count()		const { return chrlen(_regions.size()); }
+
+	// Gets first start position.
+	inline chrlen FirstStart()	const { return _regions.front().Start; }
+
+	// Gets last end position.
+	inline chrlen LastEnd()		const { return _regions.back().End; }
+
+	// Gets conditionally defined length: distance between first start and last end
+	inline chrlen DefLength()	const { return LastEnd() - FirstStart(); }
+
+	//Regions& operator=(const Regions& rgn);
+
+	inline const Region& operator[](chrlen ind) const { return _regions[ind]; }
+
+	// Reserves container's capacity.
+	//	@count: reserved number of regions. The real number may be differ.
+	inline void Reserve(chrlen count) { _regions.reserve(count); }
+
+	// Clears container.
+	inline void Clear() { _regions.clear(); }
+
+	inline void Add(const Region& rgn) { _regions.push_back(rgn); }
+
+	inline void Add(chrlen start, chrlen end) { _regions.emplace_back(start, end); }
+
+	// Copies subregions
+	inline void Copy(const vector<Region>& source, chrlen start, chrlen stop) {
+		_regions = vector<Region>(source.begin() + start, source.begin() + stop + 1);
+	}
+
+#if defined _READDENS || defined _BIOCC
+
+	// Returns an iterator referring to the past-the-end element, where end is external
+	//	@curr_it: region's const iterator, from which the search is started
+	//	@end: external pre-defined end coordinate
+	Iter ExtEnd(Iter curr_it, chrlen end) const;
+
+	// Initializes this instance by intersection of two Regions.
+	void FillOverlap(const Regions& regn1, const Regions& regn2);
+
+	// Initializes this instance by inverted external Regions.
+	//	@regn: external Regions
+	//	@masEnd: the maximum possible end-coordinate of region:
+	//	the chromosome length in case of nucleotides sequance.
+	void FillInvert(const Regions& regn, chrlen maxEnd);
+
+	// Initializes this instance by external Regions.
+	inline void Copy(const Regions& rgns) { _regions = rgns._regions; }
+
+#endif	// _READDENS, _BIOCC
+#ifdef DEBUG
+	void Print() const;
+#endif
+};
+
 
 // 'MemStatus' outputs RAM remainder  
 //static class MemStatus
@@ -1456,3 +1436,5 @@ public:
 //	static void StartObserve(bool enable);
 //	static void StopObserve();
 //} ramControl;
+
+#endif	// _COMMON_H
