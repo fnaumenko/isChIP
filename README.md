@@ -30,7 +30,7 @@ The required memory is linearly proportional to the number of threads. For one t
   [Usage](#usage)<br>
   [Details](#details)<br>
   [Model: brief description](#model-brief-description)<br>
-  [Fragment distribution and size selection](#fragments-distribution-and-size-selection)<br>
+  [Fragment distribution and size selection](#fragment-distribution-and-size-selection)<br>
   [Example of single cell simulation](#example-of-single-cell-simulation)
 
 ## Installation
@@ -196,7 +196,7 @@ The output of many of peak callers follow these guidelines and save in the the 5
 Both of the values are directly proportional to the peak amplitude, which allows to treat them as binding efficiency. 
 If the corresponding value is placed in a non-standard location, it can be set up with the `-s|--bscore` option.<br>
 That allows the use of peak caller output as a **isChIP** *template*, 
-with the corresponding correction of coordinates (narrowing of the peaks to the binding sites).<br>
+with the corresponding correction of coordinates (narrowing of the 'peaks' to the 'binding sites').<br>
 Alternatively, the scores can be entered manually.<br>
 
 All features within each chromosome must be sorted.<br>
@@ -207,9 +207,10 @@ Optional track definition line is ignored.
 *Notes:*<br>
 For options that take a pair of values, one or both of them can be omitted. 
 In this case, it retains the default value. 
-For example, `-G :0.5` means foreground default level of 50% and background level of 0.5%;<br>
+For example, `-G :0.5` means foreground default level of 50% and background level of 0.5%; 
+`-S` means applying size selection with default distribution parameters.<br>
 Enumerable option values are case insensitive.<br>
-Value-less single letter options can be merged.<br>
+Single letter options with missing values can be merged.<br>
 Compressed input files in gzip format are acceptable.
 
 `-g|--gen <name>`<br>
@@ -236,7 +237,7 @@ For example, assigning 100 nominal cells with zero losses leads to the generatio
 but in a runtime about 1000 times less (e.g. 10 seconds instead of hours per chromosome).
 
 Besides the number of cells, the program’s run time heavily depends on the parameters of fragment size distribution and size selection 
-(see [Fragment distribution and size selection](#fragments-distribution-and-size-selection)). 
+(see [Fragment distribution and size selection](#fragment-distribution-and-size-selection)). 
 In general, with the default fragment size distribution, a number of nominal cells from 1 to 5 
 provides an output read’s mean density comparable with real ‘inputs’, 
 and a value from 50 to 300 leads to generated simulated data, which is comparable with real tests in terms of density.<br>
@@ -307,8 +308,8 @@ generates reads according to stated sequencing mode: `SE` – single end, `PE` �
 Default: `SE`
 
 `-o|--overl <OFF|ON>`<br>
-rejects or accept overlapping template features.<br>
-In the first case, only the next overlapping feature is ignored. 
+rejects or accept overlapping *template* features.<br>
+In the first case, 'overlapping chains' break. 
 This means, for example, that if feature #2 overlaps feature #1 and feature #3 overlaps feature #2 but not #1, 
 then feature #3 will be accepted.<br>
 In the second case, overlapping features are joined and take on the score of the first one.<br>
@@ -368,7 +369,7 @@ specifies the mean and standard deviation of fragments sizes lognormal distribut
 Default parameters give a lognormal mode (expected value) of 176 and a mean (average) of 200.<br>
 When `-R|--rd-dist` option is enabled, a wide distribution is set by default with mean of 5.92 and a sigma of 0.4, 
 which gives a lognormal mode of 317 and an average of 403.<br>
-See [Fragment distribution and size selection](#fragments-distribution-and-size-selection).<br>
+See [Fragment distribution and size selection](#fragment-distribution-and-size-selection).<br>
 Range: 3:0.3-9:1<br>
 Default: 5.26:0.3
 
@@ -377,7 +378,7 @@ specifies the mean and standard deviation of fragment size selection normal dist
 By default size selection is not performed. 
 Specifying an option without value(s) leads to activation of size selection with default parameters. 
 In this case mean value is calculated as the mean of the fragment’s lognormal distribution (200 by default).<br>
-See [Fragment distribution and size selection](#fragments-distribution-and-size-selection).<br>
+See [Fragment distribution and size selection](#fragment-distribution-and-size-selection).<br>
 Range: 50:2-2000:500 (except for the zero values)<br>
 Default (if applied): auto:30
 
@@ -447,7 +448,7 @@ In paired-end mode two [FQ](https://en.wikipedia.org/wiki/FASTQ_format) files ar
 Unsorted [BED](https://genome.ucsc.edu/FAQ/FAQformat.html#format1) and [SAM](https://en.wikipedia.org/wiki/SAM_(file_format)) files represent the immediate (direct) precise alignment. 
 They are useful for the peak-callers benchmarking because make mapping stage unnecessary. 
 `SAM` format is indispensable for aligner validation as a control test.<br>
-`BG` file represents sorted coverage in [BedGraph](https://genome.ucsc.edu/goldenPath/help/bedgraph.html) format with the WIG extension. 
+`BG` file represents the sorted coverage in [BedGraph](https://genome.ucsc.edu/goldenPath/help/bedgraph.html) format with the WIG extension. 
 In contrast to the utilities that restore the coverage by extending the read to the average fragment length 
 (such as [bedtools genomecov](https://bedtools.readthedocs.io/en/latest/content/tools/genomecov.html), 
 [deepTools bamCoverage](https://deeptools.readthedocs.io/en/develop/content/tools/bamCoverage.html), 
@@ -487,11 +488,11 @@ forces to compress output data files (except fragment/read size distribution)
 
 `-V|--verbose <SL|RES|RT|PAR|DBG>`<br>
 sets verbose level:<br>
-`SL`	silent mode: no output except critical messages<br>
-`RES`	print processing total info<br>
-`RT`	print processing info for each chromosome and total<br>
-`PAR`	print actual parameters value (including number of features in template) and `RT` level<br>
-`DBG`	print `PAR` level with additional info, including *template* features statistics 
+`SL`&nbsp;&nbsp;silent mode: no output except critical messages<br>
+`RES`&nbsp;print processing total info<br>
+`RT`&nbsp;&nbsp;print processing info for each chromosome and total<br>
+`PAR`&nbsp;print actual parameters value (including number of features in template) and `RT` level<br>
+`DBG`&nbsp;print `PAR` level with additional info, including *template* features statistics 
 and info about possible omitted features.<br>
 See [Output info](#output-info).<br>
 Default: `PAR`
@@ -537,7 +538,7 @@ the maximal generated fragment length is about 1200 kbp, the average fragment le
 The real protocol of ChIP-seq is simulated by repeating the basic cycle, performed for each treated chromosome (twice for autosomes). 
 The basic cycle corresponds to one nominal cell and consists of the next stages:
 * **'shearing of DNA'**: cutting the reference genome in fragments with size distribution fitted to lognormal distribution with given *mean* and *sigma*. 
-See [Fragment distribution and size selection](#fragments-distribution-and-size-selection);
+See [Fragment distribution and size selection](#fragment-distribution-and-size-selection);
 * **'ChIP'** (in *test* mode): extraction of the fragments overlapping with the *template* binding events;
 * **'loss fragments in ‘Library construction'**: sampling of selected fragments according to user-defined sample (`-G|--ground` option), 
 *template* sample (defined as *template* features score) and automatically adjusted scaling sample (`--bg-all` and `--rd-lim` options);
@@ -551,7 +552,7 @@ the absence of primer annealing and the fragment debranching into 2 amplicons.<b
 copying each fragment 2^N times, where N denotes a given number of PCR cycles.<br>
 In reality the multiplication coefficient is below 2 in each cycle, it also can be lower for some particular amplicons, e.g. CG-reach. 
 These details are excluded from the model as insignificant to assess the effect of amplification on the final generalized result.<br>
-* **'size selection'**: selection of fragments fitted to desirable size. See [Fragment distribution and size selection](#fragments-distribution-and-size-selection);
+* **'size selection'**: selection of fragments fitted to desirable size. See [Fragment distribution and size selection](#fragment-distribution-and-size-selection);
 * **'sequencing'**: cutting the 5’end of the fragment of desirable length, or the 3’end (by random choice) in SE mode, 
 or both ends in PE mode, and complementary reversing the 3’end read;
 * recording reads in an appropriate formats.
