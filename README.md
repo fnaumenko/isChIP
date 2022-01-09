@@ -1,14 +1,19 @@
 # isChIP
-***I**n **S**ilico* **ChIP**-seq is a fast realistic ChIP-seq simulator.
+***I**n **S**ilico* **ChIP**-seq is a cross-platform fast realistic ChIP-seq simulator.
 
 The modelling of the chromatin immunoprecipitaion followed by next generation sequencing process is based primarily on Illumina protocol. 
 In addition, extra flexibility is implemented for the isChIP’s options to be straightforwardly re-formulated in other formats, 
 such as Ion Torrent, Roche454, etc.
 
-Adjustment of fragment length and size selection distribution parameters.<br>
-Supports PCR, MDA amplification; SE, PE sequencing; ChIP-exo.<br>
-Output formats: FastQ, SAM, BED, BedGraph.<br>
-Can generate a control (input) output along with a test one.<br>
+Supports:
+* adjastable fragment length and size selection distribution parameters
+* generation of peaks with specified location, width and efficiency (score)
+* SE/PE sequencing
+* PCR, MDA amplification
+* issuance reads with fixed/variable length
+* ChIP-exo
+* output formats: FastQ, SAM, BED, BedGraph, wiggle
+* generation a control (input) dataset along with a test one
 Suitable for [single cell simulation](#example-of-single-cell-simulation).
 
 ### Performance
@@ -31,11 +36,11 @@ The required memory is linearly proportional to the number of threads. For one t
 ## Installation
 ### Executable file
 
-[Download Linux version](https://github.com/fnaumenko/isChIP/releases/download/v1.0/isChIP-Linux-x64.gz)<br>
-[Download Windows version](https://github.com/fnaumenko/isChIP/releases/download/v1.0/isChIP-Windows-x64.zip)
+[Download Linux version](https://github.com/fnaumenko/isChIP/releases/download/v2.0/isChIP-Linux-x64.gz)<br>
+[Download Windows version](https://github.com/fnaumenko/isChIP/releases/download/v2.0/isChIP-Windows-x64.zip)
 
 Alternative download in Linux:<br>
-`wget -O isChIP.gz https://github.com/fnaumenko/isChIP/releases/download/v1.0/isChIP-Linux-x64.gz`
+`wget -O isChIP.gz https://github.com/fnaumenko/isChIP/releases/download/v2.0/isChIP-Linux-x64.gz`
 
 Then type<br>
 ```
@@ -57,7 +62,7 @@ make
 ```
 Alternative:
 ```
-wget -O isChIP.zip https://github.com/fnaumenko/isChIP/archive/v1.0.zip
+wget -O isChIP.zip https://github.com/fnaumenko/isChIP/archive/v2.0.zip
 unzip isChIP.zip
 cd isChIP-1.0
 make
@@ -99,9 +104,8 @@ isChIP [options] -g|--gen <name> [<template>]
 generates 'input' sequences in FastQ with read length of 50 and average read density of about 9 read/kbs, 
 comparable with what is experimentally observed.
 
-`isChIP -g mm9_dir –tz –n 300 –r 36 –f fq,sam templ.bed`<br>
-generates test sequences in zipped FastQ and SAM, with read length of 36, timing, and average foreground/background read density 
-comparable with what is experimentally observed in [Series GSE56098](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE56098).
+`isChIP -g ref_genome –tz –n 200 –r 36 –f fq,sam templ.bed`<br>
+generates test sequences in zipped FastQ and SAM, with read length of 36 and typical real average foreground/background read density.
 
 ### Help
 ```
@@ -112,8 +116,8 @@ Processing:
                         fore- and background levels:
                         number of selected fragments inside/outside binding sites,
                         in percent of all/foreground.
-                        In control mode background is ignored [50:1]
-  -E|--exo [<int>]      apply ChIP-exo protocol modification with specified exonuclease 'headroom' length.
+                        In control mode background is ignored  [50:1]
+  -E|--exo [<int>]      apply ChIP-exo protocol with specified exonuclease 'headroom' length.
                         If the option is not specified, ChIP-exo is not applied [6]
   -D|--mda              apply MDA technique
   -a|--pcr <int>        number of PCR cycles [0]
@@ -121,13 +125,15 @@ Processing:
   --bg-all <OFF|ON>     turn on/off generation background for all chromosomes.
                         For the test mode only [ON]
   -m|--smode <SE|PE>    sequencing mode: SE - single end, PE - paired end [SE]
-  -s|--bscore <int>     index of the template field used to score each binding event.
-                        Value '0' means ignore template scores. For the test mode only [5]
   --edge-len <int>      unstable binding length (BS edge effect). For the test mode only [0]
   -N|--full-gen         process the entire reference chromosomes (including marginal gaps)
   -P|--threads <int>    number of threads [1]
   --serv <name>         folder to store service files [-g|--gen]
   --seed <int>          fix random emission with given seed, or 0 if don't fix [0]
+Template:
+  -o|--overl <OFF|ON>   allow (and merge) overlapping template features [OFF]
+  -s|--bscore <int>     index of the template field used to score each binding event.
+                        Value '0' means ignore template scores. For the test mode only [5]
 Fragment size distribution:
   -L|--ln <[float]:[float]>
                         mean and stand dev of fragment lognormal distribution [5.26:0.3]
@@ -138,9 +144,9 @@ Reads:
   -r|--rd-len <int>     fixed length of output read, or minimum length of variable reads [50]
   -R|--rd-dist [<[int]:[int]>]
                         mean and stand dev of variable read normal distribution,
-			according to Ion Torrent/Roche454 protocol.
+                        according to Ion Torrent/Roche454 protocol.
                         If the option is not specified, the read length is fixed [200:20]
-  --rd-pos              add read position to its name
+  -l|--rd-pos           add read position (location) to its name
   --rd-Nlim <int>       maximum permitted number of ambiguous code N in read [OFF]
   --rd-lim <long>       maximum permitted number of total recorded reads [2e+08]
   --rd-ql <char>        uniform read quality score [~]
@@ -151,11 +157,12 @@ Output:
                         format of output data, in any order [FQ]
   -C|--control          generate control simultaneously with test
   -x|--strand           generate two additional wig files, each one per strand
-  -T|--sep              use 1000 separator in output
-  -o|--output <name>    location of output files or existing folder
+  -O|--out <name>       location of output files or existing folder
                         [TEST mode: mTest.*, CONTROL mode: mInput.*]
+  -T|--sep              use 1000 separator in output
   -z|--gzip             compress the output
 Other:
+  -t|--time             print run time
   -V|--verbose <SL|RES|RT|PAR|DBG>
                         set verbose level:
                         SL -    silent mode (show critical messages only)
@@ -163,7 +170,6 @@ Other:
                         RT  -   show run-time information
                         PAR -   show actual parameters
                         DBG -   show debug messages [PAR]
-  -t|--time             print run time
   -v|--version          print program's version and exit
   -h|--help             print usage information and exit
 ```
@@ -175,37 +181,35 @@ Other:
 **isChIP** generates output in one of the two modes:<br>
 *test* – simulation of site of interest sequencing; the output is test sequences/alignment<br>
 *control* – simulation of control production; the output is 'input' sequences/alignment.<br>
-These modes are distinguished only by involvement or elimination of sites of interest in a process. 
-The sites are represented by the set of features stated in a single optional parameter – a BED file called *template*.
+These modes are distinguished by the presence or absence of a parameter – a file containing site of interest, called *template*.
 
 ### Template
 *Template* is a file in [BED](https://genome.ucsc.edu/FAQ/FAQformat.html#format1) format whose features correspond to binding events. 
 Each data line contains 3 (minimum required) or more fields. First 3 fields define the binding site. 
-If there are no more fields in the line, all generating significant enriched regions have the same density. 
-If there are additional fields, isChIP interprets the field indicated by the option `-s|--bscore` as the relative binding efficiency. 
+If there are additional fields, isChIP interprets the field indicated by the option `-s|--bscore` as the relative binding efficiency, 
+otherwise the efficiency is uniform across all binding sites.<br>
 Within the framework of the model, binding efficiency is defined as the probability of associating a fragment with a binding site. 
-Just for simplicity, the term 'binding score' is used as a synonym for binding efficiency, although in a strict sense it is debatable. 
-'Relative' means that the units specified in the field are not taken into account, only value ratios are implemented to be meaningful.<br>
+Just for simplicity, the term 'binding score' is used as a synonym for this concept. 
+'Relative' means that only score ratios matter, the score units become meaningless.<br>
 BED format recommends using the 4th field as a 'name' and 5th field as a 'score' in the common sense. 
-Many developers of peak callers follow these guidelines and save in the 4th field the peak name, and in the 5th field the peak p-value or local FDR. 
-Both of the values are directly proportional to the peak amplitude, which makes it possible to treat them as binding efficiency. 
-When using another field to store the corresponding values, it can be specified by the `-s|--bscore` option. 
+The output of many of peak callers follow these guidelines and save in the the 5th field the peak p-value or local FDR. 
+Both of the values are directly proportional to the peak amplitude, which allows to treat them as binding efficiency. 
+If the corresponding value is placed in a non-standard location, it can be set up with the `-s|--bscore` option.<br>
 That allows the use of peak caller output as a **isChIP** *template*, 
-with the necessary replacement of the coordinates of the peaks to the coordinates of the proposed binding sites.<br>
+with the corresponding correction of coordinates (narrowing of the peaks to the binding sites).<br>
 Alternatively, the scores can be entered manually.<br>
-At the same time different stated scores in *template* can be ignored by setting the `-s|--bscore` option to 0.
 
-*Template* does not have to be sorted, but all the features belonging to a chromosome should be clustered together. 
-The simplest way to meet this requirement is to use pre-sorted data.
+All features within each chromosome must be sorted.<br>
+Optional track definition line is ignored.
 
 ### Options description
 
 *Notes:*<br>
 For options that take a pair of values, one or both of them can be omitted. 
 In this case, it retains the default value. 
-For example, `-G :5` means foreground level of 50% and background level of 5%; 
-`–G :` does not change the settings.<br>
+For example, `-G :0.5` means foreground default level of 50% and background level of 0.5%;<br>
 Enumerable option values are case insensitive.<br>
+Value-less single letter options can be merged.<br>
 Compressed input files in gzip format are acceptable.
 
 `-g|--gen <name>`<br>
@@ -222,21 +226,14 @@ The program also generates and saves chromosome sizes files in this directory on
 This option is required.
 
 `-n|--cells <int>`<br>
-specifies the number of nominal cells, it is usually required. 
-Each nominal cell corresponds to one passage through the reference chromosome(dual for the autosomes).<br>
+specifies the number of nominal cells. 
+Each nominal cell corresponds to one passage through the reference chromosome (dual for the autosomes).<br>
 The convention is that this number assigns a greatest possible practical output by default 
-(50% value of the foreground stated by `-G|--ground` option means 0% loss, which is unrealistic). 
-If you want to deal with a real number of cells, you should assign a real level of overall loss. 
-The important implication is that this proportionally increases the runtime. 
+(50% value of the foreground stated by `-G|--ground` option means 50% loss, which is unrealistic). 
+To deal with a real number of cells, a real level of overall loss should be assigned. 
+The issue is that this proportionally increases the runtime. 
 For example, assigning 100 nominal cells with zero losses leads to the generation of data equivalent to 100,000 ‘real’ cells with a ‘real’ total loss of 99.9%, 
-but in a runtime about 1000 times less (e.g. 10 seconds instead of almost 3 hours per chromosome).
-
-Since the total losses are difficult to estimate in advance, the inverse task, namely, 
-determining the overall loss in a real experiment post-factum, looks more practical. 
-To accomplish this, it is sufficient to select a model output with a peak density 
-corresponding to the peak density in the actually observed data through several fast iterations 
-with a different number of nominal cells and zero foreground level. 
-Then the overall loss is calculated by the formula (1-n/N)*100%, where n is the number of nominal cells, N is the number of real cells in the experiment.
+but in a runtime about 1000 times less (e.g. 10 seconds instead of hours per chromosome).
 
 Besides the number of cells, the program’s run time heavily depends on the parameters of fragment size distribution and size selection 
 (see [Fragment distribution and size selection](#fragments-distribution-and-size-selection)). 
@@ -253,12 +250,12 @@ foreground is defined as the number of selected fragments, which are intersected
 as a percentage of the total number of generated fragments intersecting with the *template* binding sites. 
 Background is defined as the number of selected fragments, which are not intersected 
 with the *template* binding sites, as a percentage of the foreground.<br>
-In practice a background level of 1-3% corresponds with a good experimental data set, 
-while a level of more than 6% leads to generate data with a rather low signal-to-noise ratio.<br>
+In practice a background level of 1-3% corresponds with a good experimental data set. 
+A level of more than 6% leads to output with a rather low signal-to-noise ratio.<br>
 **In *control* mode:**<br>
 foreground is defined as the number of selected fragments, as a percentage of the total number of generated fragments. 
 It should be considered as the level of overall loss.<br>
-Background value is ignored.<br>
+Background value is ignored In this mode.<br>
 Range: 0-100 for both values<br>
 Default: 50:1
 
@@ -278,8 +275,7 @@ Default (if applied): 6
 `-D|--mda`<br>
 applies [MDA](https://en.wikipedia.org/wiki/Multiple_displacement_amplification) technique.<br>
 See [Model: brief description](#model-brief-description) for more details.<br>
-Enabling this option leads to some increase in the run time.<br>
-The process applies to all fragments (fore- and background).
+The process applies to all fragments (fore- and background) and is somewhat time consuming.
 
 `-a|--pcr <int>`<br>
 specifies the number of [PCR](https://en.wikipedia.org/wiki/Polymerase_chain_reaction) amplification cycles.<br>
@@ -290,9 +286,8 @@ Range: 0-100<br>
 Default: 0
 
 `-c|--chr <name>`<br>
-Generate output for the specified chromosome only. 
-The value `name` is the chromosome identifier; it is a number or character, for example, `10`, `X`.<br>
-This is a strong option, which forces to ignore all other chromosomes from reference genome and *template*, 
+Generate output for the specified chromosome only. `name` identifies chromosome by number or character, e.g. `10` or `X`.<br>
+This option forces to ignore all other chromosomes from reference genome and *template*, 
 and abolishes the impact of option `--bg-all`. 
 If the specified chromosome is absent in *template*, the program has nothing to simulate.
 
@@ -301,9 +296,8 @@ turns off/on generation of background for all chromosomes in *test* mode, whethe
 Mapping one chromosome to the whole reference genome leads to the appearance of short local discontinuities of alignment, 
 ‘gaps’, corresponding to low mappability regions. This observation holds true for all aligner. 
 Typically, generation of background for all chromosomes eliminates this issue.<br>
-Notably, this process is time consuming and is justified only in the case of subsequent use of the alignment, 
-for example, for comparison with experimental FastQ or to validate aligners. 
-When validating peak detectors on one or some chromosomes, it is more advantageous to use a direct SAM output format (see `-F|--format`).<br>
+Notably, this process is unnecessarily time consuming and is justified in the case of subsequent use of the alignment, 
+for example, for comparison with experimental FastQ or to validate aligners.<br>
 The established option `-c|--chr` makes this option negligible.<br>
 In *control* mode is ignored.<br>
 Default: `ON`
@@ -311,6 +305,15 @@ Default: `ON`
 `-m|--smode <SE|PE>`<br>
 generates reads according to stated sequencing mode: `SE` – single end, `PE` – paired end .<br>
 Default: `SE`
+
+`-o|--overl <OFF|ON>`<br>
+rejects or accept overlapping template features.<br>
+In the first case, only the next overlapping feature is ignored. 
+This means, for example, that if feature #2 overlaps feature #1 and feature #3 overlaps feature #2 but not #1, 
+then feature #3 will be accepted.<br>
+In the second case, overlapping features are joined and take on the score of the first one.<br>
+Adjacent features are also considered to be overlapping.<br>
+Default: `OFF`
 
 `-s|--bscore <int>`<br>
 specifies the 1-based index of the field in *template* which is used to score each binding event 
@@ -371,10 +374,9 @@ Default: 5.26:0.3
 
 `-S|--ss [<[int]:[int]>]`<br>
 specifies the mean and standard deviation of fragment size selection normal distribution.<br>
-By default size selection is deactivated. Specifying an option leads to activation of size selection with default values, 
-if no option value is set, or with specified value(s).<br>
-If option is specified without value(s), size selection mean value is calculated as the mode of the fragment’s lognormal distribution. 
-In other words, this value is equal to the most frequent value of the lognormal distribution, which for given defaults is 200.<br>
+By default size selection is not performed. 
+Specifying an option without value(s) leads to activation of size selection with default parameters. 
+In this case mean value is calculated as the mean of the fragment’s lognormal distribution (200 by default).<br>
 See [Fragment distribution and size selection](#fragments-distribution-and-size-selection).<br>
 Range: 50:2-2000:500 (except for the zero values)<br>
 Default (if applied): auto:30
@@ -382,7 +384,7 @@ Default (if applied): auto:30
 `-r|--rd-len <int>`<br>
 specifies the fixed length of output read.<br>
 Also see `-R|--rd-dist` option.<br>
-Notably, **isChIP** does not perform a preliminary check of the read length relative to the parameters of fragments distribution or size selection. 
+**isChIP** does not perform a preliminary check of the read length relative to the parameters of fragments distribution or size selection. 
 If the reads are too long, their number at the output can be reduced up to 0 without any warnings.<br>
 Range: 20-500<br>
 Default: 50
@@ -393,11 +395,10 @@ As can be seen in the ![Read distributions](https://github.com/fnaumenko/bioStat
 the real read distributions do not always follow the normal pattern. 
 Nevertheless, it should be admitted as the best approximation.<br>
 If this option is applied, `-r|--rd-len` option specifies the minimum limit of read length (20 bp by default).<br>
-Enabling this option when MDA is activated leads to an additional increase in the run time.<br>
 Default (if applied): 200:30
 
-`--rd-pos`<br>
-Adds read’s actual start position to its name in the output files. It is useful for verifying aligners.<br>
+`-l|--rd-pos`<br>
+Adds read’s actual start position (location) to its name in the output files. It is useful for verifying aligners.<br>
 In case of PE reads start and end positions of fragment are added.<br>
 Read’s name format:  \<app\>:\<chr\>[:pos|:start-end].\<numb\>[/mate]<br>
 Mate is only added in BED output.
@@ -446,14 +447,14 @@ In paired-end mode two [FQ](https://en.wikipedia.org/wiki/FASTQ_format) files ar
 Unsorted [BED](https://genome.ucsc.edu/FAQ/FAQformat.html#format1) and [SAM](https://en.wikipedia.org/wiki/SAM_(file_format)) files represent the immediate (direct) precise alignment. 
 They are useful for the peak-callers benchmarking because make mapping stage unnecessary. 
 `SAM` format is indispensable for aligner validation as a control test.<br>
-Ordered `BG` file represents coverage in [BedGraph](https://genome.ucsc.edu/goldenPath/help/bedgraph.html) format with the WIG extension. 
+`BG` file represents sorted coverage in [BedGraph](https://genome.ucsc.edu/goldenPath/help/bedgraph.html) format with the WIG extension. 
 In contrast to the utilities that restore the coverage by extending the read to the average fragment length 
 (such as [bedtools genomecov](https://bedtools.readthedocs.io/en/latest/content/tools/genomecov.html), 
 [deepTools bamCoverage](https://deeptools.readthedocs.io/en/develop/content/tools/bamCoverage.html), 
 [peakranger wigpe](http://ranger.sourceforge.net/manual1.18.html)), **isChIP** produces an actual coverage. 
 The difference can be observed in the ![figure](https://github.com/fnaumenko/isChIP/tree/master/pict/formal-actual_coverage_legend.png).<br>
 It is also possible to generate one BedGraph file per strand (`-x|--strand` option).<br>
-`FDENS,RDENS` represent the densities of fragments and reads, respectively, in WIG format with span = 1. 
+`FDENS,RDENS` represent the densities of fragments and reads, respectively, in sorted WIG format with span = 1. 
 Unlike coverage, each fragment/read is represented by one point. 
 For fragments this point is the center, for reads it is the 5’ position. This view can be useful in some cases, such as ChIP-exo. 
 Files have the *fdens.wig*/*rdens.wig* extension.<br>
@@ -477,8 +478,8 @@ forces to generate two additional WIG files, one per each strand.<br>
 It only matters in `SE` sequencing mode and activated WIG output format.
 
 `-o|--out <file>`<br>
-specifies output files location. If option’s value is a file, it is used as a common file name. 
-If file has an extension, it is discarded. If value is a directory, the default file name is used.<br>
+specifies output files location. `file` is treated as a common file name (the possible extension is ignored). 
+If `file` is a directory, the default file name is used.<br>
 Default: *test* mode: **mTest.\***, *control* mode: **mInput.\***
 
 `-z|--gzip`<br>
@@ -656,5 +657,5 @@ where `$G` is initialized by reference genome path,<br>
 <br>
 
 ---
-<br><br>
-If you face to bugs, incorrect English, or have commentary/suggestions, please do not hesitate to write on fedor.naumenko@gmail.com
+<br>
+If you face to bugs, or have questions/suggestions, please do not hesitate to write on fedor.naumenko@gmail.com
