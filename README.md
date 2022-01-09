@@ -13,7 +13,8 @@ Supports:
 * issuance reads with fixed/variable length
 * ChIP-exo
 * output formats: FastQ, SAM, BED, BedGraph, wiggle
-* generation a control (input) dataset along with a test one<br>
+* generation a control (input) dataset along with a test one
+
 Suitable for [single cell simulation](#example-of-single-cell-simulation).
 
 ### Performance
