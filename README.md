@@ -26,6 +26,10 @@ Applied amplification increases these values from 1.5 to 3 times.<br>
 The first run is a bit slower because of creating service files.<br>
 The required memory is linearly proportional to the number of threads. For one thread, it does not exceed 300 Mb.
 
+### Publication
+T.Subkhankulova, F.Naumenko, O.Tolmachov, Y.Orlov [Novel ChIP-seq simulating program with superior versatility: isChIP](https://doi.org/10.1093/bib/bbaa352)<br> 
+*Briefings in Bioinformatics*, Volume 22, Issue 4, July 2021, Published: 16 December 2020
+
 ### Navigation:
   [Installation](#installation)<br>
   [Usage](#usage)<br>
