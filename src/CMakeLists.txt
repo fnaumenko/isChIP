@@ -27,10 +27,10 @@ else()
 endif()
 
 # Source groups
-set(BASIC_DIR .)
+set(BASIC_DIR ./bioinfoBasic)
 # set(BASIC_DIR ../../bioinfoBasic)
 
-# include_directories( ${CMAKE_CURRENT_SOURCE_DIR}/${BASIC_DIR} )
+include_directories( ${CMAKE_CURRENT_SOURCE_DIR}/${BASIC_DIR} )
 
 set(Header_Files
 	${BASIC_DIR}/common.h
