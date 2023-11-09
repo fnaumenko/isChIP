@@ -41,11 +41,11 @@ T.Subkhankulova, F.Naumenko, O.Tolmachov, Y.Orlov [Novel ChIP-seq simulating pro
 ## Installation
 ### Executable file
 
-[Download Linux version](https://github.com/fnaumenko/isChIP/releases/download/v2.0/isChIP-Linux-x64.gz)<br>
-[Download Windows version](https://github.com/fnaumenko/isChIP/releases/download/v2.0/isChIP-Windows-x64.zip)
+[Download Linux version](https://github.com/fnaumenko/isChIP/releases/download/v2.1/isChIP-Linux-x64.gz)<br>
+[Download Windows version](https://github.com/fnaumenko/isChIP/releases/download/v2.1/isChIP-Windows-x64.zip)
 
-Alternative download in Linux:<br>
-`wget -O isChIP.gz https://github.com/fnaumenko/isChIP/releases/download/v2.0/isChIP-Linux-x64.gz`
+Download in Linux:<br>
+`wget -O isChIP.gz https://github.com/fnaumenko/isChIP/releases/download/v2.1/isChIP-Linux-x64.gz`
 
 Then type<br>
 ```
@@ -53,25 +53,30 @@ gzip -d isChIP.gz
 chmod +x isChIP
 ```
 
-### Compiling in Linux
-Required libraries:<br>
-g++<br>
-pthread<br>
+### Compiling
+Required components:<br>
+g++ (Linux)<br>
+cmake<br>
 zlib (optionally)
 
 To compile from Git, type:
 ```
 git clone https://github.com/fnaumenko/isChIP
 cd isChIP
-make
+cmake src
+cmake --build . --target ALL_BUILD --config Release
 ```
-Alternative:
+Alternative in Linux:
 ```
 wget -O isChIP.zip https://github.com/fnaumenko/isChIP/archive/v2.0.zip
 unzip isChIP.zip
-cd isChIP-1.0
-make
+cd isChIP-2.1
+cmake src
+cmake --build . --target ALL_BUILD --config Release
 ```
+
+The executable file is located in the isChIP/build/Release folder.
+
 If **zlib** is not installed on your system, the program will be compiled without the ability to read/write compressed files.
 
 ### Prepare reference genome
