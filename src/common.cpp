@@ -1121,20 +1121,20 @@ bool FS::GetFiles	(vector<string>& files, const string& dirName, const string& e
 #ifdef OS_Windows
 	int count = 0;
 	string fileTempl = FS::MakePath(dirName) + '*' + ext;
-	WIN32_FIND_DATA ffd;
+	WIN32_FIND_DATAA ffd;
 
-	HANDLE hFind = FindFirstFile( fileTempl.c_str(), &ffd );
-	if( hFind == INVALID_HANDLE_VALUE )
+	HANDLE hFind = FindFirstFileA(LPCSTR(fileTempl.c_str()), LPWIN32_FIND_DATAA(&ffd));
+	if (hFind == INVALID_HANDLE_VALUE)
 		return false;
-	if( all ) {
+	if (all) {
 		// count files to reserve files capacity
 		do	count++;
-		while (FindNextFile(hFind, &ffd));
+		while (FindNextFileA(hFind, LPWIN32_FIND_DATAA(&ffd)));
 		files.reserve(count);
 		// fill files
-		hFind = FindFirstFile( fileTempl.c_str(), &ffd );
+		hFind = FindFirstFileA(LPCSTR(fileTempl.c_str()), LPWIN32_FIND_DATAA(&ffd));
 		do	files.emplace_back(ffd.cFileName);
-		while (FindNextFile(hFind, &ffd));
+		while (FindNextFileA(hFind, LPWIN32_FIND_DATAA(&ffd)));
 	}
 	else
 		files.emplace_back(ffd.cFileName);
