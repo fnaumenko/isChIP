@@ -1,42 +1,43 @@
 /**********************************************************
-OutTxtFile.h (c) 2014 Fedor Naumenko (fedor.naumenko@gmail.com)
+Random Generator (c) 2014 Fedor Naumenko (fedor.naumenko@gmail.com)
 All rights reserved.
 -------------------------
-Last modified: 16.11.2020
+Last modified: 31.10.2023
 -------------------------
-Provides random generation functionality
+Provides random number, normal and lognormal distribution generation functionality
 ***********************************************************/
 
 #pragma once
-#include "common.h"
+
 #include <cmath>
+#include <utility>		// std::pair
+#include <iostream>
+
 //#include <random>	// std::exponential_distribution
 
-// 'DistrParams' keeps fragment initial lognormal and normal size selection (SS) distributions params
-// It is defined here but not in Imitator.h becuase of using in 
+// 'DistrParams' keeps fragment initial lognormal and normal 'size selection' (SS) distributions params
 static struct DistrParams
 {
 public:
-	typedef pair<int, int> rdParams;
+	typedef std::pair<float, float> pairVal;
+	typedef std::pair<int, int> rdParams;
 
-	static float lnMean;	// mean of initial lognormal distribution
-	static float lnSigma;	// sigma of initial lognormal distribution
-	static float ssMean;	// mean of size selection normal distribution,
+	static float lnMean;	// mean of lognormal distribution ('wide' by default)
+	static float lnSigma;	// sigma of lognormal distribution ('wide' by default)
+	static float ssMean;	// mean of 'size selection' normal distribution,
 							// or 0 if SS is off, or mean of lognormal distribution by default
-	static int	 ssSigma;	// sigma of size selection normal distribution
-	//static rdParams RDParams;	// mean & sigma of Read normal distribution
-	static int	 rdMean;	// mean of size selection normal distribution,
-							// or 0 if SS is off, or mean of lognormal distribution by default
-	static int	 rdSigma;	// sigma of size selection normal distribution
+	static int	 ssSigma;	// sigma of 'size selection' normal distribution
+	static int	 rdMean;	// mean of Read length normal distribution, or 0 if RD is off
+	static int	 rdSigma;	// sigma of Read length normal distribution
 
-	// Initializes lognorm fragment and size selection distribution values;
-	//	@ln: expectation & standard deviation of frag lognormal distribution
-	//	@isFDset: true if paramters od lognorm distr were assigned by user
-	//	@ss: expectation & standard deviation of size sel normal distribution
-	//	@isSSset: true if size sel is applied
-	//	@rd: mean & sigma of Read length distriburion
-	//	@isRVLset: true if Read variable length mode is set
-	static void Init(const pairVal& ln, bool isFDset, const pairVal& ss, bool isSSset, const pairVal& rd, bool isRVLset);
+	// Initializes distribution values;
+	//	@param ln: expectation & standard deviation of frag lognormal distribution
+	//	@param isLN: true if the paramters of lognorm distribution were assigned by user
+	//	@param ss: expectation & standard deviation of size sel normal distribution
+	//	@param isSS: true if size sel is applied
+	//	@param rd: mean & sigma of Read length distriburion
+	//	@param isRD: true if Read variable length mode is set
+	static void Init(const pairVal& ln, bool isFD, const pairVal& ss, bool isSS, const pairVal& rd, bool isRD);
 
 	// Returns mean of lognormal distribtion
 	static float LnMean() { return exp(lnMean + lnSigma * lnSigma / 2); }
@@ -45,22 +46,22 @@ public:
 	static float LnMode() { return exp(lnMean - lnSigma * lnSigma); }
 
 	// Returns true if size selection is ON
-	inline static bool IsSS() { return bool(ssMean); }
+	static bool IsSS() { return bool(ssMean); }
 
 	// Returns true if read variable length is ON
-	inline static bool IsRVL() { return bool(rdMean); }
+	static bool IsRVL() { return bool(rdMean); }
 
-	// Prints title and the set fragment distribution parameters
-	//	@s: outstream to print
-	//	@startWord: substring to print first
-	//	@all: if true then print both frag dist and size selection, otherwise only one of them
-	static void PrintFragDistr(ostream& s, const char* startWord, bool all);
+	// Prints title and the fragment distribution parameters
+	//	@param s: outstream to print
+	//	@param title: pre-title to print first
+	//	@param all: if true then print both frag dist and size selection, otherwise only one of them
+	static void PrintFragDistr(std::ostream& s, const char* title, bool all);
 	
-	// Prints title and the set read distribution parameters
-	//	@s: outstream to print
-	//	@startWord: substring to print first
-	//	@rTitle: read title
-	static void PrintReadDistr(ostream& s, const char* startWord, const char* rTitle);
+	// Prints title and the read distribution parameters
+	//	@param s: outstream to print
+	//	@param title: pre-title to print first
+	//	@param rTitle: read title
+	static void PrintReadDistr(std::ostream& s, const char* title, const char* rTitle);
 
 } distrParams;
 
@@ -162,17 +163,19 @@ private:
 
 protected:
 	// Generates random double number within interval 0 <= x < 1
-	inline double DRand() { return (double)rand() / RAND_MAX_; }
+	double DRand() { return (double)rand() / RAND_MAX_; }
 
 	static float ssFactor0;			// factor sigma*sqrt(2) in the size sel norm distr
 	const static float ssFactor1;	// factor 2.5/sqrt(2PI) in the size sel norm distr
 
 public:
+	using randval = uint32_t;
+
 	// Sets and returns real seed
-	//	@seed: if 0, random seed
-	//	@expoBase: the distance from the site boundary at which the probability increases exponentially
+	//	@param seed: if 0, random seed
+	//	@param expoBase: the distance from the site boundary at which the probability increases exponentially
 	//		(exonuclease 'headroom' length)
-	static	int SetSeed(UINT seed, readlen expoBase = 10);
+	static	int SetSeed(int seed, randval expoBase = 10);
 
 	Random();
 
@@ -180,27 +183,26 @@ public:
 	int	Range(int max);
 
 	// Returns true with given likelihood
-	//	@sample: probability of returning true; from 0.0. to 1.0
+	//	@param sample: probability of returning true; from 0.0. to 1.0
 	bool Sample(float sample);
 
 	// Returns random true ot false with probability 0.5
-	inline bool Boolean() { return rand() & 0x1; }
+	bool Boolean() { return rand() & 0x1; }
 
 	// Normal distribution with mean=0 and variance=1 (standard deviation = 1)
 	//	Used Agner Fog method
-	//	return:  value with Gaussian likelihood between about -5 and +5
-	//	(from -6 to 6 in 1000000000 cycles) 
+	//	@return: value with Gaussian likelihood between about -5 and +5 (from -6 to 6 in 1000000000 cycles) 
 	double Normal();
 
 	// Random number distrib that produces values according to a lognormal distrib.
-	// canonical form:  exp( (Normal()*Sigma + Mean) / LnFactor + LnTerm )
+	// canonical form: exp( (Normal()*Sigma + Mean) / LnFactor + LnTerm )
 	// About 1.5 times faster then std::lognormal_distribution (<random>)
-	inline fraglen Lognormal() {
-		return fraglen(exp(Normal() * DistrParams::lnSigma + DistrParams::lnMean));
+	randval Lognormal()
+	{
+		return randval(exp(Normal() * DistrParams::lnSigma + DistrParams::lnMean));
 	}
 
 	// Generates number within interval 0 <= x < max with exponentially decreasing probability (in the max direction)
-	fraglen Expo() { return fraglen(-log(1 - rand() / (RAND_MAX_ + 1.0)) / ExpLambda); }
-	//inline fraglen Expo() { return fraglen(distribution(generator)); }
-
+	randval Expo() { return randval(-log(1 - rand() / (RAND_MAX_ + 1.0)) / ExpLambda); }
+	//randval Expo() { return fraglen(distribution(generator)); }
 };

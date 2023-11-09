@@ -2,9 +2,9 @@
 isChIP (In-Silico ChIP) is a fast realistic ChIP-seq simulator.
 The model is based on the real protocol of ChIP-seq
 
-Copyright (C) 2014-2022 Fedor Naumenko (fedor.naumenko@gmail.com)
+Copyright (C) 2014-2023 Fedor Naumenko (fedor.naumenko@gmail.com)
 -------------------------
-Last modified: 02.01.2022
+Last modified: 11/9/2023
 -------------------------
 
 This program is free software.
@@ -48,11 +48,10 @@ const Options::PairVals rdd(200, 20, 50, 2, 1000, 300);		// defMean, defSD, minM
 // --flat-len option
 //const Options::PairVals flattens(0, 0, 0, 0, 50, 50);
 
+const BYTE Options::Option::IndentInTabs = 3;
+
 const char* ForTest = "For the test mode only";
 const string UnstableBSLen = "unstable binding length";
-
-//using flags = Options::Signs::oSign;
-//typedef Options::Signs::Flags flag;
 
 // *** Options definition
 
@@ -66,78 +65,78 @@ const BYTE Options::GroupCount = ArrCnt(Options::OptGroups);
 // defVal: vUNDEF if no default value should be printed
 // minVal: vUNDEF if value is prohibited
 Options::Option Options::List[] = {
-	{ 'g',	sGen,	fOblig,	tNAME,	gTREAT, vUNDEF, 0, 0, NULL, "reference genome library.", NULL },
-	//{ 'p',"prot",	fNone,	tENUM,	gTREAT, 0, 0, 1, (char*)prots,
+	{ 'g',	sGen,	tOpt::OBLIG,tNAME,	gTREAT, vUNDEF, 0, 0, NULL, "reference genome library.", NULL },
+	//{ 'p',"prot",	tOpt::NONE,	tENUM,	gTREAT, 0, 0, 1, (char*)prots,
 	//"protocol: ? - Illumina, ? - Ion Torent", NULL },
-	{ 'n',"cells",	fNone,	tINT,	gTREAT, 1, 1, 2e6, NULL, "number of nominal cells", NULL },
-	{ 'G',"ground",	fNone,	tPR_FL,	gTREAT, 0, 0, 0, (char*)&grounds,
+	{ 'n',"cells",	tOpt::NONE,	tINT,	gTREAT, 1, 1, 2e6, NULL, "number of nominal cells", NULL },
+	{ 'G',"ground",	tOpt::NONE,	tPR_FL,	gTREAT, 0, 0, 0, (char*)&grounds,
 	"fore- and background levels:\nnumber of selected fragments inside/outside binding sites,\n\
 in percent of all/foreground.\nIn control mode background is ignored ", NULL },
-	{ 'E',"exo",	fOptnal,tINT,	gTREAT,	6,	0, 20, NULL,
+	{ 'E',"exo",	tOpt::FACULT,tINT,	gTREAT,	6,	0, 20, NULL,
 	"apply ChIP-exo protocol with specified exonuclease 'headroom' length.\n\
 If the option is not specified, ChIP-exo is not applied", NULL },
-	{ 'D',"mda",	fNone,	tENUM,	gTREAT,	FALSE,	vUNDEF, 2, NULL, "apply MDA technique", NULL },
-	{ 'a',"pcr",	fNone,	tINT,	gTREAT, 0, 0, 500, NULL, "number of PCR cycles", NULL },
-	{ 'c',Chrom::Abbr,fNone,tNAME,	gTREAT, vUNDEF, 0, 0, NULL,
+	{ 'D',"mda",	tOpt::NONE,	tENUM,	gTREAT,	FALSE,	vUNDEF, 2, NULL, "apply MDA technique", NULL },
+	{ 'a',"pcr",	tOpt::NONE,	tINT,	gTREAT, 0, 0, 500, NULL, "number of PCR cycles", NULL },
+	{ 'c',Chrom::Abbr,tOpt::NONE,tNAME,	gTREAT, vUNDEF, 0, 0, NULL,
 	"generate output for the specified chromosome only", NULL },
-	{ HPH,"bg-all",	fNone,	tENUM,	gTREAT, TRUE, 0, 2, (char*)Options::Booleans,
+	{ HPH,"bg-all",	tOpt::NONE,	tENUM,	gTREAT, TRUE, 0, 2, (char*)Options::Booleans,
 	"turn on/off generation background for all chromosomes.\n", ForTest },
-	//{ HPH, "bind-len", fNone,	tINT,	gTREAT, 1, 1, 100, NULL, "minimum binding length.", ForTest },
-	{ 'm', "smode",	fNone,	tENUM,	gTREAT, Seq::SE, Seq::SE, ArrCnt(smodes), (char*)smodes,
+	//{ HPH, "bind-len", tOpt::NONE,	tINT,	gTREAT, 1, 1, 100, NULL, "minimum binding length.", ForTest },
+	{ 'm', "smode",	tOpt::NONE,	tENUM,	gTREAT, Seq::SE, Seq::SE, ArrCnt(smodes), (char*)smodes,
 	"sequencing mode: ? - single end, ? - paired end", NULL },
-	//{ HPH, "flat-len",	fNone,	tPR_INT,	gTREAT, 0, 0, 0, (char*)&flattens,
+	//{ HPH, "flat-len",	tOpt::NONE,	tPR_INT,	gTREAT, 0, 0, 0, (char*)&flattens,
 	//"inside, outside BS boundary flattening length.", ForTest },
-	{ HPH, "edge-len",	fNone,	tINT,	gTREAT, 0, 0, 10, NULL,
+	{ HPH, "edge-len",	tOpt::NONE,	tINT,	gTREAT, 0, 0, 10, NULL,
 	"unstable binding length (BS edge effect).", ForTest },
-	{ HPH,"strand-err",	fHidden,tFLOAT, gTREAT, 0, 0, 100, NULL,
+	{ HPH,"strand-err",	tOpt::HIDDEN,tFLOAT,gTREAT, 0, 0, 100, NULL,
 	"percentage of reads with wrong strand", NULL },
-	{ 'N', "full-gen",	fNone,	tENUM,	gTREAT, FALSE, vUNDEF, 2, NULL,
+	{ 'N', "full-gen",	tOpt::NONE,	tENUM,	gTREAT, FALSE, vUNDEF, 2, NULL,
 	"process the entire reference chromosomes (including marginal gaps)", NULL },
-	{ 'P',"threads",fNone,	tINT,	gTREAT, 1, 1, 20, NULL, "number of threads", NULL },
-	{ HPH, "serv",	fNone,	tNAME,	gTREAT, vUNDEF, 0, 0, NULL,
+	{ 'P',"threads",tOpt::NONE,	tINT,	gTREAT, 1, 1, 20, NULL, "number of threads", NULL },
+	{ HPH, "serv",	tOpt::NONE,	tNAME,	gTREAT, vUNDEF, 0, 0, NULL,
 	"folder to store service files [-g|--gen]", NULL },
-	{ HPH, "seed",	fNone,	tINT,	gTREAT, 0, 0, 1000, NULL,
+	{ HPH, "seed",	tOpt::NONE,	tINT,	gTREAT, 0, 0, 1000, NULL,
 	"fix random emission with given seed, or 0 if don't fix", NULL },
-	{ 'o', "overl",	fNone,	tENUM,	gTEMPL, FALSE,	0, 2, (char*)Options::Booleans,
+	{ 'o', "overl",	tOpt::NONE,	tENUM,	gTEMPL, FALSE,	0, 2, (char*)Options::Booleans,
 	"allow (and merge) overlapping template features", NULL },
-	{ 's',"bscore",	fAllow0,tINT,	gTEMPL, 5, 4, 12, NULL,
+	{ 's',"bscore",	tOpt::ALLOW0,tINT,	gTEMPL, 5, 4, 12, NULL,
 	"index of the template field used to score each binding event.\n\
 Value '0' means ignore template scores.", ForTest },
-	{ 'L',"ln",	fNone,	tPR_FL,	gFRAG, 0, 0, 0, (char*)&lnd,
+	{ 'L',"ln",	tOpt::NONE,	tPR_FL,	gFRAG, 0, 0, 0, (char*)&lnd,
 	"mean and stand dev of fragment lognormal distribution", NULL },
-	{ 'S',"ss",	fOptnal,tPR_INT,gFRAG, 0, 0, 0, (char*)&ssd,
+	{ 'S',"ss",	tOpt::FACULT,tPR_INT,gFRAG, 0, 0, 0, (char*)&ssd,
 	"apply size selection normal distribution with specified mean and stand dev.\n\
 If the option is not specified, size selection is disabled", NULL },
-	{ 'r',"rd-len",	fNone,	tINT,	gREAD, 50, 20, 1000, NULL, 
+	{ 'r',"rd-len",	tOpt::NONE,	tINT,	gREAD, 50, 20, 1000, NULL,
 	"fixed length of output read, or minimum length of variable reads", NULL },
-	{ 'R',"rd-dist",fOptnal,tPR_INT,gREAD, 0, 0, 0, (char*)&rdd,
+	{ 'R',"rd-dist",tOpt::FACULT,tPR_INT,gREAD, 0, 0, 0, (char*)&rdd,
 	"mean and stand dev of variable read normal distribution,\naccording to Ion Torrent/Roche454 protocol.\n\
 If the option is not specified, the read length is fixed", NULL },
-	{ 'l',"rd-pos",	fNone,	tENUM,	gREAD, FALSE, vUNDEF, 2, NULL,"add read position (location) to its name", NULL },
-	{ HPH,"rd-Nlim",fNone,	tINT,	gREAD, vUNDEF, 0, 500, NULL,
+	{ 'l',"rd-pos",	tOpt::NONE,	tENUM,	gREAD, FALSE, vUNDEF, 2, NULL,"add read position (location) to its name", NULL },
+	{ HPH,"rd-Nlim",tOpt::NONE,	tINT,	gREAD, vUNDEF, 0, 500, NULL,
 	"maximum permitted number of ambiguous code N in read [OFF]", NULL },
-	{ HPH,"rd-lim",	fNone,	tLONG,	gREAD, 2e8, 1e5, (float)ULONG_MAX, NULL,
+	{ HPH,"rd-lim",	tOpt::NONE,	tLONG,	gREAD, 2e8, 1e5, (float)ULONG_MAX, NULL,
 	"maximum permitted number of total recorded reads", NULL },
-	{ HPH,"rd-ql",	fNone,	tCHAR,	gREAD, '~', '!', '~', NULL, "uniform read quality score", NULL },
-	{ HPH,"rd-ql-patt",	fNone,	tNAME,	gREAD, vUNDEF, 0, 0, NULL, "read quality scores pattern", NULL },
-	{ HPH,"rd-ql-map",	fNone,	tINT,	gREAD, 255, 0, 255, NULL,
+	{ HPH,"rd-ql",	tOpt::NONE,	tCHAR,	gREAD, '~', '!', '~', NULL, "uniform read quality score", NULL },
+	{ HPH,"rd-ql-patt",	tOpt::NONE,	tNAME,	gREAD, vUNDEF, 0, 0, NULL, "read quality scores pattern", NULL },
+	{ HPH,"rd-ql-map",	tOpt::NONE,	tINT,	gREAD, 255, 0, 255, NULL,
 	"read mapping quality in SAM and BED output", NULL },
-	{ 'f',"format",	fNone,	tCOMB,	gOUTPUT, float(Output::eFormat::FG), float(Output::eFormat::FG), ArrCnt(formats),
+	{ 'f',"format",	tOpt::NONE,	tCOMB,	gOUTPUT, float(Output::eFormat::FG), float(Output::eFormat::FG), ArrCnt(formats),
 	(char*)formats,	"format of output data, in any order", NULL },
-	{ 'C',"control",fNone,	tENUM,	gOUTPUT, FALSE,	vUNDEF, 2, NULL,
+	{ 'C',"control",tOpt::NONE,	tENUM,	gOUTPUT, FALSE,	vUNDEF, 2, NULL,
 	"generate control simultaneously with test", NULL },
-	{ 'x',"strand",	fNone,	tENUM,	gOUTPUT, FALSE,	vUNDEF, 2, NULL,
+	{ 'x',"strand",	tOpt::NONE,	tENUM,	gOUTPUT, FALSE,	vUNDEF, 2, NULL,
 	"generate two additional wig files, each one per strand", NULL },
-	{ 'O', sOutput,	fNone,	tNAME,	gOUTPUT, vUNDEF, 0, 0, NULL, OutFileTip.c_str()	},
-	{ 'T', "sep",	fNone,	tENUM,	gOUTPUT, FALSE,	vUNDEF, 2, NULL, "use 1000 separator in output", NULL },
+	{ 'O', sOutput,	tOpt::NONE,	tNAME,	gOUTPUT, vUNDEF, 0, 0, NULL, OutFileTip.c_str()	},
+	{ 'T', "sep",	tOpt::NONE,	tENUM,	gOUTPUT, FALSE,	vUNDEF, 2, NULL, "use 1000 separator in output", NULL },
 #ifndef _NO_ZLIB
-	{ 'z',"gzip",	fNone,	tENUM,	gOUTPUT, FALSE, vUNDEF, 2, NULL, "compress the output", NULL},
+	{ 'z',"gzip",	tOpt::NONE,	tENUM,	gOUTPUT, FALSE, vUNDEF, 2, NULL, "compress the output", NULL},
 #endif
-	{ 't',	sTime,	fNone,	tENUM,	gOTHER,	FALSE,	vUNDEF, 2, NULL, sPrTime, NULL },
-	{ 'V',"verbose",fNone,	tENUM,	gOTHER, float(eVerb::PAR), float(eVerb::CRIT), ArrCnt(verbs), (char*)verbs,
+	{ 't',	sTime,	tOpt::NONE,	tENUM,	gOTHER,	FALSE,	vUNDEF, 2, NULL, sPrTime, NULL },
+	{ 'V',"verbose",tOpt::NONE,	tENUM,	gOTHER, float(eVerb::PAR), float(eVerb::CRIT), ArrCnt(verbs), (char*)verbs,
 	"set verbose level:\n? -\tsilent mode (show critical messages only)\n? -\tshow result summary\n?  -\tshow run-time information\n? -\tshow actual parameters\n? -\tshow debug messages", NULL },
-	{ 'v',	sVers,	fNone,	tVERS,	gOTHER,	vUNDEF, vUNDEF, 0, NULL, sPrVersion, NULL },
-	{ 'h',	sHelp,	fNone,	tHELP,	gOTHER,	vUNDEF, vUNDEF, 0, NULL, sPrUsage, NULL }
+	{ 'v',	sVers,	tOpt::NONE,	tVERS,	gOTHER,	vUNDEF, vUNDEF, 0, NULL, sPrVersion, NULL },
+	{ 'h',	sHelp,	tOpt::NONE,	tHELP,	gOTHER,	vUNDEF, vUNDEF, 0, NULL, sPrUsage, NULL }
 };
 const BYTE	Options::OptCount = ArrCnt(Options::List);
 
@@ -146,8 +145,6 @@ const Options::Usage Options::Usages[] = {	// content of 'Usage' variants in hel
 };
 const BYTE Options::UsageCount = ArrCnt(Options::Usages);
 
-// Returns common name of output files
-string GetOutFileName();
 void PrintParams(const ChromSizesExt& cSizes, const char* templName, const Features* templ, const Output& oFile);
 
 /*****************************************/
@@ -243,12 +240,16 @@ int main(int argc, char* argv[])
 		}
 
 		// set treated chroms
-		if (!cSizes.SetTreated(Imitator::All, templ))
+		if (!cSizes.SetTreatedChroms(Imitator::All, templ))
 			Err(Err::TF_EMPTY, fBedName, "features per stated " + Chrom::ShortName(Chrom::CustomID()))
 			.Throw();
 
 		Imitator::SetThreadNumb(min(chrid(Options::GetFVal(oNUMB_THREAD)), cSizes.TreatedCount()));
-		Output oFile(GetOutFileName(), Imitator::IsControl(), Options::CommandLine(argc, argv), cSizes);
+		Output oFile(
+			Options::GetPartFileName(oOUT_FILE, DefFileName[Imitator::TMode].c_str()),
+			Imitator::IsControl(),
+			Options::CommandLine(argc, argv), cSizes
+		);
 
 		PrintParams(cSizes, fBedName, templ, oFile);
 		Imitator(cSizes, oFile).Execute(templ);
@@ -327,64 +328,3 @@ void PrintParams(const ChromSizesExt& cSizes, const char* templName,
 		cout << SignPar << "Actual threads" << SepCl << int(Imitator::ThrCnt) << LF;
 	DistrParams::PrintFragDistr(cout, SignPar, true);
 }
-
-// Returns common name of output files
-string GetOutFileName()
-{
-	const char* outName = Options::GetSVal(oOUT_FILE);
-
-	if (!outName)
-		return DefFileName[Imitator::TMode];
-	if (FS::IsDirExist(outName))
-		return FS::MakePath(string(outName)) + DefFileName[Imitator::TMode];
-	return string(outName);
-}
-
-
-//#ifdef DEBUG
-//void	CheckFaReadWrite()
-//{
-//	Mutex::Init();
-//	CPU_Timer::Enabled = true;
-//	CPU_Timer::Start();
-//	try {
-//		//TxtFile file("\\documents\\prof\\icl\\data\\aaa.txt", TxtFile::READ, 1);
-//		//char buff[100];
-//		////memset(buff, 0, 100);
-//		//char *read;
-//		//int i=0;
-//		//while( read=file.GetRecord(NULL) ) {
-//		//	memset(buff, 0, 100);
-//		//	memcpy(buff,read,file.RecordLength()-file._EOLSize);
-//		//	cout << (int)file._EOLSize << '\t' << (int)(file.RecordLength()-file._EOLSize) << '\t' << buff << endl;
-//		//	i++;
-//		//}
-//		//cout << "===========\n";
-//		//cout << "count " << i << endl;
-//		//cout << file.RecordCount() << endl;
-//		string fname = "\\documents\\prof\\icl\\data\\mousegenome9\\chr";
-//		Chrom chr(fname + "1.fa.gz", false);
-//		//Chrom chr(fname + "1.fa", false);
-//		cout << "full =\t" << chr.Length() << endl;
-//		cout << "short =\t" << (chr.End() - chr.Start()) << endl;
-//		cout << "n =\t" << chr.CountN() << endl;
-//		//chr.Write(fname + "1_.fa", "1");
-//
-//		//Sleep(1);
-//		//Chrom chr1(fname + "1_.fa", false);
-//		//if( chr.Length() != chr1.Length() )		cout << "Error length!\n";
-//		//else {
-//		//	for(ULONG i=0; i<chr.Length(); i++)
-//		//		if( chr._seq[i] != chr1._seq[i] ) {
-//		//			cout << "Error!\n";
-//		//			break;
-//		//		}
-//		//	cout << "Done.\n";
-//		//}
-//	}
-//	catch(const Msg&e) { cerr << e.what() << endl; }
-//	catch(...) { cerr << "error\n"; }
-//	CPU_Timer::Stop();
-//	Mutex::Finalize();
-//}
-//#endif

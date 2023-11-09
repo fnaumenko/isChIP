@@ -1,111 +1,77 @@
-/**********************************************************
-OutTxtFile.cpp (c) 2014 Fedor Naumenko (fedor.naumenko@gmail.com)
-All rights reserved.
--------------------------
-Last modified: 16.11.2020
--------------------------
-Provides random generation functionality
-***********************************************************/
-
 #include "RandomGen.h"
-
-const float PI = 3.14159265f;
+#include <iomanip>      // std::setprecision
 
 /************************ DistrParams ************************/
 
+float DistrParams::lnMean = 5.92f;
+float DistrParams::lnSigma = 0.4f;
+float DistrParams::ssMean = 0;
+int	  DistrParams::ssSigma;
+int	  DistrParams::rdMean = 0;
+int	  DistrParams::rdSigma;
 
-float DistrParams::lnMean;	// mean of initial lognormal distribution
-float DistrParams::lnSigma;	// sigma of initial lognormal distribution
-float DistrParams::ssMean;	// mean of size selection normal distribution
-int	  DistrParams::ssSigma;	// sigma of size selection normal distribution
-//DistrParams::rdParams DistrParams::RDParams;
-int	  DistrParams::rdMean;	// mean of size selection normal distribution
-int	  DistrParams::rdSigma;	// sigma of size selection normal distribution
-
-
-// Initializes lognorm fragment and size selection distribution values;
-//	@ln: expectation & standard deviation of frag normal distribution
-//	@isFDset: true if parameters od lognorm distr were assigned by user
-//	@ss: expectation & standard deviation of size sel normal distribution
-//	@isSSset: true if size sel is applied
-//	@rd: mean & sigma of Read length distriburion
-//	@isRVLset: true if Read variable length mode is set
-void DistrParams::Init(const pairVal& ln, bool isFDset, const pairVal& ss, bool isSSset, const pairVal& rd, bool isRVLset)
+void DistrParams::Init(const pairVal& ln, bool isFD, const pairVal& ss, bool isSS, const pairVal& rd, bool isRD)
 {
-	if (isRVLset && !isFDset) {
-		lnMean = 5.92f;		// set 'wide' distrib default mean
-		lnSigma = 0.4f;		// set 'wide' distrib default sigma
-	}
-	else {
-		lnMean = ln.first;
+	if (isFD && !isRD)
+		lnMean = ln.first,
 		lnSigma = ln.second;
-	}
-	if (isSSset) {
-		ssMean = ss.first == vUNDEF ? LnMean() : ss.first;
+	if (isSS)
+		ssMean = ss.first == -1 ? LnMean() : ss.first,
 		ssSigma = int(ss.second);
-	}
-	else
-		ssMean = 0;		// size sel OFF
-	if (isRVLset) {
-		rdMean = int(rd.first);
+	if (isRD)
+		rdMean = int(rd.first),
 		rdSigma = int(rd.second);
-	}
-	else
-		//RDParams.first = 0;
-		rdMean = 0;
 }
 
-// Prints title and the set fragment distribution parameters
-//	@s: outstream to print
-//	@startWord: substring to print first
-//	@all: if true then print both frag dist and size selection, otherwise only one of them
-void DistrParams::PrintFragDistr(ostream& s, const char* startWord, bool all)
+#define LF	'\n'
+static const char* Equel = " = ";
+static const char* SepCl = ": ";		// colon separator
+static const char* SepSCl = "; ";		// semicolon separator
+
+static const char* sMean = "mean";
+static const char* sSigma = "sigma";
+static const char* sDistrib = "distribution";
+
+void DistrParams::PrintFragDistr(std::ostream& s, const char* title, bool all)
 {
 	const char* sFrag = all ? "Fragment" : "fragment";
 
 	if (all || !IsSS()) {
-		s << startWord << sFrag << " lognorm size " << sDistrib
-			<< SepCl << sMean << Equel << lnMean
-			<< SepSCl << sSigma << Equel << lnSigma;
+		s << title << sFrag << " lognorm size " << sDistrib
+		  << SepCl << sMean << Equel << lnMean
+		  << SepSCl << sSigma << Equel << lnSigma;
 		if (all)
-			s << SepSCl << "Mean" << Equel << setprecision(5) << LnMean()
-			<< SepSCl << "Mode" << Equel << LnMode();
+			s << SepSCl << "Mean" << Equel << std::setprecision(5) << LnMean()
+			  << SepSCl << "Mode" << Equel << LnMode();
 		s << LF;
 	}
 	if (all || IsSS()) {
-		s << startWord << sFrag << " size selection " << sDistrib << SepCl;
+		s << title << sFrag << " size selection " << sDistrib << SepCl;
 		if (IsSS())
-			s << sMean << Equel << setprecision(5) << ssMean
-			<< SepSCl << sSigma << Equel << ssSigma << LF;
+			s << sMean << Equel << std::setprecision(5) << ssMean
+			  << SepSCl << sSigma << Equel << ssSigma << LF;
 		else
-			s << Options::BoolToStr(false) << LF;
+			s << "OFF\n";
 	}
 }
 
-// Prints title and the set read distribution parameters
-//	@s: outstream to print
-//	@startWord: substring to print first
-//	@rTitle: read title
-void DistrParams::PrintReadDistr(ostream& s, const char* startWord, const char* rTitle)
+void DistrParams::PrintReadDistr(std::ostream& s, const char* title, const char* rTitle)
 {
 	if (IsRVL())
-		s << startWord << rTitle << " length norm " << sDistrib
+		s << title << rTitle << " length norm " << sDistrib
 		<< SepCl << sMean << Equel << rdMean
 		<< SepSCl << sSigma << Equel << rdSigma << LF;
 }
 
-
 /************************ end of DistrParams ************************/
 
 /************************ class Random ************************/
+
+const float PI = 3.14159265f;
 int Random::Seed;
 float Random::ExpLambda = 1;		// Average rate of occurrence in std::exponential_distribution
 
-// Sets and returns real seed
-//	@seed: if 0, random seed
-//	@expoBase: the distance from the site boundary at which the probability increases exponentially
-//		(exonuclease 'headroom' length)
-int Random::SetSeed(UINT seed, readlen expoBase)
+int Random::SetSeed(int seed, randval expoBase)
 {
 	ExpLambda = 10.f / expoBase;
 	if (seed)
@@ -181,7 +147,7 @@ uint32_t Random::rand()
 	return y;
 }
 #elif defined RAND_XORSHIFT
-// Generates 32 random bits
+
 uint32_t Random::rand()
 {
 	uint32_t t = x ^ (x << 11);
@@ -190,8 +156,8 @@ uint32_t Random::rand()
 }
 #endif	
 
-// Returns random integer within interval [1, max]
-int Random::Range(int max) {
+int Random::Range(int max)
+{
 #ifdef RAND_MT
 	if (max == 1)	return 1;
 	return min(int(DRand() * (max - 1) + 1), max);
@@ -200,8 +166,6 @@ int Random::Range(int max) {
 #endif
 }
 
-// Returns true with given likelihood
-//	@sample: probability of returning true; from 0.0. to 1.0
 bool Random::Sample(float sample)
 {
 	return sample >= 1.0 ? true : (sample == 0.0 ? false : (DRand() <= sample));

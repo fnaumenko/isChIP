@@ -208,11 +208,7 @@ end:
 	return !PrintWrong(str0);
 }
 
-// Recursively prints string with replaced ENUM_REPLACE symbol by enum/combi value.
-//	@buff: external buffer to copy and output temporary string
-//	@vals: enum/combi values or NULL for other types
-//	@cnt: external counter of enum/combi values
-void PrintTransformDescr(char* buff, const char** vals, short* cnt)
+void Options::Option::PrintTransformDescr(char* buff, const char** vals, short* cnt)
 {
 	if(vals) {			// enum/combi?
 		const char* subStr = strchr(buff, ENUM_REPLACE);
@@ -228,16 +224,7 @@ void PrintTransformDescr(char* buff, const char** vals, short* cnt)
 	else	cout << buff;
 }
 
-// Recursively prints string with LF inside as a set of left-margin strings
-// Used to output aligned option descriptions
-// First string is printed from current stdout position.
-// Last substring doesn't include LF.
-//	@buff: external buffer to copy and output temporary string
-//	@str: input string with possible LFs
-//	@subStr: substring of input string to the first LF, or NULL if input string is not ended by LF
-//	@vals: enum/combi values or NULL for other types
-//	@cnt: external counter of enum/combi values
-void PrintSubLine(char* buff, const char* str, const char* subStr, const char** vals, short* cnt)
+void Options::Option::PrintSubLine(char* buff, const char* str, const char* subStr, const char** vals, short* cnt)
 {
 	if(subStr) {	// is substring ended by LF exist?
 		// form substring
@@ -246,7 +233,7 @@ void PrintSubLine(char* buff, const char* str, const char* subStr, const char** 
 		buff[strLen] = 0;
 		PrintTransformDescr(buff, vals, cnt);	// output enum values
 		cout << LF;
-		for(BYTE t=0; t<OPT_DESCF_TSHIFT; t++)	cout << TAB;
+		for(BYTE t=0; t < IndentInTabs; t++)	cout << TAB;
 		str = subStr + 1;		// skip LF
 		subStr = strchr(str, LF);
 		PrintSubLine(buff, str, subStr, vals, cnt);
@@ -268,11 +255,11 @@ int Options::Option::SetVal(const char* opt, bool isword, char* val, char* nextI
 {
 	if(isword) { 
 		if(!Str || strcmp(Str, opt))	return -1;	// not this option
-		Sign.MarkAs(eFlag::fWord);
+		Sign.Set(tOpt::WORD);
 	}
 	else if(Char != *opt)	return -1;		// not this option
 
-	if(Sign.Is(eFlag::fTrimmed))	return PrintAmbigOpt(opt, isword, "duplicated");
+	if(Sign.Is(tOpt::TRIMMED))	return PrintAmbigOpt(opt, isword, "duplicated");
 
 	//== check actual value
 	const bool isValOblig = ValRequired() && !IsValEsc();
@@ -294,7 +281,7 @@ int Options::Option::SetVal(const char* opt, bool isword, char* val, char* nextI
 			}
 
 	//== set actual value
-	Sign.MarkAs(eFlag::fTrimmed);
+	Sign.Set(tOpt::TRIMMED);
 	switch(ValType) {
 		case tNAME: SVal = noRealVal ? NULL : val;	return 0;
 		case tENUM:	return SetEnum(val);
@@ -321,7 +308,7 @@ int Options::Option::SetVal(const char* opt, bool isword, char* val, char* nextI
 //	return: -1 if option is obligatory but not stated, otherwise 1
 int Options::Option::CheckOblig() const
 {
-	if( Sign.Is(eFlag::fOblig) && ValRequired()
+	if( Sign.Is(tOpt::OBLIG) && ValRequired()
 	&& ( (ValType == tNAME && !SVal) || (ValType != tNAME && NVal == NO_VAL) ) ) {
 		cerr << Missing << "required option " << NameToStr(false) << LF;
 		return -1;
@@ -336,7 +323,7 @@ inline string Options::Option::NameToStr (bool asPointed) const
 	ostringstream ss;
 	ss << HPH;
 	if(asPointed) {
-		if(!Sign.Is(eFlag::fWord))	{ ss << Char; return ss.str(); }
+		if(!Sign.Is(tOpt::WORD))	{ ss << Char; return ss.str(); }
 	}
 	else if(Char != HPH) {
 		ss << Char; 
@@ -367,7 +354,7 @@ const string Options::Option::PairValsToStr(const pairVal* vals) const
 //	return: 1 if limits are exceeded, otherwise 0
 int Options::Option::SetTriedFloat(float val, float min, float max)
 {
-	if(!val && Sign.Is(eFlag::fAllow0))	min = 0;
+	if(!val && Sign.Is(tOpt::ALLOW0))	min = 0;
 	if(val < min || val > max) {
 		cerr << optTitle << NameToStr(true) << SepSCl << sValue << setprecision(4) << SPACE << val
 			 << " is out of available range [" << min << HPH << max << "]\n";
@@ -456,7 +443,7 @@ string Options::Option::ToStr(bool prVal) const
 //	otherwise signature only
 void Options::Option::Print(bool descr) const
 {
-	if(Sign.Is(fHidden))	return;
+	if(Sign.Is(tOpt::HIDDEN))	return;
 	USHORT	len = 0;		// first len is used as counter of printed chars
 	bool	fixValType = ValType==tENUM || ValType==tCOMB;
 	char*	buffer;
@@ -480,10 +467,10 @@ void Options::Option::Print(bool descr) const
 	// *** description
 	if(!descr)	return;
 	// align description 
-	short cnt = OPT_DESCF_TSHIFT - len / 8;	// OPT_DESCF_TSHIFT=3 * 8: right boundary of descriptions
+	short cnt = IndentInTabs - len / 8;	// OPT_DESCF_TSHIFT=3 * 8: right boundary of descriptions
 	if(cnt <= 0)	cnt = 1;
-	if(len + cnt*8 >= (OPT_DESCF_TSHIFT+1)*8)	// too long option,
-		cnt = OPT_DESCF_TSHIFT, cout << LF;	// description on the next line
+	if(len + cnt*8 >= (IndentInTabs + 1)*8)	// too long option,
+		cnt = IndentInTabs, cout << LF;	// description on the next line
 	for(int i=0; i<cnt; i++)	cout << TAB;
 
 	// print description
@@ -496,7 +483,7 @@ void Options::Option::Print(bool descr) const
 		if(Descr[len-1] != LF)	cout << SPACE;
 		cout << AddDescr;
 	}
-	if(Sign.Is(fOblig))	cout << " Required";
+	if(Sign.Is(tOpt::OBLIG))	cout << " Required";
 	else if(ValType >= tHELP)	cout << " and exit";
 
 	// print default value
@@ -762,9 +749,19 @@ const string Options::GetFileName(int indOpt, const char* defName, const string&
 	Option opt = List[indOpt];
 	if(opt.SVal)
 		return string(opt.SVal) + ext;
-	if(opt.IsValEsc() && opt.Sign.Is(fTrimmed))
+	if(opt.IsValEsc() && opt.Sign.Is(tOpt::TRIMMED))
 		return FS::ShortFileName(FS::FileNameWithoutExt(defName)) + ext;
 	return strEmpty;
+}
+
+const string Options::GetPartFileName(int opt, const char* defName)
+{
+	const char* outName = Options::GetSVal(opt);
+
+	if (!outName)
+		return FS::FileNameWithoutExt(defName);
+	string sOutName = string(outName);
+	return FS::IsDirExist(outName) ? FS::MakePath(sOutName) + FS::FileNameWithoutExt(defName) : sOutName;
 }
 
 #ifdef DEBUG

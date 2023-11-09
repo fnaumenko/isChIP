@@ -3,12 +3,12 @@ cmake_minimum_required(VERSION 3.16.0)
 set(PROJECT_NAME isChIP)
 project(${PROJECT_NAME})
 
-# add_compile_definitions(
-	# _ISCHIP
-	# _FEATURES
-	# _FILE_WRITE
-	# _MULTITHREAD
-	# )
+add_compile_definitions(
+	_ISCHIP
+	_FEATURES
+	_FILE_WRITE
+	_MULTITHREAD
+	)
 	
 # ZLIB
 if(MSVC)

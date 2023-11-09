@@ -7,10 +7,11 @@ Last modified: 02.01.2022
 Provides option emum
 ***********************************************************/
 #pragma once
-#include "def.h"
 
 #define	SAMPLE_FG()		grounds.Values().first
 #define	SAMPLE_BG()		grounds.Values().second
+
+static const char* Equel = " = ";
 
 enum optValue {
 	oGEN,

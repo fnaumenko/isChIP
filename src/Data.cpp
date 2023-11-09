@@ -394,7 +394,7 @@ chrlen ChromSizesExt::DefEffLength(cIter it) const
 // Sets actually treated chromosomes according template and custom chrom
 //	@templ: template bed or NULL
 //	return: number of treated chromosomes
-chrid ChromSizesExt::SetTreated(bool statedAll, const Features* const templ)
+chrid ChromSizesExt::SetTreatedChroms(bool statedAll, const Features* const templ)
 {
 	_treatedCnt = 0;
 

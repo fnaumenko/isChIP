@@ -11,7 +11,6 @@ Provides common functionality
 #ifndef _COMMON_H
 #define _COMMON_H
 
-#include "def.h"
 #include <stdint.h>		// uint32_t
 #include <string>
 #include <iostream>	
@@ -126,16 +125,16 @@ using namespace std;
 
 static const chrlen CHRLEN_CAPAC = numeric_limits<chrlen>::digits10 + 1;
 
-static const std::string ZipFileExt = ".gz";
-static const string strEmpty = "";
 static const char* SepCl = ": ";		// colon separator
 static const char* SepSCl = "; ";		// semicolon separator
-#ifdef _CONST_MARKS
 static const char* SepCm = ", ";		// comma separator
 static const char* SepDCl = ":: ";		// double colon separator
 //static const char* SepClTab = ":\t";	// colon + tab separator
-static const char* Equel = " = ";
-#endif
+//static const char* Equel = " = ";
+
+static const std::string ZipFileExt = ".gz";
+static const string strEmpty = "";
+
 // common help string
 static const char* sGen = "gen";		// isChIP, readDens
 static const char* sOutput = "out";
@@ -374,14 +373,15 @@ private:
 		tSUMM,		// special value used to call a program from another program
 	};
 	
-	enum eFlag {		// using 'enum class' in this case is inconvenient
-		fNone = 0,		// no flags
-		fOblig = 0x01,	// true if option is obligatory
-		fOptnal = 0x02,	// true if option's value is optional
-		fAllow0 = 0x04,	// true if option's value allowed be 0 while checking min value
-		fHidden = 0x08,	// hidden option (not printed in help)
-		fTrimmed = 0x10,// true if option has been processed already
-		fWord = 0x20,	// true if option is stated as multi-chars
+	// Option types
+	enum class tOpt {
+		NONE = 0,	// no flags
+		OBLIG = 0x01,	// true if option is obligatory
+		FACULT = 0x02,	// true if option's value is optional
+		ALLOW0 = 0x04,	// true if option's value allowed be 0 while checking min value
+		HIDDEN = 0x08,	// hidden option (not printed in help)
+		TRIMMED = 0x10,	// true if option has been processed already
+		WORD = 0x20,	// true if option is stated as multi-chars
 	};
 
 	// Option signes
@@ -389,15 +389,16 @@ private:
 	private:
 		BYTE	signs;
 	public:
-		inline Signs(int x)	{ signs = (BYTE)x; }	// to initialize obligatory in main()
+		// Initializes by sign
+		Signs(tOpt sign) { signs = BYTE(sign); }
 		// Returns true if given sign is set
-		inline bool Is(eFlag mark) const	{ return (signs & BYTE(mark)) != 0; }	// '!= 0' to avoid warning
+		bool Is(tOpt sign) const { return (signs & BYTE(sign)) != 0; }	// '!= 0' to avoid warning
 		// Sets given sign
-		inline void MarkAs(eFlag mark)	{ signs |= BYTE(mark); }
+		void Set(tOpt sign) { signs |= BYTE(sign); }
 
 #ifdef DEBUG
 		void Print() const {
-			cout << int(Is(fWord)) << int(Is(fTrimmed)) << int(Is(fHidden)) << int(Is(fOblig));
+			cout << int(Is(WORD)) << int(Is(TRIMMED)) << int(Is(HIDDEN)) << int(Is(OBLIG));
 		}
 #endif
 	};
@@ -421,7 +422,7 @@ private:
 		const char*	AddDescr;	// additional tip string
 
 		// Return true if option value is escapable (not obligatory)
-		inline bool IsValEsc() const { return Sign.Is(eFlag::fOptnal); }
+		inline bool IsValEsc() const { return Sign.Is(tOpt::FACULT); }
 
 		// Sets option value.
 		//	@opt: option
@@ -437,7 +438,7 @@ private:
 		int CheckOblig() const;
 
 		// Prints option if it's obligatory
-		inline void PrintOblig() const		{ if(Sign.Is(fOblig)) Print(false); }
+		inline void PrintOblig() const		{ if(Sign.Is(tOpt::OBLIG)) Print(false); }
 
 		// Prints option if it belongs to a group g
 		inline void PrintGroup(BYTE g) const { if(OptGroup == g) Print(true); }
@@ -455,7 +456,8 @@ private:
 		void Print() const;
 #endif
 	private:
-		static const char EnumDelims[];	// specifies delimiter for enum [0] and combi [1] values
+		static const BYTE IndentInTabs;		// indentation in tabs before printing descriptions of option fields
+		static const char EnumDelims[];		// specifies delimiter for enum [0] and combi [1] values
 
 		// Checks digital value representation. Prints 'wrong val' message in case of failure
 		//	@str: defined (no NULL) string  representing digital value
@@ -491,6 +493,23 @@ private:
 		//	@vals: pair of values as C string or NULL if value isn't set
 		//	return: 0 if success, 1 if wrong values
 		int SetPair(const char* vals, bool isInt);
+
+		// Recursively prints string with replaced ENUM_REPLACE symbol by enum/combi value.
+		//	@param buff: external buffer to copy and output temporary string
+		//	@param vals: enum/combi values or NULL for other types
+		//	@param cnt: external counter of enum/combi values
+		static void PrintTransformDescr(char* buff, const char** vals, short* cnt);
+
+		// Recursively prints string with LF inside as a set of left-margin strings
+		// Used to output aligned option descriptions
+		// First string is printed from current stdout position.
+		// Last substring doesn't include LF.
+		//	@param buff: external buffer to copy and output temporary string
+		//	@param str: input string with possible LFs
+		//	@param subStr: substring of input string to the first LF, or NULL if input string is not ended by LF
+		//	@param vals: enum/combi values or NULL for other types
+		//	@param cnt: external counter of enum/combi values
+		static void PrintSubLine(char* buff, const char* str, const char* subStr, const char** vals, short* cnt);
 
 		// Prints enum or combi values
 		//	return: number of printed symbols
@@ -626,7 +645,7 @@ public:
 #endif
 
 	// Returns true if the option value is assigned by user
-	static bool Assigned	(int opt)	{ return List[opt].Sign.Is(fTrimmed); }
+	static bool Assigned	(int opt)	{ return List[opt].Sign.Is(tOpt::TRIMMED); }
 	// True if maximal enum value is setting
 	static bool IsMaxEnum	(int opt)	{ return List[opt].NVal == List[opt].MaxNVal - 1; }
 	// Get maximal permissible numeric value by index
@@ -639,6 +658,11 @@ public:
 
 	// Returns file name by index: if value is not oblig and is not specified, then defName with given extention
 	static const string GetFileName(int opt, const char* defName, const string& ext="_out.txt");
+
+	// Returns file name by option index: if option value is not specified, then default name; if value is a path, then partial then default name
+	//	@param[in] opt: option index
+	//	@param[in] defName: default name
+	static const string GetPartFileName(int opt, const char* defName);
 
 #ifdef DEBUG
 	static void Print();
