@@ -2,14 +2,12 @@
 TxtFile.h (c) 2014 Fedor Naumenko (fedor.naumenko@gmail.com)
 All rights reserved.
 -------------------------
-Last modified: 07.01.2022
+Last modified: 11/12/2023
 -------------------------
 Provides read|write text file functionality
 ***********************************************************/
 
 #pragma once
-#ifndef _TXTFILE_H
-#define _TXTFILE_H
 
 #include "common.h"
 //#include <variant>
@@ -20,8 +18,13 @@ Provides read|write text file functionality
 
 typedef short rowlen;	// type: length of row in TxtFile
 
+static const char* BedGraphTYPE = "bedGraph";
+static const char* WigTYPE = "wiggle_0";
+static const string WigVarSTEP = "variableStep";
+static const string WigFixSTEP = "fixedStep";
+
 // 'TabFilePar' keeps basic parameters for TabFile
-struct TabFilePar 
+struct TabFilePar
 {
 	static const BYTE BGLnLen;	// predefined BedGraph line length in purpose of reserving container size
 	static const BYTE WvsLnLen;	// predefined WIG variable step line length in purpose of reserving container size
@@ -33,24 +36,24 @@ struct TabFilePar
 	const char	Comment;		// char indicates that line is comment
 	const char* LineSpec;		// substring on which each data line is beginning
 
-	inline TabFilePar() : MinFieldCnt(0), MaxFieldCnt(0), AvrLineLen(0), Comment(cNULL), LineSpec(NULL) {}
+	TabFilePar() : MinFieldCnt(0), MaxFieldCnt(0), AvrLineLen(0), Comment(cNULL), LineSpec(NULL) {}
 
 	TabFilePar(BYTE minTabCnt, BYTE maxTabCnt, BYTE avrLineLen = 0, char comm = HASH, const char* lSpec = NULL) :
 		MinFieldCnt(minTabCnt),
-		MaxFieldCnt(maxTabCnt<minTabCnt ? minTabCnt : maxTabCnt),
+		MaxFieldCnt(maxTabCnt < minTabCnt ? minTabCnt : maxTabCnt),
 		AvrLineLen(avrLineLen),
 		Comment(comm),
 		LineSpec(lSpec)
-		{}
+	{}
 
-	inline USHORT LineSpecLen() const { return USHORT(LineSpec ? strlen(LineSpec) : 0); }
+	USHORT LineSpecLen() const { return USHORT(LineSpec ? strlen(LineSpec) : 0); }
 };
 
 // 'File Type' implements bioinformatics file type routines 
 static class FT
 {
 	struct fTypeAttr {
-		const char*	Extens;			// file extension
+		const char* Extens;			// file extension
 		const string Item;			// item title
 		const string ItemPl;		// item title in plural
 		Mutex::eType MtxType;		// type of Mutex lock
@@ -100,36 +103,38 @@ public:
 	//	@t: file type
 	//	@pl: true if plural form
 	static const string& ItemTitle(eType t, bool pl = true)
-	{ return pl ? TypeAttrs[int(t)].ItemPl : TypeAttrs[int(t)].Item; }
+	{
+		return pl ? TypeAttrs[int(t)].ItemPl : TypeAttrs[int(t)].Item;
+	}
 
 	// Gets TabFile params
 	//	@t: file type
 	static const TabFilePar& FileParams(eType t) { return TypeAttrs[int(t)].FileParam; }
 
 	// Get Mutex type by file type
-	inline static Mutex::eType MutexType(eType t) { return TypeAttrs[int(t)].MtxType; }
+	static Mutex::eType MutexType(eType t) { return TypeAttrs[int(t)].MtxType; }
 
 } fformat;
 
 class TxtFile
-/*
- * Basic class 'TxtFile' implements a fast buffered serial (stream) reading/writing text files 
- * (in Windows and Linux standart).
- * Supports reading/writing zipped (gz) files.
- * Optimised for huge files.
- * Restriction: the default size of buffer, setting as NUMB_BLK * BasicBlockSize, 
- * should be bigger than the longest line in file. Otherwise file become invalid,
- * and less than size_t.
- * If size of reading files is less than default buffer's size, 
- * the buffer's size sets exactly to be sufficient to read a whole file.
- * The reading/writing unit is a 'record', which in common case is a predifined set of lines.
- * For FQ files 'record' is a set of 4 lines.
- * For common text files 'record' is identical to 'line'.
- * Empty lines are skipping by reading and therefore will not be writing by 'cloning' a file.
- */
+	/*
+	 * Basic class 'TxtFile' implements a fast buffered serial (stream) reading/writing text files
+	 * (in Windows and Linux standart).
+	 * Supports reading/writing zipped (gz) files.
+	 * Optimised for huge files.
+	 * Restriction: the default size of buffer, setting as NUMB_BLK * BasicBlockSize,
+	 * should be bigger than the longest line in file. Otherwise file become invalid,
+	 * and less than size_t.
+	 * If size of reading files is less than default buffer's size,
+	 * the buffer's size sets exactly to be sufficient to read a whole file.
+	 * The reading/writing unit is a 'record', which in common case is a predifined set of lines.
+	 * For FQ files 'record' is a set of 4 lines.
+	 * For common text files 'record' is identical to 'line'.
+	 * Empty lines are skipping by reading and therefore will not be writing by 'cloning' a file.
+	 */
 {
 public:
-	enum class eAction { 
+	enum class eAction {
 		READ,		// reads only existing file
 		WRITE,		// creates file if it not exist and writes to it; file is cleared before
 		READ_ANY	// creates file if it not exist and reads it
@@ -141,14 +146,14 @@ protected:
 		// The first bit is set to 1 in the constructor.
 		// If CR symbol is found at the end of line,
 		//	the second bit is raised to 1, the first turn down to 0
-		ISCR		= 0x01,	// sign of Carriage Return ('\r')
-		LFCHECKED	= 0x02,	// the presence of a symbol CR is checked; for Reading mode
-		ZIPPED		= 0x04,	// file is zipped
-		ABORTING	= 0x08,	// invalid file should be completed by throwing exception; for Reading mode
-		ENDREAD		= 0x10,	// last call of GetNextRecord() has returned NULL; for Reading mode
-		PRNAME		= 0x20,	// print file name in exception's message; for Reading mode
-		MTHREAD		= 0x40,	// file in multithread mode: needs to be locked while writing
-		CLONE		= 0x80,	// file is a clone
+		ISCR = 0x01,	// sign of Carriage Return ('\r')
+		LFCHECKED = 0x02,	// the presence of a symbol CR is checked; for Reading mode
+		ZIPPED = 0x04,	// file is zipped
+		ABORTING = 0x08,	// invalid file should be completed by throwing exception; for Reading mode
+		ENDREAD = 0x10,	// last call of GetNextRecord() has returned NULL; for Reading mode
+		PRNAME = 0x20,	// print file name in exception's message; for Reading mode
+		MTHREAD = 0x40,	// file in multithread mode: needs to be locked while writing
+		CLONE = 0x80,	// file is a clone
 	};
 
 private:
@@ -161,35 +166,35 @@ private:
 	mutable short _flag;	// bitwise storage for signs included in eFlag
 
 protected:
-	void *	_stream;			// FILE* (for unzipped file) or gzFile (for zipped file)
-	char *	_buff;				// basic I/O (read/write) buffer
+	void* _stream;			// FILE* (for unzipped file) or gzFile (for zipped file)
+	char* _buff;				// basic I/O (read/write) buffer
 	size_t	_buffLen;			// the length of the basic I/O buffer
 	mutable size_t _currRecPos;	// start position of the last readed/writed record in the block
 	mutable ULONG _recCnt;		// local counter of readed/writed records
 	mutable Err::eCode	_errCode;
 	//Stopwatch	_stopwatch;
-	
-	inline void SetFlag	(eFlag f, bool val)	const { val ? _flag |= f : _flag &= ~f; }
-	inline void RaiseFlag(eFlag f)	const { _flag |= f; }
-	inline bool IsFlag	(eFlag f)	const { return _flag & f; }
-	inline bool IsZipped()			const { return _flag & ZIPPED; }
-	inline bool IsClone()			const { return _flag & CLONE; }
+
+	void SetFlag(eFlag f, bool val)	const { val ? _flag |= f : _flag &= ~f; }
+	void RaiseFlag(eFlag f)	const { _flag |= f; }
+	bool IsFlag(eFlag f)	const { return _flag & f; }
+	bool IsZipped()			const { return _flag & ZIPPED; }
+	bool IsClone()			const { return _flag & CLONE; }
 
 	// *** 3 methods used by TxtInFile only
 
 	// Gets the number of characters corresponded to LF
 	// In Windows LF matches '\r\n', in Linux LF matches '\n',
 	//	return: in Windows always 1, in Linux: 2 for file created in Windows, 1 for file created in Linux
-	inline size_t LFSize() const	{ 	return 2 - (_flag & ISCR); }
+	size_t LFSize() const { return 2 - (_flag & ISCR); }
 
 	// Returns true if LF size is not defined
-	inline bool IsLFundef() const { return !(_flag & LFCHECKED); }
+	bool IsLFundef() const { return !(_flag & LFCHECKED); }
 
 	// Establishes the presence of CR symbol at the end of line.
 	//	@c: if c is CR then the second bit is raised to 1, the first turn down to 0,
 	//	so the value return by LFSZ mask is 2, otherwise remains in state 1
-	//inline void SetLF(char c)	{ if(c==CR)	 RaiseFlag(ISCR); RaiseFlag(LFCHECKED); }
-	inline void SetLF(char c) { if (c == CR)	_flag |= CRLF; }
+	//void SetLF(char c)	{ if(c==CR)	 RaiseFlag(ISCR); RaiseFlag(LFCHECKED); }
+	void SetLF(char c) { if (c == CR)	_flag |= CRLF; }
 
 private:
 	// Initializes instance variables, opens a file, sets a proper error code.
@@ -198,7 +203,7 @@ private:
 	//	@fStream: clonable file stream or NULL
 	//	return: true is success, otherwise false.
 	bool SetBasic(const string& fName, eAction mode, void* fStream);
-	
+
 	// Allocates memory for the I/O buffer with checking.
 	//	return: true if successful
 	bool CreateIOBuff();
@@ -211,14 +216,14 @@ protected:
 	//	@mode: opening mode
 	//	@msgFName: true if file name should be printed in the exception's message
 	//	@abortInvalid: true if invalid instance shold be completed by throwing exception
-	TxtFile(const string& fName, eAction mode, bool msgFName =true, bool abortInvalid = true);
+	TxtFile(const string& fName, eAction mode, bool msgFName = true, bool abortInvalid = true);
 
 #ifdef _MULTITHREAD
 	// Constructs a clone of an existing instance.
 	// Clone is a copy of opened file with its own separate I/O buffer.
 	// Used for multithreading file recording
 	//	@file: opened file which is cloned
-	TxtFile	(const TxtFile& file);
+	TxtFile(const TxtFile& file);
 #endif
 
 	// Destructs the instance: close assigned file, releases I/O buffer.
@@ -230,35 +235,36 @@ protected:
 	void SetError(Err::eCode errCode, const string& senderSpec = strEmpty, const string& spec = strEmpty) const;
 
 	// Returns true if instance is valid.
-	inline bool IsGood() const	{ return _errCode == Err::NONE; }
-	inline bool IsBad()  const	{ return _errCode != Err::NONE; }
+	bool IsGood() const { return _errCode == Err::NONE; }
+	bool IsBad()  const { return _errCode != Err::NONE; }
 
 	// Returns current error code.
-	//inline Err::eCode ErrCode() const	{ return _errCode; }
+	//Err::eCode ErrCode() const	{ return _errCode; }
 
 //public:
 	// Gets conditional file name: name if it's printable, otherwise empty string.
-	inline const string& CondFileName() const { return IsFlag(PRNAME) ? _fName : strEmpty; }
-
-public:
-	// Gets file name.
-	inline const string& FileName() const { return _fName; }
+	const string& CondFileName() const { return IsFlag(PRNAME) ? _fName : strEmpty; }
 
 	// Gets size of uncompressed file,
 	// or size of compressed file if its uncompressed length is more than UINT_MAX.
 	// So it can be used for estimatation only.
-	inline LLONG Length() const	{ return _fSize; }
+	LLONG Length() const { return _fSize; }
 
 	// Gets number of readed/writed records.
 	ULONG RecordCount() const { return _recCnt; }
 
 	// Throws exception
 	//	@msg: exception message
-	inline void ThrowExcept(const string& msg) const { Err(msg, CondFileName()).Throw(); }
+	void ThrowExcept(const string& msg) const { Err(msg, CondFileName()).Throw(); }
 
 	// Throws exception
-//	@msg: exception message
-	inline void ThrowExcept(Err::eCode code) const { Err(code, CondFileName().c_str()).Throw(); }
+	//	@msg: exception message
+	void ThrowExcept(Err::eCode code) const { Err(code, CondFileName().c_str()).Throw(); }
+
+public:
+	// Returns file name
+	const string& FileName() const { return _fName; }
+
 };
 
 // 'TxtInFile' represents TxtFile for reading.
@@ -267,14 +273,14 @@ class TxtInFile : public TxtFile
 {
 	size_t	_recLen;		// the length of record with LF marker
 	size_t	_readedLen;		// number of actually readed chars in block
-	size_t*	_linesLen;		// array of lengths of lines in a record
+	size_t* _linesLen;		// array of lengths of lines in a record
 	BYTE	_recLineCnt;	// number of lines in a record
 
 	// Raises ENDREAD sign an return NULL
-	//inline char* ReadingEnded()		  { RaiseFlag(ENDREAD); return NULL; }
+	//char* ReadingEnded()		  { RaiseFlag(ENDREAD); return NULL; }
 
 	// Returns record without control
-	inline char* RealRecord() const { return _buff + _currRecPos - _recLen; }
+	char* RealRecord() const { return _buff + _currRecPos - _recLen; }
 
 	// Reads next block.
 	//	@offset: shift of start reading position
@@ -285,14 +291,14 @@ class TxtInFile : public TxtFile
 	bool CompleteBlock(size_t currLinePos, size_t blankLineCnt);
 
 	// Fills I/O buffer with 0, beginning from @offset position
-	//inline void ClearBuff(size_t offset = 0) { memset(_buff + offset, 0, _buffLen - offset); }
+	//void ClearBuff(size_t offset = 0) { memset(_buff + offset, 0, _buffLen - offset); }
 
 	// Gets string containing file name and current record number.
-	//inline const string RecordNumbToStr() const { return LineNumbToStr(0); }
+	//const string RecordNumbToStr() const { return LineNumbToStr(0); }
 
 	// Gets number of line.
 	//	@lineInd: index of line in a record
-	ULONG LineNumber(BYTE lineInd) const { return (_recCnt-1) * _recLineCnt + lineInd + 1; }
+	ULONG LineNumber(BYTE lineInd) const { return (_recCnt - 1) * _recLineCnt + lineInd + 1; }
 
 protected:
 	// Constructs an TxtInFile instance: allocates buffers, opens an assigned file.
@@ -302,42 +308,42 @@ protected:
 	//	@msgFName: true if file name should be printed in an exception's message
 	//	@abortInvalid: true if invalid instance should be completed by throwing exception
 	TxtInFile(const string& fName, eAction mode, BYTE cntRecLines,
-		bool msgFName = true, bool abortInvalid=true);
+		bool msgFName = true, bool abortInvalid = true);
 
-	inline ~TxtInFile() { if(_linesLen)	delete [] _linesLen; }
+	~TxtInFile() { if (_linesLen)	delete[] _linesLen; }
 
 	// Gets current record.
-	inline const char* Record() const	{ return IsFlag(ENDREAD) ? NULL : RealRecord(); }
+	const char* Record() const { return IsFlag(ENDREAD) ? NULL : RealRecord(); }
 
 	// Reads record
 	//	return: pointer to line or NULL if no more lines
-	const char*	GetNextRecord();
+	const char* GetNextRecord();
 
 	// Reads N-controlled record
 	//	@counterN: counter of 'N'
 	//	return: pointer to line or NULL if no more lines
-	const char*	GetNextRecord(chrlen& counterN);
+	const char* GetNextRecord(chrlen& counterN);
 
 	// Reads tab-controlled record
 	//	@tabPos: TAB's positions array that should be filled
 	//	@cntTabs: maximum number of TABS in TAB's positions array
 	//	return: pointer to line or NULL if no more lines
-	char*	GetNextRecord(short* const tabPos, const BYTE tabCnt);
+	char* GetNextRecord(short* const tabPos, const BYTE tabCnt);
 
 #if defined _CALLDIST || defined _FQSTATN
 	// Gets next record
 	//	return: point to the next record in a buffer.
-	inline const char* NextRecord() const { return _buff + _currRecPos; }
+	const char* NextRecord() const { return _buff + _currRecPos; }
 
 	// Gets length of line.
 	//	@lineInd: index of line in a record
 	//	@withoutLF: if true then without LF marker length, otherwise without it
-	inline size_t	LineLengthByInd	(BYTE lineInd, bool withoutLF = true) const { 
+	size_t	LineLengthByInd(BYTE lineInd, bool withoutLF = true) const {
 		return _linesLen[lineInd] - withoutLF * LFSize();
 	}
 
 	// Throw exception if no record is readed.
-	void CheckGettingRecord() const { 
+	void CheckGettingRecord() const {
 		if (IsLFundef())
 			ThrowExcept("attempt to get record's oinfo without reading record");
 	}
@@ -351,10 +357,10 @@ protected:
 public:
 	// Gets length of current reading record including LF marker.
 	//	Returns 0 after RollBackLastRecord() invoke.
-	inline size_t	RecordLength() const { return _recLen; }
+	size_t	RecordLength() const { return _recLen; }
 
 	// Gets current readed line.
-	inline const char* Line()	const { return Record(); }
+	const char* Line()	const { return Record(); }
 
 	// Gets string containing file name and current line number.
 	//	@code: code of error occurs
@@ -363,7 +369,7 @@ public:
 
 	// Throws exception occurred in the current reading line 
 	//	@code: exception code
-	//inline void ThrowLineExcept(Err::eCode code) const {
+	//void ThrowLineExcept(Err::eCode code) const {
 	//	Err(_errCode=code, LineNumbToStr().c_str()).Throw();
 	//}
 
@@ -372,7 +378,7 @@ public:
 	void ThrowExceptWithLineNumb(const string& msg) const { Err(msg, LineNumbToStr().c_str()).Throw(); }
 
 	// Gets length of current line without LF marker: only for single-line record!
-	inline chrlen LineLength()	const { return RecordLength() - LFSize(); }
+	chrlen LineLength()	const { return chrlen(RecordLength() - LFSize()); }
 };
 
 #ifdef _FILE_WRITE
@@ -381,7 +387,7 @@ public:
 class TxtOutFile : public TxtFile
 {
 #ifdef _ISCHIP
-	friend class DataOutFile;
+	friend class ReadOutFile;
 #endif
 public:
 	static bool	Zipped;				// true if filed should be zippped
@@ -393,23 +399,25 @@ private:
 
 	char	_delim;				// field delimiter in line
 	// === line write buffer
-	char*	_lineBuff = NULL;		// line write buffer; for writing mode only
+	char* _lineBuff = NULL;		// line write buffer; for writing mode only
 	rowlen	_lineBuffLen = 0;		// length of line write buffer in writing mode, otherwise 0
 	rowlen	_lineBuffOffset = 0;	// current shift from the _buffLine; replaced by #define!!!
+	BYTE	_floatBuffLen = 6;		// length of buffer where the resulting float as string is stored
+	string	_formatFloat[2]{ "%4.2f", "%1.f" };	// format string for converting float to string
 #ifdef _MULTITHREAD
 	// === total counter of writed records
-	ULONG*	_totalRecCnt;	// pointer to total counter of writed records; for clone only
+	ULONG* _totalRecCnt;	// pointer to total counter of writed records; for clone only
 	Mutex::eType _mtype;
 #endif
 
-	//inline void AddCharEmpty() {}
+	//void AddCharEmpty() {}
 	////	Adds delimiter to the current position in the line write buffer and increases current position.
-	//inline void AddDelim() { LineAddChar(_delim); }
+	//void AddDelim() { LineAddChar(_delim); }
 
 	//	Adds delimiter to the current position in the line write buffer and increases current position.
 	//	@add: if true then adds delimiter
-	//inline void LineAddDelim(bool add) { (this->*fLineAddChar[add])(); }
-	inline void LineAddDelim(bool add) { if(add) LineAddChar(_delim); }
+	//void LineAddDelim(bool add) { (this->*fLineAddChar[add])(); }
+	void LineAddDelim(bool add) { if (add) LineAddChar(_delim); }
 
 	// Allocates memory for write line buffer with checking.
 	//	return: true if successful
@@ -421,11 +429,11 @@ private:
 
 protected:
 	// Returns current buffer write position
-	inline rowlen CurrBuffPos() const { return _lineBuffOffset; }
+	rowlen CurrBuffPos() const { return _lineBuffOffset; }
 
 	// Adds character to the current position in the line write buffer.
 	//	@ch: char to be set
-	inline void LineAddChar(char ch) { _lineBuff[_lineBuffOffset++] = ch; }
+	void LineAddChar(char ch) { _lineBuff[_lineBuffOffset++] = ch; }
 
 	// Adds character to the current position in the line write buffer with optional adding delimiter
 	//	@ch: char to be set
@@ -435,66 +443,65 @@ protected:
 	// Copies block of chars to the current position in the line write buffer,
 	//	adds delimiter after string	and increases current position.
 	//	@src: pointer to the block of chars
-	//	@num: number of chars
+	//	@len: number of chars
 	//	@addDelim: if true then adds delimiter and increases current position
 	//	return: new current position
-	rowlen LineAddChars(const char* src, rowlen num, bool addDelim = true);
+	rowlen LineAddChars(const char* src, rowlen len, bool addDelim = true);
 
-//public:
-	// Constructs an TxtOutFile instance: allocates I/O buffer, opens an assigned file.
-	//	@ftype: type of file
-	//	@fName: valid file name without extention
-	//	@printName: true if file name should be printed in the exception's message
-	//	@abortInvalid: true if invalid instance shold be completed by throwing exception
-	inline TxtOutFile(FT::eType ftype, const string& fName,
+	//public:
+		// Constructs an TxtOutFile instance: allocates I/O buffer, opens an assigned file.
+		//	@ftype: type of file
+		//	@fName: valid file name without extention
+		//	@printName: true if file name should be printed in the exception's message
+		//	@abortInvalid: true if invalid instance shold be completed by throwing exception
+	TxtOutFile(FT::eType ftype, const string& fName,
 		char delim = TAB, bool printName = true, bool abortInvalid = true) :
 		_delim(delim), _mtype(FT::MutexType(ftype)),
 		TxtFile(fName + FT::Ext(ftype, Zipped), eAction::WRITE, printName, abortInvalid)
-		{
+	{
 #ifdef _MULTITHREAD
-			_totalRecCnt = &_recCnt;	// for atomic increment
+		_totalRecCnt = &_recCnt;	// for atomic increment
 #endif
-		}		// line buffer will be created in SetLineBuff()
+	}		// line buffer will be created in SetLineBuff()
 
-	// Writes nonempty buffer, deletes line buffer and closes file
+// Writes nonempty buffer, deletes line buffer and closes file
 	~TxtOutFile();
 
-//protected:
+	//protected:
 #ifdef _MULTITHREAD
 	// Constructs a clone of an existing instance.
 	// Clone is a copy of opened file with its own separate basic I/O and write line buffers.
 	// Used for multithreading file recording
 	//	@file: opened file which is cloned
-	TxtOutFile	(const TxtOutFile& file);
+	TxtOutFile(const TxtOutFile& file);
 #endif
 
 	// Sets current position of the line write buffer.
-	inline void LineSetOffset(rowlen offset = 0)	{ _lineBuffOffset = offset; }
+	void LineSetOffset(rowlen offset = 0) { _lineBuffOffset = offset; }
 
 	// Increases current position by the specified len
-	inline void LineIncrOffset(rowlen len) { _lineBuffOffset += len; }
+	void LineIncrOffset(rowlen len) { _lineBuffOffset += len; }
+
+	template<typename... Args>
+	void LineAddArgs(const char* format, Args ... args) {
+		_lineBuffOffset += sprintf(_lineBuff + _lineBuffOffset, format, args...);
+	}
 
 	// Copies the string to the current position in the line write buffer,
 	//	adds delimiter after string and increases current position.
 	//	@str: string to be copied
 	//	@addDelim: if true then adds delimiter and increases current position
 	//	return: new current position
-	inline rowlen LineAddStr(const string& str, bool addDelim=true)	{ 
+	rowlen LineAddStr(const string& str, bool addDelim = true) {
 		return LineAddChars(str.c_str(), rowlen(str.length()), addDelim);
 	}
-
-	// Adds integral value to the current position of the line write buffer,
-	//	adds delimiter after value and increases current position.
-	//	@val: value to be set
-	//	@addDelim: if true then adds delimiter and increases current position
-	void LineAddInt(LLONG val, bool addDelim = true);
 
 	// Adds two integral values separated by default delimiter to the current position 
 	// of the line write buffer, adds delimiter after value and increases current position.
 	//	@val1: first value to be set
 	//	@val2: second value to be set
 	//	@addDelim: if true then adds delimiter and increases current position
-	void LineAddInts(ULONG val1, ULONG val2, bool addDelim=true);
+	void LineAddInts(ULONG val1, ULONG val2, bool addDelim = true);
 
 	// Adds three integral values separated by default delimiter to the current position 
 	// of the line write buffer, adds delimiter after value and increases current position.
@@ -502,37 +509,62 @@ protected:
 	//	@val2: second value to be set
 	//	@val3: third value to be set
 	//	@addDelim: if true then adds delimiter and increases current position
-	void LineAddInts(ULONG val1, ULONG val2, ULONG val3, bool addDelim=true);
+	void LineAddInts(ULONG val1, ULONG val2, ULONG val3, bool addDelim = true);
 
 	// Adds floating point value to the current position of the line write buffer,
 	//	adds delimiter after value and increases current position.
 	//	@val: value to be set
 	//	@ndigit: number of digits to generate
 	//	@addDelim: if true then adds delimiter and increases current position
-	//void LineAddFloat(float val, BYTE ndigit, bool addDelim=true);
+	//void LineAddFloat(float val, BYTE ndigit, bool addDelim = true);
+public:
+	// Adds integral value to the current position of the line write buffer,
+	//	adds delimiter after value and increases current position.
+	//	@val: value to be set
+	//	@addDelim: if true then adds delimiter and increases current position
+	void LineAddInt(LLONG val, bool addDelim = true);
+
+	// Adds floating point value to the current position of the line write buffer,
+	//	adds delimiter after value and increases current position.
+	//	@val: value to be set
+	//	@addDelim: if true then adds delimiter and increases current position
+	void LineAddFloat(float val, bool addDelim = true);
+protected:
+	// Adds single floating point value to the line buffer
+	void LineAddSingleFloat(float val);
+
+	//template <typename T>
+	//string tostr(const T& t) { ostringstream os; os << t; return os.str(); }
+
+	// Adds string with a single value to IO buffer without checking buffer exceeding.
+	//template<typename T>
+	//void LineAddSingleValue(T val) { 
+	//	LineAddStr(to_string(val), false);
+	//	LineToIOBuff();
+	//}
 
 	// Adds line to the IO buffer (from 0 to the current position).
 	//	@num: number of bytes from the beginning of line buffer to be added to file buffer
 	//	@offset: start position for the next writing cycle
-	void LineToIOBuff(rowlen offset=0);
+	void LineToIOBuff(rowlen offset = 0);
 
 	// Adds record to the IO buffer.
 	// Generates exception if writing is fall.
 	//	@src: record
 	//	@len: length of the record
-	void RecordToIOBuff	(const char *src, size_t len);
+	void RecordToIOBuff(const char* src, size_t len);
 
 	// Adds string to IO buffer without checking buffer exceeding.
 	void StrToIOBuff(const string&& str);
 
 	// Adds commented string to the IO buffer.
 	//	@str: recorded string
-	inline void CommLineToIOBuff(const string& str) { StrToIOBuff("# " + str);	}
+	void CommLineToIOBuff(const string& str) { StrToIOBuff("# " + str); }
 
 	// Allocates line write buffer.
 	//	@len: length of buffer
 	void SetLineBuff(rowlen len);
-	
+
 	// Adds to line 2 int values and adds line to the IO buff.
 	//void WriteLine(ULONG val1, ULONG val2);
 
@@ -543,11 +575,16 @@ protected:
 	//void WriteLine(const string& str, int val);
 
 	// Writes thread-safely current block to file.
-	void Write	() const;
-	
+	void Write() const;
+
 	// Adds content of another file (concatenates)
 	//	return: true if successful
 	//bool	AddFile(const string fName);
+
+public:
+	// Sets the number of digits in the fractional part when converting float to a string in buffer
+	//	@param digitsCnt: number of digits in the fractional part
+	void SetFloatFractDigits(BYTE digitsCnt);
 };
 #endif	// _FILE_WRITE
 
@@ -555,21 +592,21 @@ protected:
 
 // 'TabFile' represents TxtInFile consisting of lines with tab-separated filds
 class TabFile : public TxtInFile
-/*
- * Only number of fields defined in constructor is processed.
- * Number of fields can be equal 1, in that case ordinary plain text is processed.
- */
+	/*
+	 * Only number of fields defined in constructor is processed.
+	 * Number of fields can be equal 1, in that case ordinary plain text is processed.
+	 */
 {
 	FT::eType	_fType;
 	USHORT	_lineSpecLen = 0;		// length of line specifier; for reading only
-	short*	_fieldPos = nullptr;	// array of start positions in _currLine for each field
-	char*	_currLine = nullptr;	// current readed line; for reading only
+	short* _fieldPos = nullptr;	// array of start positions in _currLine for each field
+	char* _currLine = nullptr;	// current readed line; for reading only
 	ULONG	_estLineCnt = vUNDEF;	// estimated number of items
 
 	// Checks if filed valid and throws exception if not.
 	//	@fInd: field index
 	//	return: true if field is valid
-	bool IsFieldValid	(BYTE fInd) const;
+	bool IsFieldValid(BYTE fInd) const;
 
 	// Initializes new instance.
 	//	@type: file bioinfo type
@@ -580,7 +617,7 @@ class TabFile : public TxtInFile
 	void Release() { if (_fieldPos) delete[] _fieldPos; _fieldPos = NULL; }
 
 	// Returns the read pointer to the beginning of the last read line and decreases line counter
-	inline void RollBackLine() { RollBackRecord(TAB); }
+	void RollBackLine() { RollBackRecord(TAB); }
 
 protected:
 	// Sets estimation of number of lines by currently readed line, and rolls line back
@@ -607,17 +644,18 @@ public:
 		bool estLineCnt = true,
 		bool msgFName = true,
 		bool abortInvalid = true
-		) : TxtInFile(fName, mode, 1, msgFName, abortInvalid), _fType(type)
-	{	
-		if (mode != eAction::WRITE && IsGood())	
-			Init(_fType, estLineCnt);	}
+	) : TxtInFile(fName, mode, 1, msgFName, abortInvalid), _fType(type)
+	{
+		if (mode != eAction::WRITE && IsGood())
+			Init(_fType, estLineCnt);
+	}
 
 #if defined _ISCHIP && defined  _MULTITHREAD
 	// Creates a clone of TabFile class.
 	// Clone is a copy of opened file with its own buffer for writing only. Used for multithreading file recording.
 	//  @file: opened file which is copied
 	//  @threadNumb: number of thread
-	inline TabFile(const TabFile& file) :
+	TabFile(const TabFile& file) :
 		_fType(file._fType),
 		_lineSpecLen(file._lineSpecLen),
 		_fieldPos(file._fieldPos),
@@ -625,7 +663,7 @@ public:
 		TxtInFile(file/*, threadNumb*/) {}
 #endif
 
-	inline ~TabFile()	{ Release(); }
+	~TabFile() { Release(); }
 
 	// Returns a pointer to the substring defined by key.
 	//	@str: null-terminated string to search the key
@@ -643,16 +681,16 @@ public:
 //	@str: null-terminated string to search the key
 //	@key: string to search for
 //	return: key value, or throws an exception if key does not appear in str
-	inline chrlen GetIntKey(const char* str, const string& key) { return atoi(CheckSpec(str, key) + 1); }
+	chrlen GetIntKey(const char* str, const string& key) { return atoi(CheckSpec(str, key) + 1); }
 
 	// Gets file bioinfo type
-	inline FT::eType Type() const { return _fType; }
+	FT::eType Type() const { return _fType; }
 
 	// Gets count of readed lines
-	inline size_t Count() const { return RecordCount(); }
+	size_t Count() const { return RecordCount(); }
 
 	// Returns estimated number of items
-	inline size_t EstLineCount() const { return _estLineCnt; }
+	ULONG EstLineCount() const { return _estLineCnt; }
 
 	// Skip commented lines and returns estimated number of uncommented lines
 	//ULONG GetUncommLineCount();
@@ -670,37 +708,37 @@ public:
 	const char* GetNextLine(bool checkTabs = true);
 
 	// Gets current line.
-	inline char* GetLine() const { return _currLine; }
+	char* GetLine() const { return _currLine; }
 
 	// Reads null-terminated string by field's index from current line without check up.
-	inline const char* StrField	(BYTE fInd)	const {	return _currLine + _fieldPos[fInd]; }
+	const char* StrField(BYTE fInd)	const { return _currLine + _fieldPos[fInd]; }
 
 	// Reads null-terminated string by field's index from current line with check up.
-	const char* StrFieldValid	(BYTE fInd)	const {
+	const char* StrFieldValid(BYTE fInd)	const {
 		return IsFieldValid(fInd) ? StrField(fInd) : nullptr;
 	}
-	
+
 	// Reads checked integer by field's index from current line without check up.
-	inline int IntField	(BYTE fInd)	const {	return atoi(StrField(fInd)); }
+	int IntField(BYTE fInd)	const { return atoi(StrField(fInd)); }
 
 	// Reads checked integer by field's index from current line with check up.
-	int	 IntFieldValid	(BYTE fInd)	const {
+	int	 IntFieldValid(BYTE fInd)	const {
 		return IsFieldValid(fInd) ? IntField(fInd) : vUNDEF;
 	}
-	
+
 	// Reads float by field's index from current line without check up.
-	inline float FloatField	(BYTE fInd)	const {	return float(atof(StrField(fInd))); }
+	float FloatField(BYTE fInd)	const { return float(atof(StrField(fInd))); }
 
 	// Reads float by field's index from current line with check up.
-	float FloatFieldValid	(BYTE fInd)	const {
+	float FloatFieldValid(BYTE fInd)	const {
 		return IsFieldValid(fInd) ? FloatField(fInd) : vUNDEF;
 	}
-	
+
 	// Reads long by field's index from current line without check up.
-	inline long LongField	(BYTE fInd)	const {	return atol(StrField(fInd)); }
+	long LongField(BYTE fInd)	const { return atol(StrField(fInd)); }
 
 	// Reads long by field's index from current line with check up.
-	long LongFieldValid	(BYTE fInd)	const {
+	long LongFieldValid(BYTE fInd)	const {
 		return IsFieldValid(fInd) ? LongField(fInd) : vUNDEF;
 	}
 };
@@ -720,7 +758,7 @@ class ChromDefRegions : public Regions
 
 	public:
 		// Constructor accepting the minimum allowable gap
-		inline Combiner(chrlen minGapLen) : _gapLen(minGapLen) {}
+		Combiner(chrlen minGapLen) : _gapLen(minGapLen) {}
 
 		// Returns false if the next region is separated from the current one
 		// by a value less than the established minimum gap.
@@ -728,7 +766,7 @@ class ChromDefRegions : public Regions
 		bool ExceptRegion(Region& rgn);
 
 		// Returns last excepted region
-		inline const Region& LastRegion() const { return _rgn; }
+		const Region& LastRegion() const { return _rgn; }
 	};
 
 	const int DefCapacuty = 12;	// default container capacity
@@ -743,16 +781,16 @@ public:
 	// Creates new instance and initializes it from file if one exist
 	//	@fName: chrom file name without extension
 	//	@minGapLen: length, gaps less than which are ignored when reading; if 0 then read all regions 
-	ChromDefRegions(const string& fName, chrlen minGapLen=2);
-	
+	ChromDefRegions(const string& fName, chrlen minGapLen = 2);
+
 	// Returns true if instance is empty
-	inline bool Empty() const { return _new; }
+	bool Empty() const { return _new; }
 
 	// Returns total length of gaps
-	inline chrlen GapLen() const { return _gapLen; }
+	chrlen GapLen() const { return _gapLen; }
 
 	// Increments total length of gaps
-	inline void IncrGapLen(chrlen gapLen) { _gapLen += gapLen; }
+	void IncrGapLen(chrlen gapLen) { _gapLen += gapLen; }
 
 	// Adds def region beginning of current gap position.
 	//	@rgn: def region
@@ -775,19 +813,21 @@ class FaFile : public TxtInFile
 	class DefRgnMaker
 	{
 		chrlen	_minGapLen,			// minimal length which defines gap as a real gap
-				_currPos;			// current readed nt position
+			_currPos;			// current readed nt position
 		Region	_defRgn;			// current defined region
 		ChromDefRegions& _defRgns;	// external chrom's defined regions
 
 	public:
-		inline DefRgnMaker(ChromDefRegions& rgns, chrlen minGapLen)
-			: _minGapLen(minGapLen), _currPos(0), _defRgns(rgns) { _defRgns.Clear(); }
+		DefRgnMaker(ChromDefRegions& rgns, chrlen minGapLen)
+			: _minGapLen(minGapLen), _currPos(0), _defRgns(rgns) {
+			_defRgns.Clear();
+		}
 
 		// Adds last readed line length
-		inline void AddLineLen(chrlen lineLen) { _currPos += lineLen; }
+		void AddLineLen(chrlen lineLen) { _currPos += lineLen; }
 
 		// Remove last readed line length
-		inline void RemoveLineLen(chrlen lineLen) { _currPos -= lineLen; }
+		void RemoveLineLen(chrlen lineLen) { _currPos -= lineLen; }
 
 		// Adds a gap to assign defined regions
 		//	@start: gap's start position.
@@ -818,16 +858,16 @@ class FaFile : public TxtInFile
 public:
 	// Opens existing file and reads first line.
 	//	@rgns: def regions to fill, otherwise NULL to reading without 'N' control
-	FaFile(const string& fName, ChromDefRegions* rgns=NULL);
+	FaFile(const string& fName, ChromDefRegions* rgns = NULL);
 
 	// Gets chromosome's length
-	inline chrlen ChromLength() const { return _cLen; }
+	chrlen ChromLength() const { return _cLen; }
 
 	// Reads line and set it as current (with filling def regions if necessary)
-	inline const char* NextGetLine()	{ return (this->*_pGetLine)(); }
+	const char* NextGetLine() { return (this->*_pGetLine)(); }
 
 	// Closes reading
-	inline void CLoseReading()	{ if(_rgnMaker)	_rgnMaker->CloseAddGaps(_cLen); }
+	void CLoseReading() { if (_rgnMaker)	_rgnMaker->CloseAddGaps(_cLen); }
 };
 
 #endif	// _WIGREG
@@ -840,24 +880,22 @@ class FqFile : public TxtInFile
 {
 	enum eLineLenIndex { HEADER1, READ, HEADER2, QUAL };
 
-public:	
+public:
 	// Creates new instance for reading by file name
-	inline FqFile(const string& fileName)
+	FqFile(const string& fileName)
 		: TxtInFile(fileName, eAction::READ, 4, false) {}
 
 	// Returns checked length of current readed Read.
 	readlen ReadLength() const;
-	
+
 	// Gets checked Read from readed Sequence.
 	const char* GetCurrRead() const;
 
 	// Returns checked Sequence.
-	const char*	GetSequence	();
-	
+	const char* GetSequence();
+
 	// Returns count of sequences.
-	inline ULONG Count() const { return RecordCount(); }
+	ULONG Count() const { return RecordCount(); }
 };
 
 #endif	// _CALLDIST || _FQSTATN
-
-#endif	//_TXTFILE_H

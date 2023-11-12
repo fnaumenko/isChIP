@@ -2,7 +2,7 @@
 Imitator.h (c) 2014 Fedor Naumenko (fedor.naumenko@gmail.com)
 All rights reserved.
 -------------------------
-Last modified: 07.01.2022
+Last modified: 11/12/2023
 -------------------------
 Provides chip-seq imitation functionality
 ***********************************************************/
@@ -638,7 +638,7 @@ public:
 	// Set number of threads
 	static void SetThreadNumb(BYTE numb) { 
 		FragCnt::Init((ThrCnt=numb) == 1);
-		ReadName::MultiThread = numb > 1;
+		ReadOutFile::MultiThread = numb > 1;
 	}
 
 	// Initializes static values

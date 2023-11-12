@@ -2,14 +2,11 @@
 Data.h (c) 2014 Fedor Naumenko (fedor.naumenko@gmail.com)
 All rights reserved.
 -------------------------
-Last modified: 07.01.2022
+Last modified: 11/12/2023
 -------------------------
 Provides common data functionality
 ***********************************************************/
 #pragma once
-
-#ifndef _DATA_H
-#define _DATA_H
 
 #include "DataInFile.h"
 #include <array>
@@ -22,75 +19,78 @@ Provides common data functionality
 // 'ChromMap'
 template <typename T> class ChromMap
 {
-//protected:
 public:
 	typedef map<chrid, T> chrMap;
-
-private:
-	chrMap _cMap;
-
-protected:
-	// Returns count of elements.
-	inline size_t Count() const { return _cMap.size(); }
-
-	// Adds class type to the collection without checking cID.
-	// Avoids unnecessery copy constructor call
-	//	return: class type collection reference
-	inline T& AddElem(chrid cID, const T& val) { return _cMap[cID] = val; }
-
-	// Adds empty class type to the collection without checking cID
-	//	return: class type collection reference
-	inline T& AddEmptyElem(chrid cID) { return AddElem(cID, T()); }
-
-	inline const chrMap& Container() const { return _cMap; }
-
-	inline chrMap& Container() { return _cMap; }
-
-public:
 	typedef typename chrMap::iterator Iter;			// iterator
 	typedef typename chrMap::const_iterator cIter;	// constant iterator
 
 	// Returns a random-access constant iterator to the first element in the container
-	inline cIter cBegin() const { return _cMap.begin(); }
+	cIter cBegin() const { return _cMap.begin(); }
 	// Returns the past-the-end constant iterator.
-	inline cIter cEnd()	  const { return _cMap.end(); }
+	cIter cEnd()	  const { return _cMap.end(); }
 	// Returns a random-access iterator to the first element in the container
-	inline Iter Begin()	{ return _cMap.begin(); }
+	Iter Begin() { return _cMap.begin(); }
 	// Returns the past-the-end iterator.
-	inline Iter End()	{ return _cMap.end(); }
+	Iter End() { return _cMap.end(); }
 
 	// Copies entry
-	inline void Assign(const ChromMap& map) {	_cMap = map._cMap; }
-	
+	void Assign(const ChromMap& map) { _cMap = map._cMap; }
+
 	// Returns constant reference to the item at its cID
-	inline const T& At(chrid cID) const { return _cMap.at(cID); }
+	const T& At(chrid cID) const { return _cMap.at(cID); }
 
 	// Returns reference to the item at its cID
-	inline T& At(chrid cID) { return _cMap.at(cID); }
+	T& At(chrid cID) { return _cMap.at(cID); }
 
-	inline const T& operator[] (chrid cID) const { return _cMap(cID); }
+	const T& operator[] (chrid cID) const { return _cMap(cID); }
 
-	inline T& operator[] (chrid cID) { return _cMap[cID]; }
+	T& operator[] (chrid cID) { return _cMap[cID]; }
 
 	// Searches the container for a cID and returns an iterator to the element if found,
 	// otherwise it returns an iterator to end (the element past the end of the container)
-	inline Iter GetIter(chrid cID) { return _cMap.find(cID); }
+	Iter GetIter(chrid cID) { return _cMap.find(cID); }
 
 	// Searches the container for a cID and returns a constant iterator to the element if found,
 	// otherwise it returns an iterator to cEnd (the element past the end of the container)
-	inline const cIter GetIter(chrid cID) const { return _cMap.find(cID);	}
+	const cIter GetIter(chrid cID) const { return _cMap.find(cID); }
 
 	// Adds value type to the collection without checking cID
-	inline void AddVal(chrid cID, const T & val) { _cMap[cID] = val; }
+	void AddVal(chrid cID, const T& val) { _cMap[cID] = val; }
+	void AddVal(chrid cID, const T&& val) { _cMap[cID] = val; }
+
+	//// Adds value type to the collection without checking cID
+	//void EmplaceVal(chrid cID, BYTE val) { _cMap.emplace(cID, T(val)); }
+	////void EmplaceVal(T&&... args) { _cMap.emplace(cID, args); }
+
 
 	// Removes from the container an element cID
-	inline void Erase(chrid cID) { _cMap.erase(cID); }
+	void Erase(chrid cID) { _cMap.erase(cID); }
 
 	// Clear content
-	inline void Clear() { _cMap.clear(); }
+	void Clear() { _cMap.clear(); }
 
 	// Returns true if element with cID exists in the container, and false otherwise.
-	inline bool FindItem (chrid cID) const { return _cMap.count(cID) > 0;	}
+	bool FindItem(chrid cID) const { return _cMap.count(cID) > 0; }
+
+protected:
+	// Returns count of elements.
+	size_t Count() const { return _cMap.size(); }
+
+	// Adds class type to the collection without checking cID.
+	// Avoids unnecessery copy constructor call
+	//	return: class type collection reference
+	T& AddElem(chrid cID, const T& val) { return _cMap[cID] = val; }
+
+	// Adds empty class type to the collection without checking cID
+	//	return: class type collection reference
+	T& AddEmptyElem(chrid cID) { return AddElem(cID, T()); }
+
+	const chrMap& Container() const { return _cMap; }
+
+	chrMap& Container() { return _cMap; }
+
+private:
+	chrMap _cMap;
 };
 
 // 'ChromData' implements sign whether chrom is involved in processing, and chrom's data itself
@@ -99,45 +99,46 @@ template <typename T> struct ChromData
 	bool Treated = true;	// true if chrom is involved in processing
 	T	 Data;				// chrom's data
 
-	inline ChromData() : Data(T()) {}
-	inline ChromData(const T& data) : Data(data) {}
+	ChromData() : Data(T()) {}
+	ChromData(const T& data) : Data(data) {}
 };
 
 // Basic class for chromosomes collection; keyword 'abstract' doesn't compiled in gcc
-template <typename T> 
+template <typename T>
 class Chroms : public ChromMap<ChromData<T> >
 {
 public:
 	// Returns true if chromosome by iterator should be treated
-	//inline bool IsTreated(typename ChromMap<ChromData<T> >& data) const { return data.second.Treated; }
-	
+	//bool IsTreated(typename ChromMap<ChromData<T> >& data) const { return data.second.Treated; }
+
 	// Returns true if chromosome by iterator should be treated
-	inline bool IsTreated(typename ChromMap<ChromData<T> >::cIter it) const { return it->second.Treated; }
+	bool IsTreated(typename ChromMap<ChromData<T> >::cIter it) const { return it->second.Treated; }
 
 	// Returns true if chromosome by ID should be treated
-	//inline bool IsTreated(chrid cID) const { return IsTreated(this->GetIter(cID));	}
+	//bool IsTreated(chrid cID) const { return IsTreated(this->GetIter(cID));	}
 
-	inline const T& Data(typename ChromMap<ChromData<T> >::cIter it) const { return it->second.Data; }
-	
-	inline T& Data(typename ChromMap<ChromData<T> >::Iter it) { return it->second.Data; }
+	const T& Data(typename ChromMap<ChromData<T> >::cIter it) const { return it->second.Data; }
+
+	T& Data(typename ChromMap<ChromData<T> >::Iter it) { return it->second.Data; }
+
+	T& Data(chrid cID) { return this->At(cID).Data; }
 
 	// Returns count of chromosomes.
-	inline chrid ChromCount() const { return chrid(this->Count()); }	// 'this' required in gcc
+	chrid ChromCount() const { return chrid(this->Count()); }	// 'this' required in gcc
 
-	// Gets count of treated chroms
-	//chrid TreatedCount() const 
-	//{
-	//	chrid res = 0;
-	//
-	//	for(auto it=this->cBegin(); it!=this->cEnd(); res += IsTreated(it++));
-	//	return res;
-	//}
+	 // Gets count of treated chroms
+	chrid TreatedCount() const
+	{
+		chrid res = 0;
+		for (auto it = this->cBegin(); it != this->cEnd(); res += IsTreated(it++));
+		return res;
+	}
 
 	// Returns true if chromosome cID exists in the container, and false otherwise.
-	inline bool FindChrom(chrid cID) const { return this->FindItem(cID); }
+	bool FindChrom(chrid cID) const { return this->FindItem(cID); }
 
 	// Adds value type to the collection without checking cID
-	inline void AddValue(chrid cid, const T& val) { this->AddVal(cid, ChromData<T>(val)); }
+	void AddValue(chrid cid, const T& val) { this->AddVal(cid, ChromData<T>(val)); }
 
 #ifdef	_READDENS
 	// Sets common chromosomes as 'Treated' in both of this instance and given Chroms.
@@ -164,26 +165,26 @@ public:
 				if (printWarn)
 					Err(Chrom::Absent(CID(it), "first file")).Warning();
 			}
-		if( !commCnt )	Err("no common " + Chrom::Title(true)).Throw(throwExcept);
+		if (!commCnt)	Err("no common " + Chrom::Title(true)).Throw(throwExcept);
 		return commCnt;
 	}
 #endif	// _READDENS
 };
 
-// 'ItemIndexes' representes a range of chromosome's features/reads indexes,
-struct ItemIndexes
+// 'ItemIndices' representes a range of chromosome's features/reads indexes,
+struct ItemIndices
 {
 	chrlen	FirstInd;	// first index in items container
 	chrlen	LastInd;	// last index in items container
 
-	inline ItemIndexes(chrlen first=0, chrlen last=1) : FirstInd(first), LastInd(last-1) {}
-		
+	ItemIndices(chrlen first = 0, chrlen last = 1) : FirstInd(first), LastInd(last - 1) {}
+
 	// Returns count of items
-	inline size_t ItemsCount() const { return LastInd - FirstInd + 1; }
+	size_t ItemsCount() const { return LastInd - FirstInd + 1; }
 };
 
 template <typename I>
-class Items : public Chroms<ItemIndexes>
+class Items : public Chroms<ItemIndices>
 {
 public:
 	typedef typename vector<I>::const_iterator cItemsIter;
@@ -202,7 +203,7 @@ protected:
 
 	// Applies function fn to each of the item for chrom defined by cit
 	//void ForChrItems(const value_type& c, function<void(cItemsIter)> fn) const {
-	//	//const ItemIndexes& data = 
+	//	//const ItemIndices& data = 
 	//	const auto itEnd = ItemsEnd(c.Data.
 	//		//Data(cit));
 	//	for (auto it = ItemsBegin(Data(cit)); it != itEnd; it++)
@@ -219,7 +220,7 @@ protected:
 	}
 
 	// Initializes size of positions container.
-	inline void ReserveItems(size_t size) { _items.reserve(size); }
+	void ReserveItems(size_t size) { _items.reserve(size); }
 
 	// Gets item.
 	//	@it: chromosome's iterator
@@ -229,19 +230,19 @@ protected:
 	// Returns item.
 	//	@cInd: index of chromosome
 	//	@iInd: index of item
-	//inline const I& Item(chrid cID, chrlen iInd) const { return Item(GetIter(cID), iInd); }
+	//const I& Item(chrid cID, chrlen iInd) const { return Item(GetIter(cID), iInd); }
 
 #ifdef _DEBUG
-	inline void PrintItem(chrlen itemInd) const { _items[itemInd].Print(); }
+	void PrintItem(chrlen itemInd) const { _items[itemInd].Print(); }
 #endif
 
 public:
 	// Gets total count of items
-	inline size_t ItemsCount() const { return _items.size(); }
+	size_t ItemsCount() const { return _items.size(); }
 
 	// Gets count of items for chrom
 	//	@data: item indexes
-	inline size_t ItemsCount(const ItemIndexes& data) const { return data.ItemsCount(); }
+	size_t ItemsCount(const ItemIndices& data) const { return data.ItemsCount(); }
 
 	// Gets count of items for chrom
 	//	@cit: chrom's iterator
@@ -249,9 +250,9 @@ public:
 
 	// Gets count of items for chrom; used in isChIP
 	//	@cit: chrom's ID
-	inline size_t ItemsCount(chrid cID) const { return ItemsCount(GetIter(cID)); }
+	size_t ItemsCount(chrid cID) const { return ItemsCount(GetIter(cID)); }
 
-	void PrintEst(ULONG estCnt) const {	cout << " est/fact: " << double(estCnt) / ItemsCount() << LF; }
+	void PrintEst(ULONG estCnt) const { cout << " est/fact: " << double(estCnt) / ItemsCount() << LF; }
 
 #ifdef _ISCHIP
 	// Prints items name and count, adding chrom name if the instance holds only one chrom
@@ -267,43 +268,43 @@ public:
 #endif
 	// Returns a constan iterator referring to the first item of specified chrom
 	//	@data: item indexes
-	cItemsIter ItemsBegin(const ItemIndexes& data) const { return _items.begin() + data.FirstInd; }
+	cItemsIter ItemsBegin(const ItemIndices& data) const { return _items.begin() + data.FirstInd; }
 
 	// Returns a constant iterator referring to the past-the-end item of specified chrom
 	//	@data: item indexes
-	cItemsIter ItemsEnd(const ItemIndexes& data) const { return _items.begin() + data.LastInd + 1; }
+	cItemsIter ItemsEnd(const ItemIndices& data) const { return _items.begin() + data.LastInd + 1; }
 
 	// Returns a constan iterator referring to the first item of specified chrom
 	//	@cit: chromosome's constant iterator
-	inline cItemsIter ItemsBegin(cIter cit) const { return ItemsBegin(Data(cit)); }
+	cItemsIter ItemsBegin(cIter cit) const { return ItemsBegin(Data(cit)); }
 
 	// Returns a constan iterator referring to the first item of specified chrom
 	//	@cID: chromosome's ID
-	inline cItemsIter ItemsBegin(chrid cID) const { return ItemsBegin(GetIter(cID)); }
+	cItemsIter ItemsBegin(chrid cID) const { return ItemsBegin(GetIter(cID)); }
 
 	// Returns a constant iterator referring to the past-the-end item of specified chrom
 	//	@cit: chromosome'sconstant  iterator
-	inline cItemsIter ItemsEnd(cIter cit) const { return ItemsEnd(Data(cit)); }
+	cItemsIter ItemsEnd(cIter cit) const { return ItemsEnd(Data(cit)); }
 
 	// Returns a constant iterator referring to the past-the-end item of specified chrom
 	//	@cID: chromosome's ID
-	inline cItemsIter ItemsEnd(chrid cID) const { return ItemsEnd(GetIter(cID)); }
+	cItemsIter ItemsEnd(chrid cID) const { return ItemsEnd(GetIter(cID)); }
 
 	// Returns a constan iterator referring to the first item of specified chrom
 	//	@data: item indexes
-	ItemsIter ItemsBegin(ItemIndexes& data) { return _items.begin() + data.FirstInd; }
+	ItemsIter ItemsBegin(ItemIndices& data) { return _items.begin() + data.FirstInd; }
 
 	// Returns a constant iterator referring to the past-the-end item of specified chrom
 	//	@data: item indexes
-	ItemsIter ItemsEnd(ItemIndexes& data) { return _items.begin() + data.LastInd + 1; }
+	ItemsIter ItemsEnd(ItemIndices& data) { return _items.begin() + data.LastInd + 1; }
 
 	// Returns an iterator referring to the first item of specified chrom
 	//	@cit: chromosome's iterator
-	inline ItemsIter ItemsBegin(Iter cit) { return ItemsBegin(Data(cit)); }
+	ItemsIter ItemsBegin(Iter cit) { return ItemsBegin(Data(cit)); }
 
 	// Returns an iterator referring to the past-the-end item of specified chrom
 	//	@cit: chromosome's iterator
-	inline  ItemsIter ItemsEnd(Iter cit) { return ItemsEnd(Data(cit)); }
+	ItemsIter ItemsEnd(Iter cit) { return ItemsEnd(Data(cit)); }
 
 #ifdef _DEBUG
 	// Prints collection
@@ -334,11 +335,11 @@ struct Featr : public Region
 {
 	float	Value;			// features's score
 
-	inline Featr(const Region& rgn, float val = 0) : Value(val), Region(rgn) {}
+	Featr(const Region& rgn, float val = 0) : Value(val), Region(rgn) {}
 
-	//inline Region& operator = (const Featr& f) { *this = f; }
+	//Region& operator = (const Featr& f) { *this = f; }
 #ifdef _DEBUG
-	inline void Print() const { cout << Start << TAB << End << TAB << Value << LF; }
+	void Print() const { cout << Start << TAB << End << TAB << Value << LF; }
 #endif	// _DEBUG
 };
 
@@ -358,11 +359,11 @@ class Features : public Items<Featr>
 	// Gets item's title
 	// Obj abstract method implementation.
 	//	@pl: true if plural form
-	inline const string& ItemTitle(bool pl = false) const { return FT::ItemTitle(FT::eType::BED, pl); }
+	const string& ItemTitle(bool pl = false) const { return FT::ItemTitle(FT::eType::BED, pl); }
 
 	// Gets a copy of Region by item's iterator.
 	// Abstract BaseItems<> method implementation.
-	inline Region const Regn(cItemsIter it) const { return Region(*it); }
+	Region const Regn(cItemsIter it) const { return Region(*it); }
 
 	// Adds chrom to the instance
 	//	@cID: chrom
@@ -387,8 +388,8 @@ public:
 		BYTE scoreInd, readlen bsLen, bool prfName)
 		: _minFtrLen(bsLen), _uniScore(!scoreInd)
 	{
-		FBedInFile file(fName, &cSizes, scoreInd, 
-			joinOvrl ? UniBedInFile::eAction::JOIN : UniBedInFile::eAction::OMIT, 
+		FBedInFile file(fName, &cSizes, scoreInd,
+			joinOvrl ? UniBedInFile::eAction::JOIN : UniBedInFile::eAction::OMIT,
 			eOInfo::LAC, prfName, true);
 #else
 	// Creates new instance by bed-file name
@@ -427,29 +428,29 @@ public:
 	//	@cLen: chrom length
 	//	@cnt: current chrom items count
 	//	@nextcID: next chrom ID
-	inline void operator()(chrid cID, chrlen cLen, size_t cnt, chrid nextcID) { AddChrom(cID, cnt); }
+	void operator()(chrid cID, chrlen cLen, size_t cnt, chrid nextcID) { AddChrom(cID, cnt); }
 
 	// Closes last chrom
 	//	@cID: last chrom ID
 	//	@cLen: chrom length
 	//	@cnt: last chrom items count
 	//	@tCnt: total items count
-	inline void operator()(chrid cID, chrlen cLen, size_t cnt, ULONG tCnt) { AddChrom(cID, cnt); }
+	void operator()(chrid cID, chrlen cLen, size_t cnt, ULONG tCnt) { AddChrom(cID, cnt); }
 
 	// Gets chromosome's feature by ID
 	//	@cID: chromosome's ID
 	//	@fInd: feature's index, or first feature by default
-	//inline const Featr& Feature(chrid cID, chrlen fInd=0) const { return Item(cID, fInd); }
+	//const Featr& Feature(chrid cID, chrlen fInd=0) const { return Item(cID, fInd); }
 
 	// Gets chromosome's feature by iterator
 	//	@it: chromosome's iterator
 	//	@fInd: feature's index, or first feature by default
-	inline const Featr& Feature(cIter it, chrlen fInd = 0) const { return Item(it, fInd); }
+	const Featr& Feature(cIter it, chrlen fInd = 0) const { return Item(it, fInd); }
 
 	// Gets chromosome's feature by iterator
 	//	@it: chromosome's iterator
 	//	@fInd: feature's index, or first feature by default
-	inline const Region& Regn(cIter it, chrlen fInd = 0) const { return (const Region&)Item(it, fInd); }
+	const Region& Regn(cIter it, chrlen fInd = 0) const { return (const Region&)Item(it, fInd); }
 
 	// Gets the sum length of all chromosome's features
 	//	@it: chromosome's iterator
@@ -462,7 +463,7 @@ public:
 	//	@fLen: average fragment length on which each feature will be expanded in puprose of calculation
 	//	(float to minimize rounding error)
 	chrlen EnrRegnLength(cIter it, BYTE multiplier, float fLen) const {
-		return (FeaturesLength(it) + chrlen(2 * fLen) * Data(it).ItemsCount()) << multiplier;
+		return (FeaturesLength(it) + chrlen(2 * fLen * Data(it).ItemsCount())) << multiplier;
 	}
 
 	// Gets chrom's total enriched regions length:
@@ -487,30 +488,30 @@ public:
 	//	@cSizes: chrom sizes
 	//	@action: action for overlapping features
 	//	return: true if positions have been changed
-	bool Extend(chrlen extLen, const ChromSizes& cSizes, UniBedInFile::eAction action);
+	bool Extend(chrlen extLen, const ChromSizes & cSizes, UniBedInFile::eAction action);
 
 	// Checks whether all features length exceed given length, throws exception otherwise.
 	//	@len: given control length
 	//	@lenDefinition: control length definition to print in exception message
 	//	@sender: exception sender to print in exception message
-	void CheckFeaturesLength(chrlen len, const string& lenDefinition, const char* sender) const;
+	void CheckFeaturesLength(chrlen len, const string & lenDefinition, const char* sender) const;
 
 #ifdef _ISCHIP
-	inline bool IsUniScore() const { return _uniScore; }
+	bool IsUniScore() const { return _uniScore; }
 #else
 	// Copies features coordinates to external DefRegions.
-	void FillRegions(chrid cID, Regions& regn) const;
+	void FillRegions(chrid cID, Regions & regn) const;
 #endif	// _ISCHIP
 #ifdef _BIOCC
 	// Returns true if features length distribution is degenerate
-	inline bool NarrowLenDistr() const { return _narrowLenDistr; }
+	bool NarrowLenDistr() const { return _narrowLenDistr; }
 
 	friend class JointedBeds;	// to access GetIter(chrid)
 #endif
 #ifdef _DEBUG
 	void Print(size_t cnt = 0) const { Items::Print("features", cnt); }
 #endif	// _DEBUG
-};
+	};
 
 #endif	// _FEATURES
 
@@ -521,12 +522,12 @@ struct ChromSize
 #ifdef _ISCHIP
 	mutable chrlen Defined = 0;	// defined effective chrom length;
 								// 'effective' means double length for autosomes, single one for somatic
-	
+
 	// Sets chrom's effective (treated) real length as defined
-	inline chrlen SetEffDefined(bool autosome) const { return bool(Defined = (Real << int(autosome))); }
+	chrlen SetEffDefined(bool autosome) const { return bool(Defined = (Real << int(autosome))); }
 #endif
 
-	inline ChromSize(chrlen size = 0) : Real(size) {}
+	ChromSize(chrlen size = 0) : Real(size) {}
 };
 
 // 'ChromSizes' represented chrom sizes with additional file system binding attributes
@@ -564,55 +565,56 @@ class ChromSizes : public Chroms<ChromSize>
 	//	@prMsg: true if print message about service fodler and chrom.sizes generation
 	void SetPath(const string& gPath, const char* sPath, bool prMsg);
 
+	void SetTreatedChrom(chrid cID);
+
 	// returns true if service path is defined
-	inline bool IsServAvail() const { return _sPath.size(); }
+	bool IsServAvail() const { return _sPath.size(); }
 
 protected:
-	inline chrlen Length(cIter it) const { return Data(it).Real; }
+	chrlen Length(cIter it) const { return Data(it).Real; }
 
 public:
-	inline const string& RefExt() const { return _ext; }
-	
+	const string& RefExt() const { return _ext; }
+
 	// Creates and initializes an instance.
-	//	@gName: reference genome directory or chrom.sizes file
-	//	@customChrOpt: id of 'custom chrom' option
-	//	@prMsg: true if print message about service fodler and chrom.sizes generation
-	//	@sPath: service directory
-	//	checkGRef: if true then check if @gName is a ref genome dir; used in isChIP
+	//	@param gName: reference genome directory or chrom.sizes file
+	//	@param customChrOpt: id of 'custom chrom' option
+	//	@param prMsg: if true then print message about service fodler and chrom.sizes generation
+	//	@param sPath: service directory
+	//	@param checkGRef: if true then check if @gName is a ref genome dir; used in isChIP
 	ChromSizes(const char* gName, BYTE customChrOpt, bool prMsg, const char* sPath = NULL, bool checkGRef = false);
 
-	inline ChromSizes() { _ext = _gPath = _sPath = strEmpty; }
+	ChromSizes() { _ext = _gPath = _sPath = strEmpty; }
 
 	// Initializes ChromSizes by SAM header
 	void Init(const string& headerSAM);
 
-	inline bool IsFilled() const { return Count(); }
+	bool IsFilled() const { return Count(); }
 
 	// Return true if chrom.sizes are defined explicitly, by user
-	//inline bool IsExplicit() const { return !_gPath.length(); }		// false if path == strEmpty
-	
+	//bool IsExplicit() const { return !_gPath.length(); }		// false if path == strEmpty
+
 	// Returns reference directory
-	inline const string& RefPath() const { return _gPath; }
+	const string& RefPath() const { return _gPath; }
 
 	// Returns service directory
-	inline const string& ServPath() const { return _sPath; }
+	const string& ServPath() const { return _sPath; }
 
 	// Returns service directory
-	inline const bool IsServAsRef() const { return _gPath == _sPath; }
+	const bool IsServAsRef() const { return _gPath == _sPath; }
 
 	// Returns full ref chrom name by chrom ID 
-	inline const string RefName(chrid cid) const { return _gPath + Chrom::AbbrName(cid); }
+	const string RefName(chrid cid) const { return _gPath + Chrom::AbbrName(cid); }
 
 	// Returns full service chrom name by chrom ID 
-	inline const string ServName(chrid cid) const { return _sPath + Chrom::AbbrName(cid); }
+	const string ServName(chrid cid) const { return _sPath + Chrom::AbbrName(cid); }
 
-	inline cIter begin() const { return cBegin(); }
-	inline cIter end() const { return cEnd(); }
+	cIter begin() const { return cBegin(); }
+	cIter end() const { return cEnd(); }
 
-	//inline chrlen Size(const Iter::value_type& sz) const { return sz.second.Data.Real; }
+	//chrlen Size(const Iter::value_type& sz) const { return sz.second.Data.Real; }
 
-	inline chrlen operator[] (chrid cID) const { return At(cID).Data.Real; }
-
+	chrlen operator[] (chrid cID) const { return At(cID).Data.Real; }
 
 	// Gets total size of genome.
 	genlen GenSize() const;
@@ -631,28 +633,28 @@ class ChromSizesExt : public ChromSizes
 
 	// Gets chrom's effective (treated) real length: a double length for autosomes, a single somatic
 	//	@it: ChromSizes iterator
-	inline chrlen SetEffLength(cIter it) const { return Data(it).SetEffDefined(Chrom::IsAutosome(CID(it))); }
+	chrlen SetEffLength(cIter it) const { return Data(it).SetEffDefined(Chrom::IsAutosome(CID(it))); }
 
 public:
 	// Creates and initializes an instance.
 	//	@gName: reference genome directory
 	//	@customChrOpt: id of 'custom chrom' option
 	//	@printMsg: true if print message about chrom.sizes generation (in case of reference genome)
-	inline ChromSizesExt(const char* gName, BYTE customChrOpt, bool printMsg, const char* sPath)
+	ChromSizesExt(const char* gName, BYTE customChrOpt, bool printMsg, const char* sPath)
 		: _treatedCnt(0), ChromSizes(gName, customChrOpt, printMsg, sPath, true) {}
-	
+
 	// Gets chrom's defined effective (treated) length
 	//	@it: ChromSizes iterator
 	chrlen DefEffLength(cIter it) const;
 
 	// Gets count of treated chromosomes.
-	inline chrid TreatedCount() const	{ return _treatedCnt; }
+	chrid TreatedCount() const { return _treatedCnt; }
 
 	// Sets actually treated chromosomes according template and custom chrom
 	//	@templ: template bed or NULL
 	//	return: number of treated chromosomes
 	chrid	SetTreatedChroms(bool statedAll, const Features* const templ);
-	
+
 	// Prints threated chroms short names
 	void	PrintTreatedChroms() const;
 };
@@ -664,9 +666,9 @@ class RefSeq
 {
 private:
 	chrid	_ID;			// chrom ID
-	char*	_seq = NULL;	// the nucleotides buffer
+	char* _seq = NULL;	// the nucleotides buffer
 	chrlen	_len,			// length of chromosome
-			_gapLen;		// total length of gaps
+		_gapLen;		// total length of gaps
 	Region	_effDefRgn;		// effective defined region (except 'N' at the begining and at the end)
 
 	// Initializes instance and/or chrom's defined regions
@@ -680,10 +682,10 @@ public:
 	static bool	LetGaps;	// if true then include gaps at the edges of the ref chrom while reading
 	static bool	StatGaps;	// if true count sum gaps for statistic output
 
-	inline ~RefSeq()	{ delete [] _seq; }
+	~RefSeq() { delete[] _seq; }
 
 	// Gets chrom legth
-	inline chrlen Length()	const { return _len; }
+	chrlen Length()	const { return _len; }
 
 	// Gets Read on position or NULL if exceeding the chrom length
 	//const char* Read(chrlen pos) const { return pos > _len ? NULL : _seq + pos;	}
@@ -691,14 +693,16 @@ public:
 	//const char* Read(chrlen pos, readlen len) const { return pos + len > Length() ? NULL : _seq + pos; }
 
 	// Gets subsequence without exceeding checking 
-	inline const char* Seq(chrlen pos) const { return _seq + pos; }
+	const char* Seq(chrlen pos) const { return _seq + pos; }
 
 #if defined _ISCHIP || defined _VALIGN
 
 	// Creates a stub instance (for sampling cutting)
 	//	@len: chrom length
-	inline RefSeq(chrlen len) : _ID(Chrom::UnID), _seq(NULL), _len(len), _gapLen(0)
-	{ _effDefRgn.Set(0, len); }
+	RefSeq(chrlen len) : _ID(Chrom::UnID), _seq(NULL), _len(len), _gapLen(0)
+	{
+		_effDefRgn.Set(0, len);
+	}
 
 	// Creates and fills new instance
 	RefSeq(chrid cID, const ChromSizes& cSizes);
@@ -706,24 +710,24 @@ public:
 #endif
 #ifdef _ISCHIP
 	// Returns chrom ID
-	inline chrid ID() const { return _ID; }
+	chrid ID() const { return _ID; }
 
 	// Gets count of nucleotides outside of defined region
-	inline chrlen UndefLength() const { return Length() - _effDefRgn.Length(); }
+	chrlen UndefLength() const { return Length() - _effDefRgn.Length(); }
 
-	//inline float UndefLengthInPerc() const { return 100.f * (Length() - _effDefRgn.Length()) / Length(); }
+	//float UndefLengthInPerc() const { return 100.f * (Length() - _effDefRgn.Length()) / Length(); }
 
 	// Gets feature with defined region (without N at the begining and at the end) and score of 1
-	inline const Featr DefRegion() const { return Featr(_effDefRgn); }
-	
+	const Featr DefRegion() const { return Featr(_effDefRgn); }
+
 	// Gets start position of first defined nucleotide
-	inline chrlen Start()	const { return _effDefRgn.Start; }
-	
+	chrlen Start()	const { return _effDefRgn.Start; }
+
 	// Gets end position of last defined nucleotide
-	inline chrlen End()		const { return _effDefRgn.End; }
-	
+	chrlen End()		const { return _effDefRgn.End; }
+
 	// Gets total length of gaps
-	inline chrlen GapLen()	const { return _gapLen; }
+	chrlen GapLen()	const { return _gapLen; }
 
 #elif defined _READDENS || defined _BIOCC
 
@@ -731,14 +735,14 @@ public:
 	//	@fName: FA file name with extension
 	//	@rgns: new chrom's defined regions
 	//	@minGapLen: minimal length which defines gap as a real gap
-	inline RefSeq(const string& fName, ChromDefRegions& rgns, short minGapLen);
+	RefSeq(const string& fName, ChromDefRegions& rgns, short minGapLen);
 
 #endif	// _ISCHIP
 
-//#if defined _FILE_WRITE && defined DEBUG 
-//	// Saves instance to file by fname
-//	void Write(const string & fname, const char *chrName) const;
-//#endif
+	//#if defined _FILE_WRITE && defined DEBUG 
+	//	// Saves instance to file by fname
+	//	void Write(const string & fname, const char *chrName) const;
+	//#endif
 };
 
 #if defined _READDENS || defined _BIOCC
@@ -748,7 +752,7 @@ public:
 // or from .fa files (dynamically, by request).
 class DefRegions : public Chroms<Regions>
 {
-	ChromSizes&		_cSizes;
+	ChromSizes& _cSizes;
 	const chrlen	_minGapLen;	// minimal allowed length of gap
 #ifdef _BIOCC
 	const bool		_singleRgn = true;	// true if this instance has single Region for each chromosome
@@ -759,29 +763,31 @@ public:
 	// Creates an instance by genome name, from chrom sizes file or genome.
 	//	@cSizes: chrom sizes
 	//	@minGapLen: minimal length which defines gap as a real gap
-	inline DefRegions(ChromSizes& cSizes, chrlen minGapLen)
+	DefRegions(ChromSizes& cSizes, chrlen minGapLen)
 		: _cSizes(cSizes), _minGapLen(minGapLen)
-	{ Init(); }
+	{
+		Init();
+	}
 
 	void Init();
 
 	// Returns true if regions are not initialized
-	inline bool IsEmpty() const {	return !Count(); }
+	bool IsEmpty() const { return !Count(); }
 
-	inline ChromSizes& ChrSizes() { return _cSizes; }
+	ChromSizes& ChrSizes() { return _cSizes; }
 
 	// Gets chrom's size by chrom's iterator
-	inline chrlen Size(cIter it)	const { return Data(it).LastEnd(); }
+	chrlen Size(cIter it)	const { return Data(it).LastEnd(); }
 
 	// Gets chrom's size by chrom's ID
-	inline chrlen Size(chrid cID)	const { return At(cID).Data.LastEnd(); }
+	chrlen Size(chrid cID)	const { return At(cID).Data.LastEnd(); }
 
 	// Gets chrom regions by chrom ID; lazy for real chrom regions
 	const Regions& operator[] (chrid cID);
 
 #ifdef _BIOCC
 	// Copying constructor: creates empty copy!
-	inline DefRegions(const DefRegions& gRgns) :
+	DefRegions(const DefRegions& gRgns) :
 		_cSizes(gRgns._cSizes), _minGapLen(gRgns._minGapLen), _singleRgn(gRgns._singleRgn) {}
 
 	// Gets miminal size of chromosome: for represented chromosomes only
@@ -791,7 +797,7 @@ public:
 	genlen GenSize() const;
 
 	// Adds chromosomes and regions without check up
-	inline void AddChrom (chrid cID, const Regions& rgns) {	AddVal(cID, rgns); }
+	void AddChrom(chrid cID, const Regions& rgns) { AddVal(cID, rgns); }
 #endif	// _BIOCC
 
 #ifdef _DEBUG
@@ -800,12 +806,12 @@ public:
 };
 #endif	// _READDENS || _BIOCC
 
-#if defined _ISCHIP || defined _CALLDIST
+#if defined _ISCHIP || defined _CALLDIST //|| defined _BSDEC
 
 typedef pair<float, float> fpair;
 
 // 'LenFreq' represents a fragment's/read's length frequency statistics
-class LenFreq : map<fraglen,ULONG>
+class LenFreq : map<fraglen, ULONG>
 {
 public:
 	// combined type of distribution
@@ -817,35 +823,6 @@ public:
 	};
 
 private:
-	using dtype = int;	// consecutive distribution type: just to designate dist type, used as an index
-	using spoint = pair<unsigned, ULONG>;	// initial sequence point
-	using point = pair<unsigned, float>;	// distribution point 
-
-	// Returns combined distribution type by consecutive distribution type
-	inline static eCType GetCType(dtype type) { return eCType(1 << type); }
-
-	// Returns consecutive distribution type by combined distribution type
-	const static dtype GetDType(eCType ctype) { return RightOnePos(int(ctype)); }
-
-	enum class eSpec {	// distribution specification
-		CLEAR,		// normal quality;	exclusive
-		SMOOTH,		// complementary
-		MODUL,		// modulated;	complementary
-		EVEN,		// exclusive
-		CROP,		// cropped;	exclusive
-		HCROP,		// heavily cropped;		exclusive
-		SDEFECT,	// slightly defective;	exclusive
-		DEFECT		// defective; exclusive
-	};
-
-	static const char* sTitle[];
-	static const string sSpec[];
-	static const string sParams;
-	static const string sInaccurate;
-	const fraglen smoothBase = 1;	// splining base for the smooth distribution
-	static const int hRatio = 2;	// ratio of the summit height to height of the measuring point
-	static const float lghRatio;	// log of ratio of the summit height to height of the measuring point
-
 	// Moving window (Sliding subset)
 	class MW : protected vector<ULONG>
 	{
@@ -870,7 +847,7 @@ private:
 
 	public:
 		// Constructor by half of moving window length ("base")
-		inline MA(fraglen base) : MW(base) {}
+		MA(fraglen base) : MW(base) {}
 
 		// Add value and return average
 		float Push(ULONG x);
@@ -883,7 +860,7 @@ private:
 		ULONG(MM::* _push)(ULONG) = &MM::GetMedian;	// pointer to GetMedian function: real or empty (stub)
 
 		//	Return stub median
-		inline ULONG GetMedianStub(ULONG x) { return x; }
+		ULONG GetMedianStub(ULONG x) { return x; }
 
 		//	Add value and return median
 		ULONG GetMedian(ULONG x);
@@ -895,23 +872,52 @@ private:
 		MM(fraglen base);
 
 		// Add value and return median
-		inline ULONG Push(ULONG x) { return (*this.*_push)(x); }
+		ULONG Push(ULONG x) { return (*this.*_push)(x); }
 	};
+
+	using dtype = int;	// consecutive distribution type: just to designate dist type, used as an index
+	using spoint = pair<chrlen, ULONG>;	// initial sequence point
+	using point = pair<chrlen, float>;	// distribution point 
+
+	// Returns combined distribution type by consecutive distribution type
+	static eCType GetCType(dtype type) { return eCType(1 << type); }
+
+	// Returns consecutive distribution type by combined distribution type
+	const static dtype GetDType(eCType ctype) { return RightOnePos(int(ctype)); }
+
+	enum class eSpec {	// distribution specification
+		CLEAR,		// normal quality;	exclusive
+		SMOOTH,		// complementary
+		MODUL,		// modulated;	complementary
+		EVEN,		// exclusive
+		CROP,		// cropped;	exclusive
+		HCROP,		// heavily cropped;		exclusive
+		SDEFECT,	// slightly defective;	exclusive
+		DEFECT		// defective; exclusive
+	};
+
+	static const char* sTitle[];
+	static const string sSpec[];
+	static const string sParams;
+	static const string sInaccurate;
+	const fraglen smoothBase = 1;	// splining base for the smooth distribution
+	static const int hRatio = 2;	// ratio of the summit height to height of the measuring point
+	static const float lghRatio;	// log of ratio of the summit height to height of the measuring point
 
 	// Keeps distribution params: PCC, mean(alpha), sigma(beta)
 	struct DParams
 	{
-	private:	
+	private:
 		static const float UndefPCC;
 	public:
-		float	PCC = 0;			// Pearson correlation coefficient
-		fpair	Params{ 0,0 };		// mean(alpha), sigma(beta)
+		float	PCC = 0;		// Pearson correlation coefficient
+		fpair	Params{};		// mean(alpha), sigma(beta)
 
 		bool operator >(const DParams& dp) const { return PCC > dp.PCC; }
 
-		inline bool IsUndefPcc() const { return PCC == UndefPCC; };
+		bool IsUndefPcc() const { return PCC == UndefPCC; };
 
-		inline void SetUndefPcc() { PCC = UndefPCC; };
+		void SetUndefPcc() { PCC = UndefPCC; };
 	};
 
 	// 'AllDParams' represents a collection of restored distribution params for all type of distribution
@@ -928,7 +934,7 @@ private:
 			void SetTitle(dtype type) { Type = GetCType(type); Title = sTitle[type]; }
 
 			// Returns true if distrib parameters set
-			inline bool IsSet() const { return dParams.PCC != 0; }
+			bool IsSet() const { return dParams.PCC != 0; }
 
 			// Prints restored distr parameters
 			//	@s: print stream
@@ -946,7 +952,7 @@ private:
 		int SetCntInSorted() const;
 
 		// Returns DParams by combined distribution type
-		inline DParams& Params(eCType ctype) { return _allParams[GetDType(ctype)].dParams; }
+		DParams& Params(eCType ctype) { return _allParams[GetDType(ctype)].dParams; }
 
 		// Sorts in PCC descending order
 		void Sort();
@@ -958,7 +964,7 @@ private:
 		// Set distribution parameters by type
 		//	@type: consecutive distribution type
 		//	@dp: PCC, mean(alpha) & sigma(beta)
-		inline void SetParams(dtype type, const DParams& dp) { _allParams[type].dParams = dp; }
+		void SetParams(dtype type, const DParams& dp) { _allParams[type].dParams = dp; }
 
 		// Clear normal distribution if its PCC is less then lognorm PCC by the threshold
 		void ClearNormDistBelowThreshold(float thresh) {
@@ -975,15 +981,15 @@ private:
 		//	@s: print stream
 		void Print(dostream& s);
 	};
-	
+
 	// Returns specification string by specification type
-	inline static const string Spec(eSpec s) { return "Distribution " + sSpec[int(s)]; }
-	
+	static const string Spec(eSpec s) { return "Distribution " + sSpec[int(s)]; }
+
 	// Returns true if consecutive type is represented in combo cType
-	inline static bool IsType(eCType cType, dtype type) { return cType & (1 << type); }
+	static bool IsType(eCType cType, dtype type) { return cType & (1 << type); }
 
 	// Returns true if combo type is represented in combo cType
-	inline static bool IsType(eCType cType, eCType type) { return cType & type; }
+	static bool IsType(eCType cType, eCType type) { return cType & type; }
 
 	// Calls distribution parameters by consecutive distribution type
 	//	@keypts: key points: X-coord of highest point, X-coord of right middle hight point
@@ -1049,11 +1055,11 @@ public:
 	LenFreq(const char* fname);
 
 	// Returns true if distribution has not enough size
-	//inline bool IsDegenerate() const { return size() < 5; }
+	//bool IsDegenerate() const { return size() < 5; }
 
 	// Adds fragment/read to statistics
 	//	@len: frag's length
-	inline void AddLen(fraglen len) { (*this)[len]++; }
+	void AddLen(fraglen len) { (*this)[len]++; }
 
 	// Calculate and print dist fpair
 	//	@s: print stream
@@ -1061,69 +1067,4 @@ public:
 	//	@prDistr: if true then print distribution additionally
 	void Print(dostream& s, eCType type, bool prDistr = true);
 };
-
 #endif	// _ISCHIP
-#if defined _ISCHIP || defined _BSDEC
-
-using coval = UINT;					// coverage value
-using covmap = map<chrlen, coval>;	// coverage map
-
-// 'AccumCover' represents cumulative chrom's fragment coverage data
-//	and implements a single method for gradual filling (incrementing) coverage
-class AccumCover : public covmap
-{
-	bool _unsaved = true;	// true if data is still unsaved
-
-public:
-	bool Closed = false;
-
-	// Default constructor
-	inline AccumCover() {}
-
-	// Copy constructor
-	inline AccumCover(const AccumCover& cv) : covmap(cv) { }
-
-	// Returns true if data is unsaved
-	inline bool Unsaved() const { return _unsaved; }
-
-	// Clears data and mark it as saved
-	void Clear() { _unsaved = false; clear(); }
-
-	// Adds fragment to accumulate the coverage
-	void AddRegion(const Region& frag);
-
-	// Calls functor for each point that put the chrom coverage
-	template<typename Functor>
-	void DoWithItem(Functor f) const {
-		for (const value_type& item : *this)	f(item);
-	}
-
-	// Calls functor for each point that put the chrom coverage
-	template<typename Functor>
-	void DoWith2Items(Functor f) const {
-		auto it0 = cbegin(), it = it0;		// previous, current entry
-
-		for (++it; it != end(); it0 = it++)
-			if (it0->second)	f(it0, it);
-	}
-
-#ifdef _DEBUG
-	void WigPrint() const
-	{
-		cout << "pos\tval\n";
-		DoWithItem([](const auto& item) { cout << item.first << TAB << item.second << LF; });
-	}
-
-	// Prints output in BedGraph format
-	void BgPrint() const
-	{
-		cout << "start\tend\tval\n";
-		DoWith2Items([](const auto& it0, const auto& it1)
-			{ cout << it0->first << TAB << it1->first << TAB << it0->second << LF; }
-		);
-	}
-#endif	// _DEBUG
-};
-
-#endif	// _ISCHIP || _BSDEC
-#endif	// _DATA_H

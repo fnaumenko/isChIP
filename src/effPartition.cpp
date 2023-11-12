@@ -174,7 +174,7 @@ bool effPartition::Result::SetSumDiff(ss_sum& minSum, ss_sum& maxSum)
 	ss_cit it = Bins.begin();
 
 	minSum = maxSum = it->sumVal;
-	for(it+1; it!=Bins.end(); it++)
+	for(it++; it!=Bins.end(); it++)
 		if(it->sumVal > maxSum) 		maxSum = it->sumVal;
 		else if(it->sumVal < minSum)	minSum = it->sumVal;
 	ss_sum newSumDiff = maxSum - minSum;

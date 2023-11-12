@@ -2,16 +2,14 @@
 TxtFile.cpp (c) 2014 Fedor Naumenko (fedor.naumenko@gmail.com)
 All rights reserved.
 -------------------------
-Last modified: 07.01.2022
+Last modified: 11/12/2023
 -------------------------
 Provides read|write text file functionality
 ***********************************************************/
 
 #include "TxtFile.h"
 #include <fstream>	// to write ChromDefRegions
-#ifndef _FILE_WRITE
-#include <fstream>
-#endif
+#include <assert.h>
 
 const BYTE TabFilePar::BGLnLen = Chrom::MaxAbbrNameLength + 2 * 9;	// 2*pos + correction
 const BYTE TabFilePar::WvsLnLen = 9 + 3 + 2 + 25;	// pos + val + TAB + LF + correction
@@ -45,7 +43,7 @@ const FT::fTypeAttr FT::TypeAttrs[] = {
 	{ "ini",	strEmpty,	strEmpty,	Mutex::eType::NONE,	 TabFilePar(4, 4) },	// isChIP ini file type
 #endif
 };
-const BYTE FT::Count = sizeof(FT::TypeAttrs)/sizeof(FT::fTypeAttr);
+const BYTE FT::Count = sizeof(FT::TypeAttrs) / sizeof(FT::fTypeAttr);
 
 // Returns file type
 //	@fName: file name (with case insensitive extension)
@@ -56,7 +54,7 @@ FT::eType FT::GetType(const char* fName, bool isABED)
 	if (s_ext == "fastq")	return eType::FQ;
 	const char* ext = s_ext.c_str();
 	eType type = eType::UNDEF;
-	for(int i = int(eType::BED); i<Count; i++)	// start from ordinary bed
+	for (int i = int(eType::BED); i < Count; i++)	// start from ordinary bed
 		if (!_stricmp(ext, TypeAttrs[i].Extens)) {
 			type = eType(i); break;
 		}
@@ -70,7 +68,7 @@ FT::eType FT::GetType(const char* fName, bool isABED)
 const string FT::Ext(eType t, bool isZip)
 {
 	string ext = string(1, DOT) + TypeAttrs[int(t)].Extens;
-	if(isZip)	ext += ZipFileExt;
+	if (isZip)	ext += ZipFileExt;
 	return ext;
 }
 
@@ -101,22 +99,22 @@ bool TxtFile::SetBasic(const string& fName, eAction mode, void* fStream)
 	_fName = fName;
 	_currRecPos = _recCnt = 0;
 	_buffLen = BlockSize;	// by default; can be corrected
-#ifdef _NO_ZLIB
-	if(IsZipped()) { SetError(Err::FZ_BUILD); return false; }
+#ifndef _ZLIB
+	if (IsZipped()) { SetError(Err::FZ_BUILD); return false; }
 #endif
 	// set file stream
-	if(fStream)	_stream = fStream;
-	else 
-#ifndef _NO_ZLIB
-		if(IsZipped())
-			if(mode == eAction::READ_ANY)	SetError(Err::FZ_OPEN);
+	if (fStream)	_stream = fStream;
+	else
+#ifdef _ZLIB
+		if (IsZipped())
+			if (mode == eAction::READ_ANY)	SetError(Err::FZ_OPEN);
 			else {
-				if( !(_stream = gzopen(fName.c_str(), bmodes[int(mode)])))
+				if (!(_stream = gzopen(fName.c_str(), bmodes[int(mode)])))
 					SetError(Err::F_OPEN);
 			}
 		else
 #endif
-			if( _stream = fopen(fName.c_str(), modes[int(mode)]))
+			if (_stream = fopen(fName.c_str(), modes[int(mode)]))
 				setvbuf((FILE*)_stream, NULL, _IONBF, 0);
 			else
 				SetError(Err::F_OPEN);
@@ -128,7 +126,7 @@ bool TxtFile::SetBasic(const string& fName, eAction mode, void* fStream)
 bool TxtFile::CreateIOBuff()
 {
 	try { _buff = new char[_buffLen]; }
-	catch(const bad_alloc)	{ SetError(Err::F_MEM); }
+	catch (const bad_alloc) { SetError(Err::F_MEM); }
 	return IsGood();
 }
 
@@ -137,22 +135,22 @@ bool TxtFile::CreateIOBuff()
 //	@mode: opening mode
 //	@msgFName: true if file name should be printed in exception's message
 //	@abortInvalid: true if invalid instance shold be completed by throwing exception
-TxtFile::TxtFile (const string& fName, eAction mode, bool msgFName, bool abortInvalid) :
+TxtFile::TxtFile(const string& fName, eAction mode, bool msgFName, bool abortInvalid) :
 	_flag(1)	// LF size set to 1
 {
 	SetFlag(ZIPPED, FS::HasGzipExt(fName));
 	SetFlag(ABORTING, abortInvalid);
 	SetFlag(PRNAME, msgFName);
-	if( !SetBasic(fName, mode, NULL) )	return;
+	if (!SetBasic(fName, mode, NULL))	return;
 	_fSize = FS::Size(fName.c_str());
-	if(_fSize == -1)	_fSize = 0;		// new file
-#ifndef _NO_ZLIB
-	else if(IsZipped()) {				// existed file
+	if (_fSize == -1)	_fSize = 0;		// new file
+#ifdef _ZLIB
+	else if (IsZipped()) {				// existed file
 		LLONG size = FS::UncomressSize(fName.c_str());
-		if( size > 0 ) {
+		if (size > 0) {
 			// wrong uncompressed size: increase initial size four times
 			// since zip is too big to keep right size in archive
-			if( size <= _fSize)	_fSize <<= 2;
+			if (size <= _fSize)	_fSize <<= 2;
 			// right uncompressed size
 			else				_fSize = size;
 		}
@@ -160,16 +158,16 @@ TxtFile::TxtFile (const string& fName, eAction mode, bool msgFName, bool abortIn
 							// 2x_buffLen for writing or 3x_buffLen for reading by gzip
 	}
 #endif
-	if( _fSize && _fSize < _buffLen )
-		if( mode != eAction::WRITE )
-			_buffLen = (ULONG)_fSize + 1;	// for reading
-		else if( _fSize * 2 < _buffLen )
-			_buffLen = (ULONG)_fSize * 2;	// for writing: increase small buffer for any case
-	
-	if( !CreateIOBuff() )	return;
+	if (_fSize && size_t(_fSize) < _buffLen)
+		if (mode != eAction::WRITE)
+			_buffLen = size_t(_fSize + 1);	// for reading
+		else if (size_t(_fSize * 2) < _buffLen)
+			_buffLen = size_t(_fSize * 2);	// for writing: increase small buffer for any case
+
+	if (!CreateIOBuff())	return;
 
 #ifdef ZLIB_NEW
-	if( IsZipped() && gzbuffer((gzFile)_stream, _buffLen) == -1 )
+	if (IsZipped() && gzbuffer((gzFile)_stream, (unsigned int)_buffLen) == -1)
 		SetError(Err::FZ_MEM);
 #endif
 }
@@ -182,7 +180,7 @@ TxtFile::TxtFile (const string& fName, eAction mode, bool msgFName, bool abortIn
 //	Exception: file_error
 TxtFile::TxtFile(const TxtFile& file) : _flag(file._flag)
 {
-	if( !SetBasic("Clone " + file._fName, eAction::WRITE, file._stream) )	return;
+	if (!SetBasic("Clone " + file._fName, eAction::WRITE, file._stream))	return;
 	RaiseFlag(CLONE);
 	RaiseFlag(MTHREAD);
 	file.RaiseFlag(MTHREAD);
@@ -193,14 +191,14 @@ TxtFile::TxtFile(const TxtFile& file) : _flag(file._flag)
 // Destructs the instance: close assigned file, releases I/O buffer.
 TxtFile::~TxtFile()
 {
-	if(IsClone())	return;
+	if (IsClone())	return;
 	//_stopwatch.Stop(_fName);
-	if(_buff)		delete [] _buff;
-	if(_stream &&
-#ifndef _NO_ZLIB
-			IsZipped() ? gzclose( (gzFile)_stream) :
+	if (_buff)		delete[] _buff;
+	if (_stream &&
+#ifdef _ZLIB
+		IsZipped() ? gzclose((gzFile)_stream) :
 #endif
-			fclose( (FILE*)_stream) )
+		fclose((FILE*)_stream))
 		SetError(Err::F_CLOSE);
 	//cout << "Free " << _fName << "\trecords = " << _recCnt << endl;
 }
@@ -215,7 +213,7 @@ TxtFile::~TxtFile()
 //	@cntRecLines: number of lines in a record
 //	@msgFName: true if file name should be printed in an exception's message
 //	@abortInvalid: true if invalid instance should be completed by throwing exception
-TxtInFile::TxtInFile(const string& fName, eAction mode, 
+TxtInFile::TxtInFile(const string& fName, eAction mode,
 	BYTE cntRecLines, bool msgFName, bool abortInvalid) :
 	_linesLen(NULL),
 	_recLineCnt(cntRecLines),
@@ -224,7 +222,7 @@ TxtInFile::TxtInFile(const string& fName, eAction mode,
 	TxtFile(fName, mode, msgFName, abortInvalid)
 {
 	//ClearBuff();
-	if(Length() && ReadBlock(0) >= 0)		// read first block
+	if (Length() && ReadBlock(0) >= 0)		// read first block
 		_linesLen = new size_t[cntRecLines];	// nonempty file: set lines buffer
 	else
 		RaiseFlag(ENDREAD);					// empty file
@@ -237,47 +235,57 @@ int TxtInFile::ReadBlock(const size_t offset)
 {
 	size_t readLen;
 	//_stopwatch.Start();
-#ifndef _NO_ZLIB
-	if( IsZipped() ) {
-		int len = gzread((gzFile)_stream, _buff + offset, _buffLen - offset);
-		if(len < 0) { SetError(Err::F_READ); return -1; }
+#ifdef _ZLIB
+	if (IsZipped()) {
+		int len = gzread((gzFile)_stream, _buff + offset, (unsigned int)(_buffLen - offset));
+		if (len < 0) { SetError(Err::F_READ); return -1; }
 		readLen = len;
 	}
 	else
 #endif
 	{
 		readLen = fread(_buff + offset, sizeof(char), _buffLen - offset, (FILE*)_stream);
-		if(readLen != _buffLen - offset && !feof((FILE*)_stream) )
-		{ SetError(Err::F_READ); return -1; }
+		if (readLen != _buffLen - offset && !feof((FILE*)_stream))
+		{
+			SetError(Err::F_READ); return -1;
+		}
 	}
 	_readedLen = readLen + offset;
-//#ifdef ZLIB_OLD
-	//if( _readTotal + _readedLen > _fSize )
-	//	_readedLen = _fSize - _readTotal;
-	//_readTotal += _readedLen;
-//#endif
-	if( _readedLen != _buffLen && !IsZipped() && ferror((FILE*)_stream) )
-	{ SetError(Err::F_READ); return -1; }
+	//#ifdef ZLIB_OLD
+		//if( _readTotal + _readedLen > _fSize )
+		//	_readedLen = _fSize - _readTotal;
+		//_readTotal += _readedLen;
+	//#endif
+	if (_readedLen != _buffLen && !IsZipped() && ferror((FILE*)_stream))
+	{
+		SetError(Err::F_READ); return -1;
+	}
 	_currRecPos = 0;
 	//_stopwatch.Stop();
-	return _readedLen;
+	return int(_readedLen);
 }
 
 // Returns true if block is complete, move remainder to the top
 bool TxtInFile::CompleteBlock(size_t currLinePos, size_t blankLineCnt)
 {
-	if(_readedLen != _buffLen)	// final block, normal completion
-	{ RaiseFlag(ENDREAD); return true; }
-	if( !currLinePos )			// block is totally unreaded
-	{	SetError(Err::F_BIGLINE); RaiseFlag(ENDREAD); return true; }
+	if (_readedLen != _buffLen)	// final block, normal completion
+	{
+		RaiseFlag(ENDREAD); return true;
+	}
+	if (!currLinePos)			// block is totally unreaded
+	{
+		SetError(Err::F_BIGLINE); RaiseFlag(ENDREAD); return true;
+	}
 
 	blankLineCnt = _readedLen - _currRecPos - blankLineCnt;	// now length of unreaded remainder
 	// move remainder to the beginning of buffer; if length of unreaded remain = 0, skip moving
 	memmove(_buff, _buff + _currRecPos, blankLineCnt);
 	//ClearBuff(blankLineCnt);
 	_recLen = 0;
-	if(!ReadBlock(blankLineCnt))
-	{ RaiseFlag(ENDREAD); return true; };
+	if (!ReadBlock(blankLineCnt))
+	{
+		RaiseFlag(ENDREAD); return true;
+	};
 	return false;
 }
 
@@ -285,33 +293,33 @@ bool TxtInFile::CompleteBlock(size_t currLinePos, size_t blankLineCnt)
 //	return: pointer to line or NULL if no more lines
 const char* TxtInFile::GetNextRecord()
 {
-// Sets _currLinePos to the beginning of next non-empty line inread/write buffer
-// GetNextRecord(), GetRecordN() and GetRecordTab() are quite similar,
-// but they are separated for effectiveness
-	if(IsFlag(ENDREAD))	return NULL;
-	 
+	// Sets _currLinePos to the beginning of next non-empty line inread/write buffer
+	// GetNextRecord(), GetRecordN() and GetRecordTab() are quite similar,
+	// but they are separated for effectiveness
+	if (IsFlag(ENDREAD))	return NULL;
+
 	size_t i, blanklCnt = 0,			// counter of empty lines
-		 currPos = _currRecPos;		// start position of current readed record
+		currPos = _currRecPos;		// start position of current readed record
 	char* buf;
 
 	_recLen = 0;
-	for(BYTE rec=0; rec<_recLineCnt; rec++)
-		for (buf = _buff + (i = currPos);;buf++, i++) {
-			if(*buf == LF) {
-				if( i==currPos ) {				// LF marker is first in line
+	for (BYTE rec = 0; rec < _recLineCnt; rec++)
+		for (buf = _buff + (i = currPos);; buf++, i++) {
+			if (*buf == LF) {
+				if (i == currPos) {				// LF marker is first in line
 					++currPos; ++blanklCnt;		// skip empty line
 					continue;
 				}
 				if (IsLFundef())	SetLF(*(buf - 1));		// define LF size
-lf:				_recLen += (_linesLen[rec] = ++i - currPos);
+			lf:				_recLen += (_linesLen[rec] = ++i - currPos);
 				currPos = i;
 				break;							// mext line in a record
 			}
-			if(i >= _readedLen) {	// check for oversize buffer
+			if (i >= _readedLen) {	// check for oversize buffer
 				//cout << ">>> " << i << TAB << currPos << TAB << _readedLen << TAB << _buffLen << LF;
 				if (_readedLen != _buffLen && i > currPos)	// last record does not end with LF
 					goto lf;
-				if(CompleteBlock(currPos, blanklCnt))	return NULL;
+				if (CompleteBlock(currPos, blanklCnt))	return NULL;
 				currPos = blanklCnt = i = rec = 0;
 				buf = _buff;
 			}
@@ -326,32 +334,32 @@ lf:				_recLen += (_linesLen[rec] = ++i - currPos);
 //	return: pointer to line or NULL if no more lines
 const char* TxtInFile::GetNextRecord(chrlen& counterN)
 {
-	if(IsFlag(ENDREAD))	return NULL;
+	if (IsFlag(ENDREAD))	return NULL;
 
 	size_t i, blanklCnt = 0,			// counter of empty lines
-		 currPos = _currRecPos;		// start position of current readed record
+		currPos = _currRecPos;		// start position of current readed record
 	chrlen cntN = 0;				// local counter of 'N'
 	char* buf;
 
 	_recLen = 0;
-	for(BYTE rec=0; rec<_recLineCnt; rec++)
-		for(buf = _buff + (i=currPos);; buf++,i++)	{
-			if(*buf == cN)		cntN++;
-			else if(*buf == LF) {
-				if( i==currPos ) {				// LF marker is first in line
+	for (BYTE rec = 0; rec < _recLineCnt; rec++)
+		for (buf = _buff + (i = currPos);; buf++, i++) {
+			if (*buf == cN)		cntN++;
+			else if (*buf == LF) {
+				if (i == currPos) {				// LF marker is first in line
 					currPos++; blanklCnt++;		// skip empty line
 					continue;
 				}
 				if (IsLFundef())	SetLF(*(buf - 1));		// define LF size
-lf:				_recLen += (_linesLen[rec] = ++i - currPos);
+			lf:				_recLen += (_linesLen[rec] = ++i - currPos);
 				currPos = i;
 				break;
 			}
 			if (i >= _readedLen) {	// check for oversize buffer
 				if (_readedLen != _buffLen && i > currPos)	// last record does not end with LF
 					goto lf;
-				if(CompleteBlock(currPos, blanklCnt))	return NULL;
-				cntN = currPos = blanklCnt = i = rec = 0;
+				if (CompleteBlock(currPos, blanklCnt))	return NULL;
+				currPos = blanklCnt = i = cntN = rec = 0;
 				buf = _buff;
 			}
 		}
@@ -367,34 +375,34 @@ lf:				_recLen += (_linesLen[rec] = ++i - currPos);
 //	return: pointer to line or NULL if no more lines
 char* TxtInFile::GetNextRecord(short* const tabPos, const BYTE tabCnt)
 {
-	if(IsFlag(ENDREAD))	return NULL;
-	 
+	if (IsFlag(ENDREAD))	return NULL;
+
 	size_t i, blanklCnt = 0,			// counter of empty lines
-		 currPos = _currRecPos;		// start position of current readed record
+		currPos = _currRecPos;		// start position of current readed record
 	BYTE tabInd = 1;				// index of TAB position in tabPos
 	char* buf;
 
 	_recLen = 0;
-	for(BYTE rec=0; rec<_recLineCnt; rec++)
+	for (BYTE rec = 0; rec < _recLineCnt; rec++)
 		for (buf = _buff + (i = currPos);; buf++, i++) {
-			if(*buf == TAB) {
-				if(tabInd < tabCnt)
+			if (*buf == TAB) {
+				if (tabInd < tabCnt)
 					tabPos[tabInd++] = short(i + 1 - currPos);
 			}
-			else if(*buf == LF) {
-				if( i==currPos ) {				// LF marker is first in line
+			else if (*buf == LF) {
+				if (i == currPos) {				// LF marker is first in line
 					currPos++; blanklCnt++;		// skip empty line
 					continue;
 				}
 				if (IsLFundef())	SetLF(*(buf - 1));		// define LF size
-lf:				_recLen += (_linesLen[rec] = ++i - currPos);
+			lf:				_recLen += (_linesLen[rec] = ++i - currPos);
 				currPos = i;
 				break;
 			}
 			if (i >= _readedLen) {	// check for oversize block
 				if (_readedLen != _buffLen && i > currPos)	// last record does not end with LF
 					goto lf;
-				if(CompleteBlock(currPos, blanklCnt))	return NULL;
+				if (CompleteBlock(currPos, blanklCnt))	return NULL;
 				currPos = blanklCnt = i = rec = 0;
 				buf = _buff;
 				tabInd = 1;
@@ -411,7 +419,7 @@ lf:				_recLen += (_linesLen[rec] = ++i - currPos);
 //	@sep: field separator character
 void TxtInFile::RollBackRecord(char sep)
 {
-	for (size_t i = _recLen; i > 1 ; --i)
+	for (size_t i = _recLen; i > 1; --i)
 		if (!_buff[_currRecPos - i])
 			_buff[_currRecPos - i] = sep;	// return back TAB in the last record instead of inserted '0'
 	_buff[_currRecPos - 1] = LF;			// return back LineFeed in the end of last record instead of inserted '0'
@@ -427,7 +435,7 @@ const string TxtInFile::LineNumbToStr(Err::eCode code, BYTE lineInd) const
 {
 	_errCode = code;
 	ostringstream ss;
-	if(IsFlag(PRNAME))	ss << FileName();
+	if (IsFlag(PRNAME))	ss << FileName();
 	ss << ": line " << LineNumber(lineInd);
 	return ss.str();
 }
@@ -449,12 +457,12 @@ bool TxtOutFile::Zipped;												// true if filed should be zippped
 //  return: true if successful
 bool TxtOutFile::CreateLineBuff(rowlen len)
 {
-	try { _lineBuff = new char[_lineBuffLen=len]; }
-	catch(const bad_alloc)	{ SetError(Err::F_MEM); };
+	try { _lineBuff = new char[_lineBuffLen = len]; }
+	catch (const bad_alloc) { SetError(Err::F_MEM); };
 	return IsGood();
 }
 
-// Closes adding record to the IO buffer: set current rec position and increases rec counter
+// Closes adding record to the IO buffer: set current recording position and increases recording counter
 //	@len: length of added record
 void TxtOutFile::EndRecordToIOBuff(size_t len)
 {
@@ -472,8 +480,8 @@ void TxtOutFile::EndRecordToIOBuff(size_t len)
 // Writes nonempty buffer, deletes line buffer and closes file
 TxtOutFile::~TxtOutFile()
 {
-	if(_currRecPos)	Write();
-	delete [] _lineBuff;
+	if (_currRecPos)	Write();
+	delete[] _lineBuff;
 }
 
 #ifdef _MULTITHREAD
@@ -481,12 +489,12 @@ TxtOutFile::~TxtOutFile()
 // Clone is a copy of opened file with its own separate basic I/O and write line buffers.
 //	Used for multithreading file recording
 //	@file: opened file which is cloned
-TxtOutFile::TxtOutFile(const TxtOutFile& file):
+TxtOutFile::TxtOutFile(const TxtOutFile& file) :
 	_lineBuffOffset(file._lineBuffOffset),
 	_delim(file._delim),
 	TxtFile(file)
 {
-	if( !CreateLineBuff(file._lineBuffLen) )	return;
+	if (!CreateLineBuff(file._lineBuffLen))	return;
 	memcpy(_lineBuff, file._lineBuff, _lineBuffLen);
 	_totalRecCnt = &file._recCnt;
 }
@@ -504,13 +512,13 @@ void TxtOutFile::LineAddChar(char ch, bool addDelim)
 // Copies block of chars to the current position in the line write buffer,
 //	adds delimiter after string	and increases current position.
 //	@src: pointer to the block of chars
-//	@num: number of chars
+//	@len: number of chars
 //	@addDelim: if true then adds delimiter and increases current position
 //	return: new current position
-rowlen TxtOutFile::LineAddChars(const char* src, rowlen num, bool addDelim)
+rowlen TxtOutFile::LineAddChars(const char* src, rowlen len, bool addDelim)
 {
-	memcpy(_lineBuff + _lineBuffOffset, src, num);
-	_lineBuffOffset += num;
+	memcpy(_lineBuff + _lineBuffOffset, src, len);
+	_lineBuffOffset += len;
 	LineAddDelim(addDelim);
 	return _lineBuffOffset;
 }
@@ -521,7 +529,7 @@ rowlen TxtOutFile::LineAddChars(const char* src, rowlen num, bool addDelim)
 //	@addDelim: if true then adds delimiter and increases current position
 void TxtOutFile::LineAddInt(LLONG v, bool addDelim)
 {
-	_lineBuffOffset += sprintf(_lineBuff + _lineBuffOffset, "%d", v);
+	_lineBuffOffset += sprintf(_lineBuff + _lineBuffOffset, "%lld", v);
 	LineAddDelim(addDelim);
 	//LineAddStr(to_string(val), addDelim);
 }
@@ -535,9 +543,6 @@ void TxtOutFile::LineAddInts(ULONG v1, ULONG v2, bool addDelim)
 {
 	_lineBuffOffset += sprintf(_lineBuff + _lineBuffOffset, "%u%c%u", v1, _delim, v2);
 	LineAddDelim(addDelim);
-	//ostringstream ss;
-	//ss << v1 << _delim << v2;
-	//LineAddStr(ss.str(), addDelim);
 }
 
 // Adds three integral values separated by default delimiter to the current position 
@@ -568,6 +573,25 @@ void TxtOutFile::LineAddInts(ULONG v1, ULONG v2, ULONG v3, bool addDelim)
 //	LineAddDelim(addDelim);
 //}
 
+void TxtOutFile::SetFloatFractDigits(BYTE digitsCnt)
+{
+	assert(digitsCnt < 10);
+	_formatFloat[0][3] = std::to_string(digitsCnt)[0];	// "%4.2f"
+	_floatBuffLen = 4 + digitsCnt;
+}
+
+void TxtOutFile::LineAddFloat(float val, bool addDelim)
+{
+	_lineBuffOffset += std::snprintf(_lineBuff + _lineBuffOffset, _floatBuffLen, _formatFloat[val == 0].c_str(), val);
+	LineAddDelim(addDelim);
+}
+
+void TxtOutFile::LineAddSingleFloat(float val)
+{
+	LineAddFloat(val, false);
+	LineToIOBuff();
+}
+
 // Adds line to IO buffer (from 0 to the current position).
 //	@offset: start position for the next writing cycle
 void TxtOutFile::LineToIOBuff(rowlen offset)
@@ -580,15 +604,15 @@ void TxtOutFile::LineToIOBuff(rowlen offset)
 // Generate exception if writing is fall.
 //	@src: record
 //	@len: length of record
-void TxtOutFile::RecordToIOBuff(const char *src, size_t len)
+void TxtOutFile::RecordToIOBuff(const char* src, size_t len)
 {
-	if( _currRecPos + len + 1 > _buffLen )	// write buffer to file if it's full
+	if (_currRecPos + len + 1 > _buffLen)	// write buffer to file if it's full
 		Write();
 	memcpy(_buff + _currRecPos, src, len);
 	EndRecordToIOBuff(len);
 }
 
-// Adds string to IO buffer without checking buffer exceeding.
+// Adds string direct to IO buffer
 void TxtOutFile::StrToIOBuff(const string&& str)
 {
 	memmove(_buff + _currRecPos, str.c_str(), str.length());
@@ -628,29 +652,31 @@ void TxtOutFile::SetLineBuff(rowlen len)
 // Writes thread-safely current block to file.
 void TxtOutFile::Write() const
 {
-	//_stopwatch.Start();
 #ifdef _MULTITHREAD
 	const bool lock = IsFlag(MTHREAD) && Mutex::IsReal(_mtype);
-	if(lock)	Mutex::Lock(_mtype);
+	if (lock)	Mutex::Lock(_mtype);
 #endif
-	int res = 
-#ifndef _NO_ZLIB
+	size_t res =
+#ifdef _ZLIB
 		IsZipped() ?
-		gzwrite((gzFile)_stream, _buff, _currRecPos) :
+		gzwrite((gzFile)_stream, _buff, (unsigned int)_currRecPos) :
 #endif
-		fwrite(_buff, 1, _currRecPos, (FILE*)_stream);
-	if(res == _currRecPos)	_currRecPos = 0;
+		fwrite(
+			_buff,
+			1,
+			_currRecPos,
+			(FILE*)_stream);
+	if (res == _currRecPos)	_currRecPos = 0;
 	else { SetError(Err::F_WRITE); /*cout << "ERROR!\n";*/ }
 #ifdef _MULTITHREAD
-	if(lock) {
-		if(IsClone())
+	if (lock) {
+		if (IsClone())
 			//InterlockedExchangeAdd(_totalRecCnt, _recCnt);
 			*_totalRecCnt += _recCnt,
 			_recCnt = 0;
 		Mutex::Unlock(_mtype);
 	}
 #endif
-	//_stopwatch.Stop();
 }
 
 //bool	TxtOutFile::AddFile(const string fName)
@@ -674,11 +700,11 @@ void TxtOutFile::Write() const
 // Checks if field valid and throws exception if not.
 //	@ind: field index
 //	return: true if field is valid
-bool TabFile::IsFieldValid	(BYTE ind) const
+bool TabFile::IsFieldValid(BYTE ind) const
 {
-	if(_fieldPos[ind] == vUNDEF) {		// vUNDEF was set in buff if there was no such field in the line
+	if (_fieldPos[ind] == vUNDEF) {		// vUNDEF was set in buff if there was no such field in the line
 	//|| !StrField(ind)[0]) {			// empty field
-		if(ind < FT::FileParams(_fType).MinFieldCnt)
+		if (ind < FT::FileParams(_fType).MinFieldCnt)
 			Err(Err::TF_FIELD, LineNumbToStr(Err::TF_FIELD).c_str()).Throw();
 		return false;
 	}
@@ -690,12 +716,12 @@ bool TabFile::IsFieldValid	(BYTE ind) const
 //	@isEstLineCnt: if true then estimate count of lines
 void TabFile::Init(FT::eType type, bool isEstLineCnt)
 {
-	if(!_fieldPos)	
+	if (!_fieldPos)
 		_fieldPos = new short[FT::FileParams(type).MaxFieldCnt];
 	_lineSpecLen = FT::FileParams(type).LineSpecLen();
 
 	// estimate line cnt
-	if(isEstLineCnt)
+	if (isEstLineCnt)
 		if (FT::FileParams(type).AvrLineLen)
 			SetEstLineCount(type);
 		else if (GetNextLine(true))
@@ -779,10 +805,10 @@ const char* TabFile::CheckSpec(const char* str, const string& key)
 //	@checkTabs: it true then check the number of incoming fields (tabs)
 //		An invoke with the false is performed only for WIG files, to avoid checking the declaration line
 //	return: current line.
-const char*	TabFile::GetNextLine(bool checkTab)
+const char* TabFile::GetNextLine(bool checkTab)
 {
 	const TabFilePar par = FT::FileParams(_fType);
-	
+
 	// fill _fieldPos 0 to check if all fields will be initialize
 	// _fieldPos keeps start positions (next after TAB) for each field in line.
 	// First field's position usually is 0, but if there are blanks in the beginning of the line,
@@ -791,14 +817,14 @@ const char*	TabFile::GetNextLine(bool checkTab)
 	memset(_fieldPos, vUNDEF, sizeof(short) * par.MaxFieldCnt);
 
 	char* line = GetNextRecord(_fieldPos, par.MaxFieldCnt);	// a bit faster than using _currLine
-	if(line) {
+	if (line) {
 		USHORT	currPos = 0;	// a bit faster than using _currPos in heep
-	
+
 		// skip blanks at the beginning of line
 		while (line[currPos] == SPACE)	currPos++;
 		// skip comment line or line without specifier
 		if (*(line + currPos) == par.Comment
-		|| (par.LineSpec && memcmp(line + currPos, par.LineSpec, _lineSpecLen)))
+			|| (par.LineSpec && memcmp(line + currPos, par.LineSpec, _lineSpecLen)))
 			return GetNextLine(checkTab);
 
 		_fieldPos[0] = currPos;		// set start position of first field
@@ -815,7 +841,7 @@ const char*	TabFile::GetNextLine(bool checkTab)
 						return _currLine = NULL;
 					}
 		line[RecordLength() - 1] = cNULL;	// replace '\n' by 0
-		
+
 		//cout << this->FileName() << "\trecLen = " << RecordLength() << LF;
 
 		// this version when _fieldPos is not initialized in TxtFile::GetNextRecord(): a bit more slower
@@ -843,8 +869,8 @@ const string ChromDefRegions::Ext = ".region";	// regions file extension
 // Otherwise returns true and combined region as parameter.
 bool ChromDefRegions::Combiner::ExceptRegion(Region& rgn)
 {
-	if(_rgn.Empty())				 { _rgn = rgn;			return false; }	// first income region
-	if(rgn.Start-_rgn.End < _gapLen) { _rgn.End = rgn.End;	return false; }
+	if (_rgn.Empty()) { _rgn = rgn;			return false; }	// first income region
+	if (rgn.Start - _rgn.End < _gapLen) { _rgn.End = rgn.End;	return false; }
 	Region	next = rgn;
 	rgn = _rgn;		// returned region
 	_rgn = next;
@@ -857,7 +883,7 @@ bool ChromDefRegions::Combiner::ExceptRegion(Region& rgn)
 ChromDefRegions::ChromDefRegions(const string& fName, chrlen minGapLen) : _gapLen(0), _new(true)
 {
 	_fName = fName + Ext;
-	if(FS::IsFileExist(_fName.c_str())) {
+	if (FS::IsFileExist(_fName.c_str())) {
 		TabFile file(_fName, FT::eType::RGN);
 		Combiner comb(minGapLen);
 		Region rgn;
@@ -882,21 +908,21 @@ ChromDefRegions::ChromDefRegions(const string& fName, chrlen minGapLen) : _gapLe
 //	@minGapLen: minimal length which defines gap as a real gap
 void ChromDefRegions::AddRegion(const Region& rgn, chrlen minGapLen)
 {
-	if( rgn.End && minGapLen && rgn.Length())	// current gap is closed
-		if( _regions.size() && rgn.Start-_regions.back().End < minGapLen )
+	if (rgn.End && minGapLen && rgn.Length())	// current gap is closed
+		if (_regions.size() && rgn.Start - _regions.back().End < minGapLen)
 			_regions.back().End = rgn.End;		// pass minimal allowed gap
-		else 
+		else
 			_regions.push_back(rgn);			// add new def-region
 }
 
 void ChromDefRegions::Write() const
 {
-	if(!_new || FS::IsShortFileName(_fName))	return;
+	if (!_new || FS::IsShortFileName(_fName))	return;
 	ofstream file;
 
-	file.open (_fName.c_str(), ios_base::out);
+	file.open(_fName.c_str(), ios_base::out);
 	file << "SumGapLen:" << TAB << _gapLen << LF;
-	for(Iter it=Begin(); it!=End(); it++)
+	for (Iter it = Begin(); it != End(); it++)
 		file << it->Start << TAB << it->End << LF;
 	file.close();
 	_new = false;
@@ -911,9 +937,9 @@ void ChromDefRegions::Combine(chrlen minGapLen)
 	Combiner comb(minGapLen);
 
 	rgns.Reserve(Count());
-	for(Iter it=Begin(); it!=End(); it++) {
+	for (Iter it = Begin(); it != End(); it++) {
 		rgn.Set(it->Start, it->End);
-		if(comb.ExceptRegion(rgn))	rgns.Add(rgn);
+		if (comb.ExceptRegion(rgn))	rgns.Add(rgn);
 	}
 	rgns.Add(comb.LastRegion());
 	Copy(rgns);
@@ -941,7 +967,7 @@ void FaFile::DefRgnMaker::CloseAddGaps(chrlen cLen)
 {
 	_defRgn.End = cLen;
 	_defRgns.AddRegion(_defRgn, _minGapLen);
-	_defRgns.Write(); 
+	_defRgns.Write();
 }
 
 // Search 'N' subsequence in the current line beginning from the start position
@@ -951,21 +977,21 @@ void FaFile::DefRgnMaker::CloseAddGaps(chrlen cLen)
 //	return: true if line trimming is complete, false for single 'N'
 void FaFile::CountN(chrlen startPos, chrlen NCnt)
 {
-	if(NCnt == 1)	return;
+	if (NCnt == 1)	return;
 
 	const char* line = Line();
 	const chrlen lineLen = LineLength();
 	chrlen nCnt = 0, iN;				// local count N, first N index
 	bool firstN = true;
 
-	for(chrlen i=startPos; i<lineLen; i++)
-		if(line[i] == cN) {					// some 'N' subsequence begins?
+	for (chrlen i = startPos; i < lineLen; i++)
+		if (line[i] == cN) {					// some 'N' subsequence begins?
 			nCnt++;
-			if(firstN)	{ iN = i; firstN = false; }
-		}		
-		else if(nCnt)						// is current subsequence finished?
-			if(nCnt == 1) {					// was it a single 'N'?
-				nCnt = 0; NCnt--; firstN = true;	
+			if (firstN) { iN = i; firstN = false; }
+		}
+		else if (nCnt)						// is current subsequence finished?
+			if (nCnt == 1) {					// was it a single 'N'?
+				nCnt = 0; NCnt--; firstN = true;
 			}
 			else {							// continuous 'N' sequence?
 				_rgnMaker->AddGap(iN, nCnt);	// add complete 'N' subsequence
@@ -978,14 +1004,14 @@ void FaFile::CountN(chrlen startPos, chrlen NCnt)
 // Since method scans the line, it takes no overhead expenses to do this.
 //	@pocket: external temporary variables
 //	return: current line.
-const char* FaFile::GetLineWitnNControl() 
+const char* FaFile::GetLineWitnNControl()
 {
 	chrlen nCnt = 0;	// number of 'N' in line
 	const char* line = GetNextRecord(nCnt);
-	if(line) {
+	if (line) {
 		const chrlen len = LineLength();
-		if(nCnt)
-			if(nCnt == len)	_rgnMaker->AddGap(0, nCnt);	// the whole line is filled by 'N'
+		if (nCnt)
+			if (nCnt == len)	_rgnMaker->AddGap(0, nCnt);	// the whole line is filled by 'N'
 			else			CountN(0, nCnt);
 		_rgnMaker->AddLineLen(len);
 	}
@@ -1003,15 +1029,15 @@ FaFile::FaFile(const string& fName, ChromDefRegions* rgns) : TxtInFile(fName, eA
 	else _pGetLine = &FaFile::GetNextRecord;
 
 	chrlen len = chrlen(Length());
-	if(NextGetLine()[0] == FaComment) {		// is first line a header?
-		len -= RecordLength();
-		if(_rgnMaker)	_rgnMaker->RemoveLineLen(LineLength());
+	if (NextGetLine()[0] == FaComment) {		// is first line a header?
+		len -= chrlen(RecordLength());
+		if (_rgnMaker)	_rgnMaker->RemoveLineLen(LineLength());
 		NextGetLine();
 	}
 	// set chrom length
-	_cLen = len - LFSize() *
-		(len/RecordLength() +		// amount of LF markers for whole lines
-		bool(len%RecordLength()));	// LF for part line
+	_cLen = len - chrlen(LFSize() *
+		(len / chrlen(RecordLength()) +		// amount of LF markers for whole lines
+			bool(len % chrlen(RecordLength()))));	// LF for part line
 }
 
 /************************ end of class FaFile ************************/
@@ -1026,24 +1052,24 @@ FaFile::FaFile(const string& fName, ChromDefRegions* rgns) : TxtInFile(fName, eA
 readlen FqFile::ReadLength() const
 {
 	//CheckGettingRecord();
-	return LineLengthByInd(READ); 
+	return readlen(LineLengthByInd(READ));
 }
 
 // Gets checked Read from readed Sequence.
 const char* FqFile::GetCurrRead() const
-{ 
+{
 	//CheckGettingRecord();
-	return NextRecord() - RecordLength() + LineLengthByInd(HEADER1); 
+	return NextRecord() - RecordLength() + LineLengthByInd(HEADER1);
 }
 
 // Returns checked Sequence
 const char* FqFile::GetSequence()
 {
 	const char* record = GetNextRecord();
-	if(record != NULL) {
-		if(*record != AT)
+	if (record != NULL) {
+		if (*record != AT)
 			Err("non '@' marker; missed header line", LineNumbToStr()).Throw();
-		if( *(record + LineLengthByInd(HEADER1, false) + LineLengthByInd(READ, false)) != PLUS )
+		if (*(record + LineLengthByInd(HEADER1, false) + LineLengthByInd(READ, false)) != PLUS)
 			Err("non '+' marker; missed second header line", LineNumbToStr()).Throw();
 	}
 	return record;
