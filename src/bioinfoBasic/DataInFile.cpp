@@ -2,7 +2,7 @@
 DataInFile.cpp (c) 2021 Fedor Naumenko (fedor.naumenko@gmail.com)
 All rights reserved.
 -------------------------
-Last modified: 28.12.2021
+Last modified: 11/12/2023
 -------------------------
 Provides read|write text file functionality
 ***********************************************************/
@@ -58,14 +58,12 @@ void BedInFile::ResetWigType(FT::eType type, BYTE scoreInd, size_t cMarkPosOffse
 	//	return: true if Fixed or Variable step type is specified
 bool BedInFile::DefineWigType(const char* line)
 {
-	static const string keyVarStep = "variableStep";
-	static const string keyFixStep = "fixedStep";
 	FT::eType type = FT::eType::UNDEF;
 
-	if (KeyStr(line, keyFixStep))
-		ResetWigType(type = FT::eType::WIG_FIX, 0, keyFixStep.length() + 1);
-	else if (KeyStr(line, keyVarStep))
-		ResetWigType(type = FT::eType::WIG_VAR, 1, keyVarStep.length() + 1);
+	if (KeyStr(line, WigFixSTEP))
+		ResetWigType(type = FT::eType::WIG_FIX, 0, WigFixSTEP.length() + 1);
+	else if (KeyStr(line, WigVarSTEP))
+		ResetWigType(type = FT::eType::WIG_VAR, 1, WigVarSTEP.length() + 1);
 	if (type != FT::eType::UNDEF) {
 		SetEstLineCount(type);
 		RollBackRecord(TAB);					// roll back the read declaration line
@@ -85,7 +83,7 @@ BedInFile::BedInFile(const char* fName, FT::eType type, BYTE scoreNumb, bool msg
 	_chrMarkPos(BYTE(strlen(Chrom::Abbr))),
 	TabFile(fName, type, eAction::READ, false, msgFName, abortInval)
 {
-	if(type == FT::eType::ABED)
+	if (type == FT::eType::ABED)
 		_getStrand = [this]() { return *StrField(StrandFieldInd) == PLUS; };
 	else			// for BED ignore strand to omit duplicates even when strand is defined
 		_getStrand = []() { return true; };
@@ -97,8 +95,8 @@ BedInFile::BedInFile(const char* fName, FT::eType type, BYTE scoreNumb, bool msg
 	const char* line1 = KeyStr(line, "track");			// check track key
 	if (line1)											// track definition line
 		if (type == FT::eType::BGRAPH) {				// defined by extention
-			static const char* typeBGraph = "bedGraph";
-			static const char* typeWiggle = "wiggle_0";
+			static const char* typeBGraph = BedGraphTYPE;
+			static const char* typeWiggle = WigTYPE;
 
 			// ** define type by track definition line1
 			line1 = CheckSpec(line1 + 1, "type=");
@@ -110,7 +108,7 @@ BedInFile::BedInFile(const char* fName, FT::eType type, BYTE scoreNumb, bool msg
 					ThrowExcept("type '" + string(line1, len) + "' does not supported");
 				// fixed or variable step
 				line1 = GetNextLine(false);
-				if(!DefineWigType(line1))
+				if (!DefineWigType(line1))
 					ThrowExcept(string(line1) + ": absent or unknown wiggle data format");
 			}
 			else SetEstLineCount(type);
@@ -141,7 +139,7 @@ BamInFile::BamInFile(const char* fName, ChromSizes* cSizes, bool prName) : _prFN
 
 	// variant of estimation with max/min ~ 18
 	float x = float(_reader.GetReferenceCount()) * 200000;
-	_estItemCnt = ULONG(log(x*x) * 100000);
+	_estItemCnt = ULONG(log(x * x) * 100000);
 	// variant or estimation with max/min ~ 28
 	//_estItemCnt = _reader.GetReferenceCount() * 200000;
 
@@ -183,7 +181,7 @@ void UniBedInFile::ResetChrom()
 bool UniBedInFile::CheckItem(chrlen cLen)
 {
 	bool res = true;
-	if (_rgn.Start < _rgn0.Start)
+	if (_checkSorted && _rgn.Start < _rgn0.Start)
 		_file->ThrowExceptWithLineNumb("unsorted " + FT::ItemTitle(_type, false));
 	if (_rgn.Invalid())
 		_file->ThrowExceptWithLineNumb("'start' position is equal or more than 'end' one");
@@ -195,7 +193,7 @@ bool UniBedInFile::CheckItem(chrlen cLen)
 				_rgn.End = cLen;
 			else	return false;
 		}
-	
+
 	_strand = _file->ItemStrand();				// the only reading strand from file
 	if (_rgn0 == _rgn && _strand0 == _strand)	// duplicates
 		_cDuplCnt++,
@@ -228,7 +226,7 @@ void UniBedInFile::PrintStats(ULONG cnt)
 	PrintItemCount(cnt, FT::ItemTitle(_type, cnt != 1));
 	if (cnt) {
 		ULONG issCnt = 0;
-		for (const Issue& iss : _issues)	issCnt += iss.Cnt;
+		for (const Issue& iss : _issues)	issCnt += ULONG(iss.Cnt);
 		if (issCnt) {
 			if (_MaxDuplCnt == vUNDEF)		_issues[DUPL].Action = ACCEPT;
 			else if (_MaxDuplCnt) {
@@ -249,10 +247,10 @@ void UniBedInFile::PrintStats(ULONG cnt)
 //	@part: part number
 //	@total: total number
 //	@fwidth: field width
-void PrintValAndPercent(size_t part, ULONG total, BYTE fwidth = 1)
+void PrintValAndPercent(ULONG part, ULONG total, BYTE fwidth = 1)
 {
 	dout << setfill(SPACE) << setw(fwidth) << SPACE;
-	dout << part << sPercent(Percent(part, total), 2, 0, true);
+	dout << part << sPercent(part, total, 2, 0, true);
 }
 
 // Prints items statistics
@@ -282,18 +280,9 @@ void UniBedInFile::PrintStats(ULONG cnt, ULONG issCnt, const vector<Issue>& issu
 	dout << SPACE << sActions[0], PrintValAndPercent(cnt - issCnt, cnt);
 };
 
-// Creates new instance for reading and open file
-//	@fName: file name
-//	@type: file type
-//	@cSizes: chrom sizes
-//	@scoreNumb: number of 'score' filed (0 by default for ABED and BAM)
-//	@dupLevel: number of additional duplicates allowed; -1 - keep all additional duplicates
-//	@oinfo: output stat info level
-//	@prName: true if file name should be printed unconditionally
-//	@abortInval: true if invalid instance should be completed by throwing exception
 UniBedInFile::UniBedInFile(const char* fName, const FT::eType type, ChromSizes* cSizes,
-	BYTE scoreNumb, char dupLevel, eOInfo oinfo, bool prName, bool abortInval) :
-	_type(type), _MaxDuplCnt(dupLevel), _abortInv(abortInval), _oinfo(oinfo), _cSizes(cSizes)
+	BYTE scoreNumb, char dupLevel, eOInfo oinfo, bool prName, bool checkSorted, bool abortInval) :
+	_type(type), _MaxDuplCnt(dupLevel), _checkSorted(checkSorted), _abortInv(abortInval), _oinfo(oinfo), _cSizes(cSizes)
 {
 	if (prName) { dout << fName; fflush(stdout); }
 
@@ -306,7 +295,14 @@ UniBedInFile::UniBedInFile(const char* fName, const FT::eType type, ChromSizes* 
 			_file = new BedInFile(fName, type, scoreNumb, !prName, abortInval);
 			_type = ((BedInFile*)_file)->Type();	// possible change of BGRAPH with WIG_FIX or WIG_VAR
 		}
-		else Err("wrong extension", prName ? nullptr : fName).Throw(abortInval);
+		else
+			Err(
+#ifndef _BAM
+				type == FT::eType::BAM ? "this build does not support bam files" :
+#endif
+				"wrong extension",
+				prName ? nullptr : fName
+			).Throw(abortInval);
 }
 
 UniBedInFile::~UniBedInFile()
@@ -356,16 +352,16 @@ FBedInFile::FBedInFile(const char* fName, ChromSizes* cSizes,
 	BYTE scoreNmb, eAction action, eOInfo oinfo, bool prName, bool abortInval) :
 	_isJoin(action == eAction::JOIN),
 	_overlAction(action),
-	UniBedInFile(fName, FT::eType::BED, cSizes, scoreNmb, 0, oinfo, prName, abortInval)
+	UniBedInFile(fName, FT::eType::BED, cSizes, scoreNmb, 0, oinfo, prName, true, abortInval)
 {
 	switch (action) {
 	case eAction::ACCEPT:
-	case eAction::JOIN:	 _action = []()		{ return true; }; break;
-	case eAction::OMIT:	 _action = [this]()	{ return !_isOverlap; }; break;
-	case eAction::ABORT: _action = [this]()	{
-			if (_isOverlap)
-				ThrowExceptWithLineNumb("overlapping features");
-			return true; };
+	case eAction::JOIN:	 _action = []() { return true; }; break;
+	case eAction::OMIT:	 _action = [this]() { return !_isOverlap; }; break;
+	case eAction::ABORT: _action = [this]() {
+		if (_isOverlap)
+			ThrowExceptWithLineNumb("overlapping features");
+		return true; };
 	}
 }
 
@@ -398,17 +394,14 @@ long GetNumber(const char* str, const RBedInFile& file, const string& tipEnd)
 #endif	// _READS
 
 readlen	Read::FixedLen;				// length of Read
-
-#if defined _ISCHIP || defined _VALIGN
 const char	Read::Strands[] = { '+', '-' };
-#endif
 
 #ifdef _ISCHIP
 
 char	Read::SeqQuality;		// the quality values for the sequence (ASCII)
 bool	Read::PosInName;		// true if Read name includes a position
 readlen	Read::LimitN = vUNDEF;	// maximal permitted number of 'N' in Read or vUNDEF if all
-const char Read::Complements[] = {'T',0,'G',0,0,0,'C',0,0,0,0,0,0,cN,0,0,0,0,0,'A'};
+const char Read::Complements[] = { 'T',0,'G',0,0,0,'C',0,0,0,0,0,0,cN,0,0,0,0,0,'A' };
 const char* Read::Title = "Read";
 const char* Read::title = "read";
 

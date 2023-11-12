@@ -2,14 +2,11 @@
 DataInFile.h (c) 2021 Fedor Naumenko (fedor.naumenko@gmail.com)
 All rights reserved.
 -------------------------
-Last modified: 28.12.2021
+Last modified: 11/12/2023
 -------------------------
 Provides read|write text file functionality
 ***********************************************************/
 #pragma once
-
-//#ifndef _DATAINFILE_H
-//#define _DATAINFILE_H
 
 #include "TxtFile.h"
 #include <map>
@@ -17,7 +14,7 @@ Provides read|write text file functionality
 //#include <variant>
 
 // 'eOInfo' defines types of outputted oinfo
-enum class eOInfo {	
+enum class eOInfo {
 	NONE,	// nothing printed: it is never pointed in command line
 	LAC,	// laconic:		print file name if needs
 	NM,		// name:		print file name
@@ -50,22 +47,22 @@ public:
 
 	// Returns current item start position
 	virtual chrlen ItemStart() const = 0;
-	
+
 	// Returns current item end position
 	virtual chrlen ItemEnd() const = 0;
-	
+
 	// Returns current item length
 	virtual readlen ItemLength() const = 0;
 
 	// Returns true if alignment part of paired-end read
-	virtual bool IsPairedItem() const  = 0;
-	
+	virtual bool IsPairedItem() const = 0;
+
 	// Returns current item value (score)
-	virtual float ItemValue() const  = 0;
+	virtual float ItemValue() const = 0;
 
 	// Returns current item name
 	virtual const char* ItemName() const = 0;
-	
+
 	// Gets string containing file name and current line number.
 	//	@code: code of error occurs
 	virtual const string LineNumbToStr(Err::eCode code = Err::EMPTY) const = 0;
@@ -116,13 +113,13 @@ public:
 	BedInFile(const char* fName, FT::eType type, BYTE scoreNumb, bool msgFName, bool abortInval);
 
 	// Gets pointer to the chrom mark in current line without check up
-	inline const char* ChromMark() const { return GetLine() + _chrMarkPos; }
+	const char* ChromMark() const { return GetLine() + _chrMarkPos; }
 
 	// Returns estimated number of items
-	inline ULONG EstItemCount() const { return EstLineCount(); }
+	ULONG EstItemCount() const { return EstLineCount(); }
 
 	// Gets file bioinfo type
-	inline FT::eType Type() const { return TabFile::Type(); }
+	FT::eType Type() const { return TabFile::Type(); }
 
 	// Sets the next chromosome as the current one if they are different
 	//	@cID: returned next chrom ID
@@ -137,48 +134,42 @@ public:
 	//	@cID: returned next chrom ID
 	//	@return: true, if new chromosome is set as current one
 	//	To implement DataInFile virtual GetNextChrom(chrid& cID)
-	bool GetNextChrom(chrid& cID) { 
-		return SetNextChrom(cID = Chrom::ValidateID(ChromMark()));
-	}
+	bool GetNextChrom(chrid& cID) { return SetNextChrom(cID = Chrom::ValidateID(ChromMark())); }
 
 	// Retrieves next item's record
-	inline bool GetNextItem()	{ return TabFile::GetNextLine(); }
+	bool GetNextItem() { return TabFile::GetNextLine(); }
 
 	// Returns current item start position
-	inline chrlen ItemStart()	const { return LongField(1); }
+	chrlen ItemStart()	const { return LongField(1); }
 
 	// Returns current item end position
-	inline chrlen ItemEnd()		const { return LongField(2); }
+	chrlen ItemEnd()		const { return LongField(2); }
 
 	// Returns current item length
-	inline readlen ItemLength()	const { return readlen(ItemEnd() - ItemStart()); }
+	readlen ItemLength()	const { return readlen(ItemEnd() - ItemStart()); }
 
 	// Returns true if alignment part of paired-end read
-	inline bool IsPairedItem()	const { return strchr(ItemName() + 1, '/'); }
+	bool IsPairedItem()	const { return strchr(ItemName() + 1, '/'); }
 
 	// Returns current item value (score)
-	inline float ItemValue()	const {
-		return FloatFieldValid(_scoreInd);
-	}
+	float ItemValue()	const { return FloatFieldValid(_scoreInd); }
 
 	// Returns current item name
-	inline const char* ItemName() const { return StrFieldValid(NameFieldInd); }
+	const char* ItemName() const { return StrFieldValid(NameFieldInd); }
 
 	// Gets string containing file name and current line number.
 	//	@code: code of error occurs
-	inline const string LineNumbToStr(Err::eCode code) const {
-		return TxtInFile::LineNumbToStr(code);
-	}
+	const string LineNumbToStr(Err::eCode code) const { return TxtInFile::LineNumbToStr(code); }
 
 	// Throws exception with message included current reading line number
 	//	@msg: exception message
-	inline void ThrowExceptWithLineNumb(const string& msg) const { return TxtInFile::ThrowExceptWithLineNumb(msg); }
+	void ThrowExceptWithLineNumb(const string& msg) const { return TxtInFile::ThrowExceptWithLineNumb(msg); }
 
 	// Gets conditional file name: name if it's printable, otherwise empty string.
-	inline const string CondFileName() const { return TxtFile::CondFileName(); }
+	const string CondFileName() const { return TxtFile::CondFileName(); }
 
 	// Returns current item strand: true - positive, false - negative
-	inline bool ItemStrand() const { return _getStrand(); }
+	bool ItemStrand() const { return _getStrand(); }
 };
 
 class ChromSizes;	// Data.h
@@ -204,7 +195,7 @@ class BamInFile : public DataInFile
 	ULONG _estItemCnt = vUNDEF;	// estimated number of items
 
 	// Returns SAM header data
-	inline const string GetHeaderText() const { return _reader.GetHeaderText(); }
+	const string GetHeaderText() const { return _reader.GetHeaderText(); }
 
 public:
 	// Creates new instance for reading and open file
@@ -214,10 +205,10 @@ public:
 	BamInFile(const char* fName, ChromSizes* cSizes, bool prName);
 
 	// Returns estimated number of items
-	inline ULONG EstItemCount() const { return _estItemCnt; }
+	ULONG EstItemCount() const { return _estItemCnt; }
 
 	// returns chroms count
-	inline chrid ChromCount() const { return _reader.GetReferenceCount(); }
+	chrid ChromCount() const { return _reader.GetReferenceCount(); }
 
 	// Sets the next chromosome as the current one if they are different
 	// @cID: returned next chrom ID
@@ -225,44 +216,44 @@ public:
 	bool GetNextChrom(chrid& cID) { return SetNextChrom(cID = Chrom::ValidateID(_read.RefID)); }
 
 	// Retrieves next item's record
-	bool GetNextItem()	{ 
+	bool GetNextItem() {
 		return _reader.GetNextAlignmentCore(_read)
 			&& _read.Position >= 0;	// additional check because of bag: GetNextAlignment() doesn't
 									// return false after last read while reading the whole genome
 	}
 
 	// Returns current item start position
-	inline chrlen ItemStart()	const { return _read.Position; }
+	chrlen ItemStart()	const { return _read.Position; }
 
 	// Returns current item end position
-	inline chrlen ItemEnd()		const { return _read.Position + _read.Length; }
+	chrlen ItemEnd()		const { return _read.Position + _read.Length; }
 
 	// Returns current item length
-	inline readlen ItemLength()	const { return readlen(_read.Length); }
+	readlen ItemLength()	const { return readlen(_read.Length); }
 
 	// Returns true if alignment part of paired-end read
-	inline bool IsPairedItem()	const { return _read.IsPaired(); }
+	bool IsPairedItem()	const { return _read.IsPaired(); }
 
 	// Returns current item value (score)
-	inline float ItemValue()	const { return _read.MapQuality; }
+	float ItemValue()	const { return _read.MapQuality; }
 
 	// Returns current item name
-	inline const char* ItemName() const { return (_rName = _read.Name).c_str(); }
+	const char* ItemName() const { return (_rName = _read.Name).c_str(); }
 
 	// Gets string containing file name and current line number.
-	inline const string LineNumbToStr(Err::eCode) const { return strEmpty; }
+	const string LineNumbToStr(Err::eCode) const { return strEmpty; }
 
 	// Throws exception with message included current reading line number
-	inline void ThrowExceptWithLineNumb(const string& msg) const { Err(msg).Throw(); }
+	void ThrowExceptWithLineNumb(const string& msg) const { Err(msg).Throw(); }
 
 	// Gets conditional file name: name if it's printable, otherwise empty string.
-	inline const string CondFileName() const { return _prFName ? _reader.GetFilename() : strEmpty; }
+	const string CondFileName() const { return _prFName ? _reader.GetFilename() : strEmpty; }
 
 	// DataInFile method empty implementation.
-	//inline bool IsItemHoldStrand() const { return true; }
+	//bool IsItemHoldStrand() const { return true; }
 
 	// Returns current item strand: true - positive, false - negative
-	inline bool  ItemStrand() const	{ return !_read.IsReverseStrand(); }
+	bool  ItemStrand() const { return !_read.IsReverseStrand(); }
 
 };
 #endif	// _BAM
@@ -278,11 +269,11 @@ public:
 		OMIT,	// omitted
 		ABORT,	// interruption at the first issue
 	};
-	
+
 	// Ñonsolidated issue information; public becauseod use in CallDist (class FragDist)
 	struct Issue {
-		size_t	Cnt = 0;				// total number of issue cases
-		const char*	Title;				// issue description
+		ULONG	Cnt = 0;				// total number of issue cases
+		const char* Title;				// issue description
 		const char* Ext = nullptr;		// extension of treatment description
 		eAction Action = eAction::OMIT;	// issue treatment
 
@@ -298,14 +289,14 @@ private:
 	chrid	_cCnt = 0;			// number of readed chroms
 	Region	_rgn0{ 0,0 };		// previous item's region
 	Region	_rgn{ 0,0 };		// current item's region
-	size_t	_cDuplCnt = 0;		// number of duplicates per chrom; the first 'originals' are not counted
+	ULONG	_cDuplCnt = 0;		// number of duplicates per chrom; the first 'originals' are not counted
 	char	_duplCnt = 0;		// current number of duplicates
 	bool	_strand = true;		// current item's strand
 	bool	_strand0 = true;	// previous item's strand; first sorted read is always negative
+	bool	_checkSorted = true;// checking for unsorted items 
 	DataInFile* _file = nullptr;// data file; unique_ptr is useless because of different type in constructor/destructor
 	//variant<BedInFile, BamInFile> file;
 	const ChromSizes* _cSizes;
-	//mutable char _calledPaired = -1;	// initialized by first call of _file->IsPairedItem()
 
 	// Resets the current accounting of items
 	void ResetChrom();
@@ -344,11 +335,11 @@ protected:
 		"overlapping" ,
 		"starting outside the chromosome",
 		"ending outside the chromosome"
-};
+	};
 	map<readlen, ULONG>	_lenFreq;		// item length frequency
 
 	// Returns true if adjacent items overlap
-	inline bool IsOverlap() const { return _rgn.Start <= _rgn0.End;  }
+	bool IsOverlap() const { return _rgn.Start <= _rgn0.End; }
 
 public:
 	static bool IsTimer;	// if true then manage timer by Timer::Enabled, otherwise no timer
@@ -366,23 +357,24 @@ public:
 	static void PrintStats(ULONG cnt, ULONG issCnt, const vector<Issue>& issues, bool prStat);
 
 	// Creates new instance for reading and open file
-	//	@fName: file name
-	//	@type: file type
-	//	@cSizes: chrom sizes
-	//	@scoreNumb: number of 'score' filed (0 by default for ABED and BAM)
-	//	@dupLevel: number of additional duplicates allowed; -1 - keep all additional duplicates
-	//	@oinfo: output stat info level
-	//	@prName: true if file name should be printed unconditionally
-	//	@abortInval: true if invalid instance should be completed by throwing exception
+	//	@param fName: file name
+	//	@param type: file type
+	//	@param cSizes: chrom sizes
+	//	@param scoreNumb: number of 'score' filed (0 by default for ABED and BAM)
+	//	@param dupLevel: number of additional duplicates allowed; -1 - keep all additional duplicates
+	//	@param oinfo: output stat info level
+	//	@param prName: true if file name should be printed unconditionally
+	//	@param checkSorted: true if items should be sorted within chrom
+	//	@param abortInval: true if invalid instance should be completed by throwing exception
 	UniBedInFile(const char* fName, const FT::eType type, ChromSizes* cSizes,
-		BYTE scoreNumb, char dupLevel, eOInfo oinfo, bool prName, bool abortInval);
+		BYTE scoreNumb, char dupLevel, eOInfo oinfo, bool prName, bool checkSorted, bool abortInval);
 
 	// explicit destructor
 	~UniBedInFile();
 
 	// pass through records
 	template<typename Functor>
-	void Pass(Functor& f)
+	void Pass(Functor& func)
 	{
 		const bool setCustom = Chrom::CustomID() != Chrom::UnID;	// 	chrom is specified by user
 		size_t	cItemCnt = 0;					// count of chrom entries
@@ -400,81 +392,83 @@ public:
 					if (skipChrom = nextcID != Chrom::CustomID()) continue;
 					userChromInProc = true;
 				}
-				f(cID, cLen, cItemCnt, nextcID);					// close current chrom, open next one
+				if (cID != Chrom::UnID && nextcID < cID)
+					_file->ThrowExceptWithLineNumb("unsorted " + Chrom::ShortName(nextcID));
+				func(cID, cLen, cItemCnt, nextcID);			// close current chrom, open next one
 				ResetChrom();
 				cID = nextcID;
-				cItemCnt = 0;				
+				cItemCnt = 0;
 				if (_cSizes)	cLen = ChromSize(cID);
 			}
 			else if (skipChrom)		continue;
-			_rgn.Set(_file->ItemStart(), _file->ItemEnd());	// the single invoke file->ItemStart(), ItemEnd()
+			_rgn.Set(_file->ItemStart(), _file->ItemEnd());	// the only invoke ItemStart()/ItemEnd()
 			if (CheckItem(cLen)) {
-				cItemCnt += f(); 							// treat entry
+				cItemCnt += func(); 						// treat entry
 				_rgn0 = _rgn;
 			}
 			tItemCnt++;
 		}
-		f(cID, cLen, cItemCnt, tItemCnt);				// close last chrom
-		
+		func(cID, cLen, cItemCnt, tItemCnt);				// close last chrom
+
 		if (_oinfo >= eOInfo::STD)	PrintStats(tItemCnt);
 		timer.Stop(1, true, _oinfo > eOInfo::NM);
 	}
 
-	inline DataInFile& BaseFile() const { return *_file; }
+	DataInFile& BaseFile() const { return *_file; }
 
 	// Returns estimated number of items
 	ULONG EstItemCount() const;
 
 	// Gets file bioinfo type
-	inline FT::eType Type() const { return _type; }
+	FT::eType Type() const { return _type; }
 
 	// Gets count of chromosomes read
-	inline chrid ReadedChromCount() const { return _cCnt; }
+	chrid ReadedChromCount() const { return _cCnt; }
 
 	// Returns current item region
-	inline const Region& ItemRegion() const { return _rgn; }
+	const Region& ItemRegion() const { return _rgn; }
 
 	// Returns current item start position
-	inline chrlen ItemStart() const { return _rgn.Start; }
+	chrlen ItemStart() const { return _rgn.Start; }
 
 	// Returns current item end position
-	inline chrlen ItemEnd()	const	{ return _rgn.End; }
+	chrlen ItemEnd()	const { return _rgn.End; }
 
 	// Returns previous accepted item end position
-	inline chrlen PrevItemEnd() const { return _rgn0.End; }
+	chrlen PrevItemEnd() const { return _rgn0.End; }
 
 	// Returns current item length
-	inline readlen ItemLength()	const { return _rgn.Length(); }
+	readlen ItemLength()	const { return _rgn.Length(); }
 
 	// Returns current item strand: true - positive, false - negative
-	inline bool ItemStrand() const { return _strand; }
+	bool ItemStrand() const { return _strand; }
 
 	// Returns current item value (score)
-	inline float ItemValue() const { return _file->ItemValue(); }
+	float ItemValue() const { return _file->ItemValue(); }
 
 	// Returns current item name
-	inline const char* ItemName() const { return _file->ItemName(); }
+	const char* ItemName() const { return _file->ItemName(); }
 
 	// Returns true if item contains the strand sign
 	//	Is invoked in the Feature constructor only.
-	//inline bool IsItemHoldStrand() const { return _file->IsItemHoldStrand(); }
+	//bool IsItemHoldStrand() const { return _file->IsItemHoldStrand(); }
 
 	// Gets string containing file name and current line number.
 	//	@code: code of error occurs
-	inline const string LineNumbToStr(Err::eCode code) const { return _file->LineNumbToStr(code); }
+	const string LineNumbToStr(Err::eCode code) const { return _file->LineNumbToStr(code); }
 
 	// Throws exception with message included current reading line number
 	//	@msg: exception message
-	inline void ThrowExceptWithLineNumb(const string& msg) const { return _file->ThrowExceptWithLineNumb(msg); }
+	void ThrowExceptWithLineNumb(const string& msg) const { return _file->ThrowExceptWithLineNumb(msg); }
 
 	// Gets conditional file name: name if it's printable, otherwise empty string.
-	inline const string CondFileName() const { return _file->CondFileName(); }
+	const string CondFileName() const { return _file->CondFileName(); }
 
 	// Returns number of duplicated items in current chrom (without the first 'original')
-	inline size_t DuplCount() const { return _cDuplCnt; }
+	ULONG DuplCount() const { return _cDuplCnt; }
 
 	// Returns total number of duplicate items (without the first 'original')
-	size_t DuplTotalCount() const { 
+	ULONG DuplTotalCount() const {
 		return _issues[DUPL].Cnt + _cDuplCnt;	// _cDuplCnt separate because the last chrom is not counted in a loop
 	}
 };
@@ -487,15 +481,16 @@ class RBedInFile : public UniBedInFile
 
 public:
 	// Creates new instance for reading and open file
-	//	@fName: file name
-	//	@cSizes: chrom sizes
-	//	@dupLevel: number of additional duplicates allowed; -1 - keep all additional duplicates
-	//	@oinfo: verbose level
-	//	@prName: true if file name should be printed unconditionally
-	//	@abortInval: true if invalid instance should be completed by throwing exception
-	inline RBedInFile(const char* fName, ChromSizes* cSizes,
-		char dupLevel, eOInfo oinfo, bool prName, bool abortInval = true) :
-			UniBedInFile(fName, FT::GetType(fName, true), cSizes, 0, dupLevel, oinfo, prName, abortInval)
+	//	@param fName: file name
+	//	@param cSizes: chrom sizes
+	//	@param dupLevel: number of additional duplicates allowed; -1 - keep all additional duplicates
+	//	@param oinfo: verbose level
+	//	@param prName: true if file name should be printed unconditionally
+	//	@param checkSorted: true if reads should be sorted within chrom
+	//	@param abortInval: true if invalid instance should be completed by throwing exception
+	RBedInFile(const char* fName, ChromSizes* cSizes,
+		char dupLevel, eOInfo oinfo, bool prName, bool checkSorted = true, bool abortInval = true) :
+		UniBedInFile(fName, FT::GetType(fName, true), cSizes, 0, dupLevel, oinfo, prName, checkSorted, abortInval)
 	{}
 
 	// Returns the most frequent Read length
@@ -503,7 +498,7 @@ public:
 	readlen ReadLength() const { return _rLen ? _rLen : (_rLen = prev(_lenFreq.cend())->first); }
 
 	// Returns true if alignment part of paired-end read
-	inline bool IsPairedRead() const { return BaseFile().IsPairedItem(); }
+	bool IsPairedRead() const { return BaseFile().IsPairedItem(); }
 };
 
 #endif	// _READS
@@ -521,7 +516,7 @@ private:
 	bool ChildCheckItem();
 
 	// Returns proposed overlapping action
-	inline eAction GetOverlAction() const { return _overlAction; }
+	eAction GetOverlAction() const { return _overlAction; }
 
 public:
 	// Creates new instance for reading and open file
@@ -535,7 +530,7 @@ public:
 		BYTE scoreNmb, eAction action, eOInfo oinfo, bool prName, bool abortInval);
 
 	// If true then join overlapping feature
-	bool IsJoined() const { return _isJoin &&_isOverlap; }
+	bool IsJoined() const { return _isJoin && _isOverlap; }
 
 	// Returns true if features length distribution is degenerate
 	bool NarrowLenDistr() const;
@@ -550,11 +545,9 @@ class Read
 public:
 	static const readlen VarMinLen = 20;	// minimum Read length in variable Read mode
 	static const readlen VarMaxLen = 3000;	// maximum Read length in variable Read mode
-	static readlen	FixedLen;				// fixed length of Read
-private:
-#if defined _ISCHIP || defined _VALIGN || defined _PE_READ
+	static readlen		FixedLen;			// fixed length of Read
 	static const char	Strands[2];			// strand markers: [0] - positive, [1] - negative
-public:
+#if defined _ISCHIP || defined _VALIGN || defined _PE_READ
 	static const char	NmDelimiter = ':';		// delimiter between progTitle and chrom
 	static const char	NmNumbDelimiter = DOT;	// delimiter between prog title and number
 	static const char	NmPos1Delimiter = ':';	// delimiter before first recorded position
@@ -589,43 +582,43 @@ public:
 	//	@limN: maximal permitted number of 'N'
 	static void Init(readlen len, bool posInName, char seqQual, short limN);
 
-	inline static char StrandMark(bool reverse) { return Strands[int(reverse)]; }
+	static char StrandMark(bool reverse) { return Strands[int(reverse)]; }
 
-	inline static bool IsPosInName() { return PosInName; }
+	static bool IsPosInName() { return PosInName; }
 
 	// Fills external buffer by quality values for the sequence
-	inline static void FillBySeqQual(char* dst, readlen rlen) { memset(dst, SeqQuality, rlen); }
+	static void FillBySeqQual(char* dst, readlen rlen) { memset(dst, SeqQuality, rlen); }
 
 	// Constructor by sequence, start position and length
 	Read(const char* seq, chrlen pos, readlen len) : _seq(seq) { _rgn.Set(pos, pos + len); }
 
 	// Gets Read's region
-	//inline const Region& Rgn() const { return _rgn; }
+	//const Region& Rgn() const { return _rgn; }
 
 	// Gets Read's length
-	inline readlen Length() const { return _rgn.Length(); }
+	readlen Length() const { return _rgn.Length(); }
 
 	// Gets Read's start position
-	inline chrlen Start() const { return _rgn.Start; }
+	chrlen Start() const { return _rgn.Start; }
 
 	// Gets Read's end position
-	inline chrlen End() const { return _rgn.End; }
+	chrlen End() const { return _rgn.End; }
 
 	// Gets Read's sequence
-	inline const char* Seq() const { return _seq; }
+	const char* Seq() const { return _seq; }
 
 	// Copies Read into dst
-	inline void Copy(char* dst) const { memcpy(dst, _seq, Length()); }
+	void Copy(char* dst) const { memcpy(dst, _seq, Length()); }
 
 	// Copies initial or complemented Read into dst
-	inline void Copy(char* dst, bool reverse) const { (this->*CopyRead[reverse])(dst); }
+	void Copy(char* dst, bool reverse) const { (this->*CopyRead[reverse])(dst); }
 
 	// Checks Read for number of 'N'
 	//	return:	1: NULL Read; 0: success; -1: N limit is exceeded
 	int CheckNLimit() const;
 
 	// Prints quality values for the sequence
-	inline static void PrintSeqQuality() { cout << '[' << SeqQuality << ']'; }
+	static void PrintSeqQuality() { cout << '[' << SeqQuality << ']'; }
 
 	// Prints Read values - parameters
 	//	@signOut: output marker
@@ -647,11 +640,13 @@ public:
 	// PE Read constructor
 	Read(const RBedInFile& file);
 
-	inline chrlen End() const { return Pos + Len; }
+	chrlen Start()	const { return Pos; }
+
+	chrlen End()	const { return Pos + Len; }
 
 	// Returns frag length
 	//	@r: second read in a pair
-	inline fraglen FragLen(const Read& r) const { return Strand ? r.End() - Pos : End() - r.Pos; }
+	fraglen FragLen(const Read& r) const { return Strand ? r.End() - Pos : End() - r.Pos; }
 
 	void Print() const { dout << Pos << TAB << Numb << TAB << Strand << LF; }
 
@@ -667,11 +662,9 @@ public:
 #endif
 
 	// Compares two Reads by position. For sorting a container.
-	inline static bool CompareByStartPos(const Read& r1, const Read& r2) { return r1.Pos < r2.Pos; }
+	static bool CompareByStartPos(const Read& r1, const Read& r2) { return r1.Pos < r2.Pos; }
 
-	//inline static bool CompareByNum(const Read& r1, const Read& r2) {	return r1.Num < r2.Num; }
+	//static bool CompareByNum(const Read& r1, const Read& r2) {	return r1.Num < r2.Num; }
 #endif
 };
 #endif
-
-//#endif	//_DATAINFILE_H

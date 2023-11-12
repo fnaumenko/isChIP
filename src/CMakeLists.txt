@@ -15,13 +15,13 @@ if(MSVC)
 	set(ZLIB_DIR /ProgramData/zlib1.3)
 	set(ZLIB_LIBRARY_DEBUG ${ZLIB_DIR}/Debug/zlibstaticd.lib)
 	set(ZLIB_LIBRARY_RELEASE ${ZLIB_DIR}/Release/zlibstatic.lib)
-	set(ZLIB_INCLUDE_DIRS ${ZLIB_DIR})
+	set(ZLIB_INCLUDE_DIR ${ZLIB_DIR})
 endif()
 
 find_package(ZLIB REQUIRED)
 if(ZLIB_FOUND)
-	# add_compile_definitions(_ZLIB)
-	include_directories( ${ZLIB_INCLUDE_DIRS} )
+	add_compile_definitions(_ZLIB)
+	include_directories(${ZLIB_INCLUDE_DIRS})
 else()
 	message(WARNING ">> ZLIB not found!")
 endif()
@@ -36,6 +36,7 @@ set(Header_Files
 	${BASIC_DIR}/common.h
 	${BASIC_DIR}/Data.h
 	${BASIC_DIR}/DataInFile.h
+    ${BASIC_DIR}/OrderedData.h
 	${BASIC_DIR}/TxtFile.h
 	isChIP.h
 	Imitator.h
@@ -49,6 +50,7 @@ set(Source_Files
 	${BASIC_DIR}/common.cpp
 	${BASIC_DIR}/Data.cpp
 	${BASIC_DIR}/DataInFile.cpp
+    ${BASIC_DIR}/OrderedData.cpp
 	${BASIC_DIR}/TxtFile.cpp
 	isChIP.cpp
 	Imitator.cpp
