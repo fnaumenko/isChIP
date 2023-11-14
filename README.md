@@ -64,6 +64,8 @@ To compile from Git, type:
 git clone https://github.com/fnaumenko/isChIP
 cd isChIP
 cmake src
+git submodule init
+git submodule update
 cmake --build . --target ALL_BUILD --config Release
 ```
 Alternative in Linux:
@@ -72,10 +74,14 @@ wget -O isChIP.zip https://github.com/fnaumenko/isChIP/archive/v2.0.zip
 unzip isChIP.zip
 cd isChIP-2.1
 cmake src
+git submodule init
+git submodule update
 cmake --build . --target ALL_BUILD --config Release
 ```
-
-The executable file is located in the isChIP/build/Release folder.
+Fast check the build:
+```
+build/release/ischip -v
+```
 
 If **zlib** is not installed on your system, the program will be compiled without the ability to read/write compressed files.
 
