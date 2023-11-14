@@ -4,7 +4,7 @@ The model is based on the real protocol of ChIP-seq
 
 Copyright (C) 2014-2023 Fedor Naumenko (fedor.naumenko@gmail.com)
 -------------------------
-Last modified: 11/9/2023
+Last modified: 11/15/2023
 -------------------------
 
 This program is free software.
@@ -129,7 +129,7 @@ If the option is not specified, the read length is fixed", NULL },
 	"generate two additional wig files, each one per strand", NULL },
 	{ 'O', sOutput,	tOpt::NONE,	tNAME,	gOUTPUT, vUNDEF, 0, 0, NULL, OutFileTip.c_str()	},
 	{ 'T', "sep",	tOpt::NONE,	tENUM,	gOUTPUT, FALSE,	vUNDEF, 2, NULL, "use 1000 separator in output", NULL },
-#ifndef _NO_ZLIB
+#ifdef _ZLIB
 	{ 'z',"gzip",	tOpt::NONE,	tENUM,	gOUTPUT, FALSE, vUNDEF, 2, NULL, "compress the output", NULL},
 #endif
 	{ 't',	sTime,	tOpt::NONE,	tENUM,	gOTHER,	FALSE,	vUNDEF, 2, NULL, sPrTime, NULL },
@@ -177,10 +177,10 @@ int main(int argc, char* argv[])
 		Options::GetUIVal(oMAP_QUAL),
 		Options::GetBVal(oSTRAND),
 		Options::GetFVal(oSTRAND_ERR) / 100,
-#ifdef _NO_ZLIB
-		false
-#else
+#ifdef _ZLIB
 		Options::GetBVal(oGZIP)
+#else
+		false
 #endif
 	);
 	Imitator::Init(

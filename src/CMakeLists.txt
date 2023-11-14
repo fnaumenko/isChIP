@@ -27,8 +27,7 @@ else()
 endif()
 
 # Source groups
-set(BASIC_DIR ./bioinfoBasic)
-# set(BASIC_DIR ../../bioinfoBasic)
+set(BASIC_DIR ../bioinfoBasic)
 
 include_directories( ${CMAKE_CURRENT_SOURCE_DIR}/${BASIC_DIR} )
 

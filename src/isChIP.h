@@ -2,7 +2,7 @@
 isChIP.h (c) 2014 Fedor Naumenko (fedor.naumenko@gmail.com)
 All rights reserved.
 -------------------------
-Last modified: 02.01.2022
+Last modified: 11/15/2023
 -------------------------
 Provides option emum
 ***********************************************************/
@@ -48,7 +48,7 @@ enum optValue {
 	oSTRAND,
 	oOUT_FILE,
 	oLOCALE,
-#ifndef _NO_ZLIB
+#ifdef _ZLIB
 	oGZIP,
 #endif
 	oTIME,
