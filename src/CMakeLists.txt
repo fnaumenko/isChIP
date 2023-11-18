@@ -38,6 +38,7 @@ set(Header_Files
 	${BASIC_DIR}/Distrib.h
     ${BASIC_DIR}/OrderedData.h
 	${BASIC_DIR}/TxtFile.h
+    ${BASIC_DIR}/spline.h
 	isChIP.h
 	Imitator.h
 	DataOutFile.h
