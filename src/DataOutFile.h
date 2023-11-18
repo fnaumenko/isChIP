@@ -10,6 +10,7 @@ Provides output data text files functionality
 #include <memory>		// smart ptr
 #include <string>
 #include "Data.h"
+#include "Distrib.h"
 #include "OrderedData.h"
 #include "RandomGen.h"
 

@@ -35,6 +35,7 @@ set(Header_Files
 	${BASIC_DIR}/common.h
 	${BASIC_DIR}/Data.h
 	${BASIC_DIR}/DataInFile.h
+	${BASIC_DIR}/Distrib.h
     ${BASIC_DIR}/OrderedData.h
 	${BASIC_DIR}/TxtFile.h
 	isChIP.h
@@ -49,6 +50,7 @@ set(Source_Files
 	${BASIC_DIR}/common.cpp
 	${BASIC_DIR}/Data.cpp
 	${BASIC_DIR}/DataInFile.cpp
+	${BASIC_DIR}/Distrib.cpp
     ${BASIC_DIR}/OrderedData.cpp
 	${BASIC_DIR}/TxtFile.cpp
 	isChIP.cpp
