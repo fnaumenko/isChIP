@@ -283,13 +283,13 @@ int Imitator::ChromView::PrintHeader(bool FgHeader)
 	cout << right;
 	// if little reads count then extend "reads" field to 1, otherwhise extend "sample" field to 1
 	lineW += PrFittedStr(rTitle.c_str(),
-		GrTitleW() + CountW - w + marg_R * ControlMode);		// "reads"
+		GrTitleW() + CountW - w + marg_R * ControlMode);	// "reads"
 	lineW += PrFittedStr("sample", marg_S + SampleW);		// "sample"
 	// now we should compensate extention to 1:
 	// if MDA is set then shrink "MDAc" to 1, otherwhise shrink "unit densuty" field to 1
 	if (Imitator::IsMDA || PCRCoeff)
-		lineW += PrFittedStr("ampl", marg_A + AmplW);	// amplification coefficient 
-	lineW += PrFittedStr(sUnitDens, marg_D + DensW);			// unit density
+		lineW += PrFittedStr("ampl", marg_A + AmplW);		// amplification coefficient 
+	lineW += PrFittedStr("r/kbp", marg_D + DensW);			// unit density
 	if (FgHeader)	PrintMarg(margD_), lineW += margD_;		// empty space
 
 	return lineW;
