@@ -748,7 +748,7 @@ void Output::DistrFiles::AddFrag(fraglen flen, readlen rlen)
 void Output::DistrFiles::PrintFormat(const char* signOut, const char* predicate) const
 {
 	if (HasFormat(eFormat::FDIST, eFormat::RDIST)) {
-		cout << signOut << predicate << sDistrib << SepDCl;
+		cout << signOut << predicate << LenFreq::sDistrib << SepDCl;
 		for (BYTE i = 0; i < ND; i++) {
 			if (HasContigFormat(eFormat::FDIST, i))
 				cout << entityTitles[i] << entityAdjust[i] << SepCl << FileName(i);
