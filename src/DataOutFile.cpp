@@ -697,12 +697,12 @@ Output::DistrFiles::DistrFiles(const string& fName, bool isFragDist, bool isRead
 	: _fName(fName)
 {
 	if (isFragDist) {
-		_dist[0] = new LenFreq();
-		_fAddFrag = [&](fraglen flen) {_dist[0]->AddLen(flen); };
+		_dist[0] = new Distrib();
+		_fAddFrag = [&](fraglen flen) {_dist[0]->AddVal(flen); };
 	}
 	if (isReadDist) {
-		_dist[1] = new LenFreq();
-		_fAddRead = [&](readlen rlen) {_dist[1]->AddLen(rlen); };
+		_dist[1] = new Distrib();
+		_fAddRead = [&](readlen rlen) {_dist[1]->AddVal(rlen); };
 	}
 }
 
@@ -713,7 +713,7 @@ Output::DistrFiles::~DistrFiles()
 
 	for (BYTE i = 0; i < ND; ++i)
 		if (_dist[i]) {
-			LenFreq::eCType dtype = LenFreq::eCType::NORM;
+			Distrib::eCType dtype = Distrib::eCType::NORM;
 			ofstream s;
 			s.open(FileName(i));
 			if (s.is_open()) {
@@ -724,7 +724,7 @@ Output::DistrFiles::~DistrFiles()
 						s << sSet << "constant " << Read::title << " length" << LF;
 				else {		// fragments
 					DistrParams::PrintFragDistr(s, sSet, false);
-					if (!DistrParams::IsSS())	dtype = LenFreq::eCType::LNORM;
+					if (!DistrParams::IsSS())	dtype = Distrib::eCType::LNORM;
 				}
 				_dist[i]->Print(s, dtype);
 				s.close();
@@ -748,7 +748,7 @@ void Output::DistrFiles::AddFrag(fraglen flen, readlen rlen)
 void Output::DistrFiles::PrintFormat(const char* signOut, const char* predicate) const
 {
 	if (HasFormat(eFormat::FDIST, eFormat::RDIST)) {
-		cout << signOut << predicate << LenFreq::sDistrib << SepDCl;
+		cout << signOut << predicate << Distrib::sDistrib << SepDCl;
 		for (BYTE i = 0; i < ND; i++) {
 			if (HasContigFormat(eFormat::FDIST, i))
 				cout << entityTitles[i] << entityAdjust[i] << SepCl << FileName(i);

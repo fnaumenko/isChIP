@@ -512,7 +512,7 @@ private:
 		static const char* entityAdjust[];		// entity title adjustment for printing
 
 		const string _fName = strEmpty;			// common part of frag's/read's distribution file name
-		LenFreq* _dist[ND]{ nullptr,nullptr };	// distributions: fragments (0) and reads (1)
+		Distrib* _dist[ND]{ nullptr,nullptr };	// distributions: fragments (0) and reads (1)
 		function<void(fraglen flen)> _fAddFrag = [](fraglen) {};	// 'add fragment to distribution' function
 		function<void(readlen rlen)> _fAddRead = [](readlen) {};	// 'add read to distribution' function
 
