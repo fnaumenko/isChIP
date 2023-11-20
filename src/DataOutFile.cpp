@@ -549,7 +549,7 @@ Output::OutFile::OutFile(const OutFile& primer)
 }
 
 // Start recording chrom
-void Output::OutFile::BeginWriteChrom(const RefSeq& seq)
+void Output::OutFile::BeginWriteChrom(const ChromSeq& seq)
 {
 	const string chr = Chrom::AbbrName(seq.ID());
 
@@ -829,7 +829,7 @@ Output::Output(const Output& file) : _dists(file._dists), _gMode(file._gMode)
 }
 
 // Starts recording chrom
-void Output::BeginWriteChrom(const RefSeq& seq)
+void Output::BeginWriteChrom(const ChromSeq& seq)
 {
 	_oFiles[0]->BeginWriteChrom(seq);
 	if (_oFiles[1])	_oFiles[1]->BeginWriteChrom(seq);

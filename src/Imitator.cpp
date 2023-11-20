@@ -208,8 +208,8 @@ public:
 
 /************************ AvrFrags: end ************************/
 
-// Thread-safety increment sizes by RefSeq
-void Imitator::GenomeSizes::IncrSizes(const RefSeq& seq)
+// Thread-safety increment sizes by ChromSeq
+void Imitator::GenomeSizes::IncrSizes(const ChromSeq& seq)
 {
 	Mutex::Lock(Mutex::eType::INCR_SUM);
 	Total += seq.Length();
@@ -302,7 +302,7 @@ int Imitator::ChromView::PrintHeaderGaps()
 
 	if (Verbose(eVerb::PAR)) {
 		lineW = PrFittedStr("gaps", margD_ + GapsW);
-		if (!RefSeq::LetGaps)
+		if (!ChromSeq::LetGaps)
 			lineW += PrFittedStr(tGapsExcl, margGexcl + GapsWexcl);
 	}
 	if (Timer::Enabled)
@@ -336,7 +336,7 @@ void Imitator::ChromView::PrintReads(GM::eMode gMode, const FragCnt fragCnt, chr
 void Imitator::ChromView::PrintGaps(const GenomeSizes& s)
 {
 	PrFittedFloat(true, s.GapsInPers(), GapsPr, margD_ + GapsW);
-	if (RefSeq::LetGaps)		return;
+	if (ChromSeq::LetGaps)		return;
 	PrFittedFloat(true, s.UndefInPers(), GapsPr, margGexcl + int(strlen(tGapsExcl)));
 }
 
@@ -438,7 +438,7 @@ Imitator::ChromCutter::ChromCutter(const Imitator* imitator, Average* avr, bool 
 //	@timer: current timer to thread-saves time output or NULL
 //	@exceedLimit: true if limit is exceeded
 void Imitator::ChromCutter::PrintChrom(
-	const RefSeq& seq, chrlen enrRegLen, Timer& timer, bool excLimit)
+	const ChromSeq& seq, chrlen enrRegLen, Timer& timer, bool excLimit)
 {
 	if (!Verbose(eVerb::RT))	return;
 
@@ -492,7 +492,7 @@ void Imitator::ChromCutter::Execute(const effPartition::Subset& cIDSet)
 				enrRegLen = Templ->EnrRegnLength(cit, 0, SelFragAvr);
 			}
 			else	enrRegLen = fCnt = 0;
-			const RefSeq seq(cID, _cSizes);
+			const ChromSeq seq(cID, _cSizes);
 			const chrlen cLen = seq.End();		// chrom 'end' position
 			float scores[]{ 1,1 };
 
@@ -751,7 +751,7 @@ void Imitator::PrintAmpl(const char* signOut)
 }
 
 // Increments grounds total length.
-void Imitator::IncrementTotalLength(const RefSeq& seq, chrlen enrRgnLen)
+void Imitator::IncrementTotalLength(const ChromSeq& seq, chrlen enrRgnLen)
 {
 	if (enrRgnLen)	InterlockedExchangeAdd(&(TreatedLen[Gr::FG]), enrRgnLen);
 	InterlockedExchangeAdd(&(TreatedLen[Gr::BG]), seq.DefRegion().Length() - enrRgnLen);
@@ -862,7 +862,7 @@ ULLONG Imitator::CutForSample(Average& genFrAvr, FragLenStat* fLenStat)
 {
 	chrlen		pos = 0;
 	ChromCutter cCutter(this, &genFrAvr, false);
-	const RefSeq seq(_cSizes[0]);
+	const ChromSeq seq(_cSizes[0]);
 	const chrlen cLen = seq.End();		// chrom defined 'end' position
 	float scores[]{ 1,1 };
 

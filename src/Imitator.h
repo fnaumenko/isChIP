@@ -196,11 +196,11 @@ class Imitator
 		inline GenomeSizes() { Total = Defined = Gaps = 0; }
 
 		// constructor by single chrom
-		inline GenomeSizes(const RefSeq& seq) : 
+		inline GenomeSizes(const ChromSeq& seq) : 
 			Total(seq.Length()), Defined(seq.DefRegion().Length()), Gaps(seq.GapLen()) {}
 
-		// Thread-safety increment sizes by RefSeq
-		void IncrSizes(const RefSeq& seq);
+		// Thread-safety increment sizes by ChromSeq
+		void IncrSizes(const ChromSeq& seq);
 
 		inline float GapsInPers() const { return 100.f * Gaps / Total; }
 
@@ -323,7 +323,7 @@ class Imitator
 		//	@enRegLen: length of all enriched regions
 		//	@timer: current timer to thread-saves time output 
 		//	@excLimit: true if limit is exceeded
-		void PrintChrom (const RefSeq& seq, chrlen enRegLen, Timer& timer, bool excLimit);
+		void PrintChrom (const ChromSeq& seq, chrlen enRegLen, Timer& timer, bool excLimit);
 
 		// Sets terminate's output message
 		//	@tID: thread ID
@@ -560,7 +560,7 @@ class Imitator
 	static void PrintTotal();
 
 	// Increments grounds total length
-	static void IncrementTotalLength(const RefSeq& seq, chrlen enrRgnLen);
+	static void IncrementTotalLength(const ChromSeq& seq, chrlen enrRgnLen);
 	
 	//// Increments counter of total recorded fragments thread-safely.
 	////	@g: ground

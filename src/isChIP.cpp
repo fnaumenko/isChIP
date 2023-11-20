@@ -198,8 +198,8 @@ int main(int argc, char* argv[])
 		//flattens.Values()
 		Options::GetUIVal(oFLAT_LEN)
 	);
-	RefSeq::LetGaps = Options::GetBVal(oLET_GAPS);
-	RefSeq::StatGaps = Imitator::Verbose(eVerb::PAR);		// Imitator::Init() should be called before
+	ChromSeq::LetGaps = Options::GetBVal(oLET_GAPS);
+	ChromSeq::StatGaps = Imitator::Verbose(eVerb::PAR);		// Imitator::Init() should be called before
 	Random::SetSeed(Options::GetUIVal(oSEED), Options::GetUIVal(oEXO));
 	if (Options::GetBVal(oLOCALE))	cout.imbue(locale(LOCALE_ENG));
 

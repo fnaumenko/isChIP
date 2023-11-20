@@ -427,7 +427,7 @@ private:
 		static float	 StrandErrProb;	// the probability of strand error
 
 		mutable ULLONG	_rCnt = 0;		// total Read counter; managed by _rName, not used by clones
-		const RefSeq* _seq{};			// current ref sequence
+		const ChromSeq* _seq{};			// current reference sequence
 		ReadName	 _rName{ _rCnt };	// Read's name; local for clone independence by setting different chroms
 		unique_ptr<FqOutFile>		_fqFile1{};		// FQ mate1 or single output
 		unique_ptr<FqOutFile>		_fqFile2{};		// FQ mate2 output 
@@ -482,7 +482,7 @@ private:
 		OutFile(const OutFile& primer);
 
 		// Start recording chrom
-		void BeginWriteChrom(const RefSeq& seq);
+		void BeginWriteChrom(const ChromSeq& seq);
 
 		// Stop recording chrom
 		void EndWriteChrom() const;
@@ -620,7 +620,7 @@ public:
 	void SetGMode(GM::eMode gm) { _gMode = BYTE(gm); }
 
 	// Starts recording chrom
-	void BeginWriteChrom(const RefSeq& seq);
+	void BeginWriteChrom(const ChromSeq& seq);
 
 	// Stops recording chrom
 	void EndWriteChrom();
