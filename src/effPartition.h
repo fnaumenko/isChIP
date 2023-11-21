@@ -11,7 +11,7 @@ such that the difference between the subset sums is minimized.
 #pragma once
 #include <vector>
 #include <algorithm>    // sort
-#include "Data.h"		// ChromFiles
+#include "ChromSizesExt.h"
 
 static const char* sThread = "thread ";
 static const char* SignDbg = "## ";	// Marker of output debug info

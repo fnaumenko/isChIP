@@ -7,13 +7,15 @@ Last modified: 11/12/2023
 Provides output data text files functionality
 ***********************************************************/
 #pragma once
+
 #include <memory>		// smart ptr
 #include <string>
-#include "Data.h"
+#include "ChromSeq.h"
+//#include "Data.h"
+#include "ChromSizesExt.h"
 #include "Distrib.h"
 #include "OrderedData.h"
 #include "RandomGen.h"
-
 
 // 'GM" defines generation modes
 static struct GM
@@ -29,6 +31,7 @@ public:
 	// Gets title: first title letter
 	static const char* Title(eMode m) { return title[int(m)]; }
 } gm;
+
 
 // 'Seq' represents seq mode and 
 static class Seq

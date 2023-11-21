@@ -7,8 +7,10 @@ Last modified: 11/12/2023
 Provides chip-seq imitation functionality
 ***********************************************************/
 #pragma once
+#include "ChromSeq.h"
 #include "DataOutFile.h"
 #include "effPartition.h"
+#include "Feature.h"
 //#include <math.h>       /* log */
 
 using namespace std;

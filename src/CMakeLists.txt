@@ -33,12 +33,15 @@ include_directories( ${CMAKE_CURRENT_SOURCE_DIR}/${BASIC_DIR} )
 
 set(Header_Files
 	${BASIC_DIR}/common.h
+	${BASIC_DIR}/ChromSeq.h
 	${BASIC_DIR}/Data.h
 	${BASIC_DIR}/DataInFile.h
 	${BASIC_DIR}/Distrib.h
+	${BASIC_DIR}/Feature.h
     ${BASIC_DIR}/OrderedData.h
 	${BASIC_DIR}/TxtFile.h
     ${BASIC_DIR}/spline.h
+	ChromSizesExt.h
 	isChIP.h
 	Imitator.h
 	DataOutFile.h
@@ -49,11 +52,14 @@ source_group("Header Files" FILES ${Header_Files})
 
 set(Source_Files
 	${BASIC_DIR}/common.cpp
+	${BASIC_DIR}/ChromSeq.cpp
 	${BASIC_DIR}/Data.cpp
 	${BASIC_DIR}/DataInFile.cpp
 	${BASIC_DIR}/Distrib.cpp
+	${BASIC_DIR}/Feature.cpp
     ${BASIC_DIR}/OrderedData.cpp
 	${BASIC_DIR}/TxtFile.cpp
+	ChromSizesExt.cpp
 	isChIP.cpp
 	Imitator.cpp
 	DataOutFile.cpp
