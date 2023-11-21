@@ -11,7 +11,7 @@ Provides output data text files functionality
 #include <memory>		// smart ptr
 #include <string>
 #include "ChromSeq.h"
-//#include "Data.h"
+//#include "ChromData.h"
 #include "ChromSizesExt.h"
 #include "Distrib.h"
 #include "OrderedData.h"
