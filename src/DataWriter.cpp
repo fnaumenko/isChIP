@@ -576,7 +576,7 @@ void DataWriter::BioWriters::EndWriteChrom() const
 int DataWriter::BioWriters::AddReadSE(const Region& frag, readlen rLen, bool reverse)
 {
 	const chrlen rPos = reverse ? frag.End - rLen : frag.Start;	// Read's position
-	const Read read(_seq->SeqMode(rPos), rPos, rLen);
+	const Read read(_seq->Seq(rPos), rPos, rLen);
 	int ret = read.CheckNLimit();
 	if (ret)		return ret;
 	/*
@@ -617,11 +617,11 @@ int DataWriter::BioWriters::AddReadSE(const Region& frag, readlen rLen, bool rev
 //			-1: N limit is exceeded
 int DataWriter::BioWriters::AddReadPE(const Region& frag, readlen rLen, bool reverse)
 {
-	const Read read1(_seq->SeqMode(frag.Start), frag.Start, rLen);
+	const Read read1(_seq->Seq(frag.Start), frag.Start, rLen);
 	int ret = read1.CheckNLimit();
 	if (ret)	return ret;
 	chrlen pos2 = frag.End - rLen;
-	const Read read2(_seq->SeqMode(pos2), pos2, rLen);
+	const Read read2(_seq->Seq(pos2), pos2, rLen);
 	ret = read2.CheckNLimit();
 	if (ret)	return ret;
 
