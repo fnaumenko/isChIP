@@ -1,17 +1,14 @@
 /**********************************************************
-DataOutFile.h (c) 2014 Fedor Naumenko (fedor.naumenko@gmail.com)
-All rights reserved.
--------------------------
-Last modified: 11/12/2023
--------------------------
-Provides output data text files functionality
+DataWriter.h
+Provides bioinfo writers functionality
+2014 Fedor Naumenko (fedor.naumenko@gmail.com)
+Last modified: 11/23/2023
 ***********************************************************/
 #pragma once
 
 #include <memory>		// smart ptr
 #include <string>
 #include "ChromSeq.h"
-//#include "ChromData.h"
 #include "ChromSizesExt.h"
 #include "Distrib.h"
 #include "OrderedData.h"
@@ -33,8 +30,8 @@ public:
 } gm;
 
 
-// 'Seq' represents seq mode and 
-static class Seq
+// 'SeqMode' represents sequencing modes
+static class SeqMode
 {
 public:
 	// sequencing modes
@@ -128,10 +125,11 @@ public:
 	void AddInfo(const Region& frag) { (this->*fAddInfo)(frag); }
 };
 
-// 'ReadOutFile' is base class for data out files containing reads.
+
+// 'ReadWriter' is base class for data out files containing reads.
 //	Implies additional methods for writing Read extended name,
 //	and methods for writing data to line buffer back (left from current position)
-class ReadOutFile : public TxtOutFile
+class ReadWriter : public TxtWriter
 {
 	// 'ReadQualPattern' represents Read quality pattern storage and methods
 	class ReadQualPattern
@@ -160,7 +158,7 @@ class ReadOutFile : public TxtOutFile
 	static string sReadConstLen;	// constant string "length=XX"
 	static unique_ptr<ReadQualPattern> RqPattern;	// Read quality pattern
 
-	using tfAddReadName = void(ReadOutFile::*)(BYTE);
+	using tfAddReadName = void(ReadWriter::*)(BYTE);
 	// 'Add qualified Read name' methods: [0] - empty method, [1] - with mate extention
 	static tfAddReadName fAddReadNames[2];
 
@@ -188,13 +186,13 @@ protected:
 	//	@trName: dynamic part of Read's name contained chroms number and Read's number|position,
 	//	or NULL for empty name
 	//	@commLine: command line to add as a comment in the first line
-	ReadOutFile(FT::eType ftype, const string& fName, const ReadName& rName, char delim = TAB)
-		: _rName(rName), TxtOutFile(ftype, fName, delim) {}
+	ReadWriter(FT::eType ftype, const string& fName, const ReadName& rName, char delim = TAB)
+		: _rName(rName), TxtWriter(ftype, fName, delim) {}
 
 	// Copy constructor for multithreading
 	//	@rName: Read's name
-	ReadOutFile(const ReadOutFile& file)
-		: _rName(file._rName), TxtOutFile(file) {}
+	ReadWriter(const ReadWriter& file)
+		: _rName(file._rName), TxtWriter(file) {}
 
 	// Returns a pointer to the line write buffer at current position.
 	char* LineCurrPosBuf() const { return _lineBuff + _lineBuffOffset; }
@@ -227,7 +225,7 @@ protected:
 	// Copies qualified Read name started with '@' and read variable legth after current position
 	//	in the line write buffer, and increases current position
 	//	@len: Read length
-	//	Invoked in FqOutFile.
+	//	Invoked in FqWriter.
 	void LineAddReadVarName(readlen len);
 
 	// Copies qualified Read name before current position in the line write buffer,
@@ -236,7 +234,7 @@ protected:
 
 	// Copies qualified Read name started with '@', positions and Read constant length before current position
 	//	in the line write buffer, adds delimiter after Read Name and decreases current position.
-	//	Invoked in FqOutFile.
+	//	Invoked in FqWriter.
 	void LineAddReadConstNameBack();
 
 	// Adds last part of the line write buffer (from current position to the end) to the file write buffer.
@@ -272,8 +270,8 @@ public:
 	static void PrintReadQualPatt() { RqPattern->Print(); }
 };
 
-// 'BedROutFile' implements methods for writing BED alignment file
-class BedROutFile : public ReadOutFile
+// 'RBedWriter' implements methods for writing BED alignment file
+class RBedWriter : public ReadWriter
 {
 	rowlen _offset = 0;		// the length of the constant chrom name in the line buffer
 
@@ -282,10 +280,10 @@ public:
 	//	@fName: file name without extention
 	//	@rName: Read's name
 	//	@commLine: command line to add as a comment in the first line, or nullptr
-	BedROutFile(const string& fName, const ReadName& rName, const string* commLine = nullptr);
+	RBedWriter(const string& fName, const ReadName& rName, const string* commLine = nullptr);
 
 	// Clone constructor for multithreading
-	BedROutFile(const BedROutFile& file) : ReadOutFile(file) {}
+	RBedWriter(const RBedWriter& file) : ReadWriter(file) {}
 
 	// Sets treated chrom's name to line write buffer
 	//void SetChrom(chrid cID);
@@ -298,13 +296,13 @@ public:
 	void AddRead(const Read& read, bool reverse, BYTE mate = 0);
 };
 
-// 'FqOutFile' implements methods for writing FQ file
-class FqOutFile : public ReadOutFile
-	// 'public' to allow implicit conversion in ReadOutFile(const FqOutFile&) invoke
+// 'FqWriter' implements methods for writing FQ file
+class FqWriter : public ReadWriter
+	// 'public' to allow implicit conversion in ReadWriter(const FqWriter&) invoke
 {
 	static rowlen ReadStartPos;		// fixed Read field start position
 
-	typedef void(FqOutFile::* fAddRead)(const Read&, bool);
+	typedef void(FqWriter::* fAddRead)(const Read&, bool);
 	// Current 'add read' method: with fixed or variable length 
 	static fAddRead addRead;
 
@@ -318,15 +316,15 @@ class FqOutFile : public ReadOutFile
 
 public:
 	// initializes static members
-	static void Init() { addRead = DistrParams::IsRVL() ? &FqOutFile::AddVLRead : &FqOutFile::AddFLRead; }
+	static void Init() { addRead = DistrParams::IsRVL() ? &FqWriter::AddVLRead : &FqWriter::AddFLRead; }
 
 	// Creates new instance for writing
 	//	@fName: file name without extention
 	//	@rName: Read's name
-	FqOutFile(const string& fName, const ReadName& rName);
+	FqWriter(const string& fName, const ReadName& rName);
 
 	// Clone constructor for multithreading
-	FqOutFile(const FqOutFile& file) : ReadOutFile(file) {}
+	FqWriter(const FqWriter& file) : ReadWriter(file) {}
 
 
 	// Forms Read from fragment and adds it to the file.
@@ -335,8 +333,8 @@ public:
 	void AddRead(const Read& read, bool reverse) { (this->*addRead)(read, reverse); }
 };
 
-// 'SamOutFile' implements methods for writing SAM file
-class SamOutFile : public ReadOutFile
+// 'SamWriter' implements methods for writing SAM file
+class SamWriter : public ReadWriter
 {
 	static rowlen ReadStartPos;			// fixed Read field start position
 	static string Fld_5_6;				// combined value from 5 to 6 field: initialised in constructor
@@ -346,7 +344,7 @@ class SamOutFile : public ReadOutFile
 	const BYTE tagCLlen = 3;			// length of the header line tag 'CL:'
 	const char CIGAR_M = 'M';			// CIGAR marker
 
-	typedef void(SamOutFile::* tfAddRead)(const Read&, const string&, const string&);
+	typedef void(SamWriter::* tfAddRead)(const Read&, const string&, const string&);
 	// Current 'add read' method: with fixed or variable length 
 	static tfAddRead fAddRead;
 
@@ -364,17 +362,17 @@ class SamOutFile : public ReadOutFile
 public:
 	// initializes static members
 	static void Init() {
-		fAddRead = DistrParams::IsRVL() ? &SamOutFile::AddVLRead : &SamOutFile::AddFLRead;
+		fAddRead = DistrParams::IsRVL() ? &SamWriter::AddVLRead : &SamWriter::AddFLRead;
 	}
 
 	// Creates new instance for writing, initializes line write buffer writes header.
 	//	@fName: file name without extention
 	//	@rName: Read's name
 	//	@cSizes: chrom sizes
-	SamOutFile(const string& fName, const ReadName& rName, const ChromSizes& cSizes);
+	SamWriter(const string& fName, const ReadName& rName, const ChromSizes& cSizes);
 
 	// Clone constructor for multithreading
-	SamOutFile(const SamOutFile& file) : ReadOutFile(file) {}
+	SamWriter(const SamWriter& file) : ReadWriter(file) {}
 
 	// Sets current treated chrom
 	void SetChrom(const string& chr) { _cName = chr; }
@@ -393,11 +391,11 @@ public:
 	void AddTwoReads(const Read& read1, const Read& read2, int fLen);
 };
 
-// 'Output' wraps test and control output files
-class Output
+// 'DataWriter' wraps writers, including test and control
+class DataWriter
 {
 public:
-	// Output file formats
+	// DataWriter file formats
 	enum class eFormat {	// values are masks in eFormat variable
 		UNDEF = 0,
 		FG = 1,
@@ -412,30 +410,30 @@ public:
 
 private:
 	static const string* commLine;	// command line to add at the first (commented) line of file
-									// Is initizlies only in Output constructor while the string is on the stack
+									// Is initizlies only in DataWriter constructor while the string is on the stack
 	static int	Format;					// output formats as int
 	static bool	inclReadName;			// true if Read name is included into output data
 	static bool isStrand;				// true if coverage should be saved by strands as well
 	static const char* entityTitles[];	// entity titles for printing
 	static const BYTE ND = 2;			// number of distribution files
 
-	// 'OutFile' wraps output files: FQ, SAM, BED, BG, WIG, DIST
-	class OutFile
+	// 'BioWriters' wraps writers for FQ, SAM, BED, BG, WIG
+	class BioWriters
 	{
 		using OrderedCover = OrderedData<AccumCover, BedGrWriter>;
 		using OrderedFreq = OrderedData<Freq, VarWigWriter>;
 
-		typedef int	 (OutFile::* tfAddRead)(const Region&, readlen, bool);
+		typedef int	 (BioWriters::* tfAddRead)(const Region&, readlen, bool);
 		static tfAddRead fAddRead;
 		static float	 StrandErrProb;	// the probability of strand error
 
 		mutable ULLONG	_rCnt = 0;		// total Read counter; managed by _rName, not used by clones
 		const ChromSeq* _seq{};			// current reference sequence
 		ReadName	 _rName{ _rCnt };	// Read's name; local for clone independence by setting different chroms
-		unique_ptr<FqOutFile>		_fqFile1{};		// FQ mate1 or single output
-		unique_ptr<FqOutFile>		_fqFile2{};		// FQ mate2 output 
-		unique_ptr<BedROutFile>		_bedFile{};		// BED output
-		unique_ptr<SamOutFile>		_samFile{};		// SAM output
+		unique_ptr<FqWriter>		_fqFile1{};		// FQ mate1 or single output
+		unique_ptr<FqWriter>		_fqFile2{};		// FQ mate2 output 
+		unique_ptr<RBedWriter>		_bedFile{};		// BED output
+		unique_ptr<SamWriter>		_samFile{};		// SAM output
 		unique_ptr<OrderedCover>	_bgFiles{};		// bedGraph output
 		unique_ptr<OrderedFreq>		_fragWgFile{};	// frag density wig output
 		unique_ptr<OrderedFreq>		_readWgFile{};	// read density wig output
@@ -459,7 +457,7 @@ private:
 		int AddReadPE(const Region& frag, readlen rlen, bool reverse);
 
 		// Empty (trial) method
-		//int AddReadEmpty (Output*, const Region&, /*Gr::eType,*/ bool)	{ return 0; }
+		//int AddReadEmpty (DataWriter*, const Region&, /*Gr::eType,*/ bool)	{ return 0; }
 		int AddReadEmpty(const Region&, readlen, bool) { return 0; }
 
 	public:
@@ -471,18 +469,18 @@ private:
 		// Sets sequense mode.
 		//	@trial: if true, then set empty mode, otherwise current working mode
 		static void SetSeqMode(bool trial) {
-			fAddRead = trial ? &Output::OutFile::AddReadEmpty :
-				(Seq::IsPE() ? &Output::OutFile::AddReadPE : &Output::OutFile::AddReadSE);
+			fAddRead = trial ? &DataWriter::BioWriters::AddReadEmpty :
+				(SeqMode::IsPE() ? &DataWriter::BioWriters::AddReadPE : &DataWriter::BioWriters::AddReadSE);
 		}
 
 		// Creates and initializes new instance for writing.
 		//	@fName: common file name without extention
 		//	@cSizes: chrom sizes
-		OutFile(const string& fName, const ChromSizesExt& cSizes);
+		BioWriters(const string& fName, const ChromSizesExt& cSizes);
 
 		// Clone constructor for multithreading
 		//	@param[in] primer: primer instance
-		OutFile(const OutFile& primer);
+		BioWriters(const BioWriters& primer);
 
 		// Start recording chrom
 		void BeginWriteChrom(const ChromSeq& seq);
@@ -508,8 +506,8 @@ private:
 		void PrintFormat(const char* signOut, const char* predicate) const;
 	};
 
-	// 'DistrFiles' manages two distribution: fragments and reads
-	class DistrFiles
+	// 'DistrWriters' manages two distribution: fragments and reads
+	class DistrWriters
 	{
 		static const string fExt[];				// distrib file extentios
 		static const char* entityAdjust[];		// entity title adjustment for printing
@@ -529,10 +527,10 @@ private:
 		}
 
 	public:
-		DistrFiles(const string& fName, bool isFragDist, bool isReadDist);
+		DistrWriters(const string& fName, bool isFragDist, bool isReadDist);
 
 		// Writes distributions to files and delete them
-		~DistrFiles();
+		~DistrWriters();
 
 		// Adds frag/read length to statistics
 		void AddFrag(fraglen flen, readlen rlen);
@@ -561,8 +559,8 @@ private:
 	// Returns true if both formats is defined
 	static bool HasBothFormats(eFormat f1, eFormat f2) { return OnesCount(Format & (int(f1) | int(f2))) == 2; }
 
-	unique_ptr<OutFile> _oFiles[2];	// test [0] and control [1] OutFile objects
-	shared_ptr<DistrFiles> _dists;	// frag's & read's distribution; common for duplicates
+	unique_ptr<BioWriters> _oFiles[2];	// test [0] and control [1] BioWriters objects
+	shared_ptr<DistrWriters> _dists;	// frag's & read's distribution; common for duplicates
 	Random	_rng;					// random generator; needed for Read variable length generation
 	BYTE	_gMode;					// current generation mode as int,
 									// corresponding to the index to call test/control files
@@ -595,10 +593,10 @@ public:
 
 	// Sets sequense mode.
 	//	@trial: if true, then set empty mode, otherwise current working mode
-	static void SetSeqMode(bool trial) { OutFile::SetSeqMode(trial); }
+	static void SetSeqMode(bool trial) { BioWriters::SetSeqMode(trial); }
 
 	// Sets Read quality pattern by valid file name.
-	static void SetReadQualPatt(const char* rqPattFName) { ReadOutFile::SetReadQualityPatt(rqPattFName); }
+	static void SetReadQualPatt(const char* rqPattFName) { ReadWriter::SetReadQualityPatt(rqPattFName); }
 
 	// Prints item title ("reads/fragments") according to output formats
 	static void PrintItemTitle();
@@ -612,11 +610,11 @@ public:
 	//	@control: if true, then control ('input') is generated
 	//	@cmLine: command line to add as a comment in the first file line
 	//	@cSizes: chrom sizes, or NULL
-	Output(const string& fName, bool control, const string& cmLine, const ChromSizesExt& cSizes);
+	DataWriter(const string& fName, bool control, const string& cmLine, const ChromSizesExt& cSizes);
 
 	// Clone constructor for multithreading.
 	//	@file: original instance
-	Output(const Output& file);
+	DataWriter(const DataWriter& file);
 
 	// Set generation mode
    //	@testMode: if true, set Test mode, otherwhise Control mode

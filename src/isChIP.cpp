@@ -32,9 +32,9 @@ const string OutFileTip = "location of output files or existing folder\n[TEST mo
 	"CONTROL mode: " + DefFileName[CONTROL] + ".*]";
 
 // --smode option
-const char* smodes[] = { "SE","PE" };						// corresponds to OutFile::eMode
+const char* smodes[] = { "SE","PE" };						// corresponds to BioWriters::eMode
 // --format option: format notations
-const char* formats[] = { "FQ","BED","SAM","BG","FDENS","RDENS","FDIST","RDIST" };	// corresponds to Output::oFormat	
+const char* formats[] = { "FQ","BED","SAM","BG","FDENS","RDENS","FDIST","RDIST" };	// corresponds to DataWriter::oFormat	
 // --verbose option: verbose notations
 const char* verbs[] = { "SL","RES","RT","PAR","DBG" };
 // --ground option
@@ -57,7 +57,7 @@ const string UnstableBSLen = "unstable binding length";
 
 enum { gTREAT, gTEMPL, gFRAG, gREAD, gOUTPUT, gOTHER };	// gOTHER should be the last one
 const char* Options::OptGroups[] = {
-	"Processing", "Template", "Fragment size distribution", "Reads", "Output", "Other"
+	"Processing", "Template", "Fragment size distribution", "Reads", "DataWriter", "Other"
 };
 const BYTE Options::GroupCount = ArrCnt(Options::OptGroups);
 
@@ -82,7 +82,7 @@ If the option is not specified, ChIP-exo is not applied", NULL },
 	{ HPH,"bg-all",	tOpt::NONE,	tENUM,	gTREAT, TRUE, 0, 2, (char*)Options::Booleans,
 	"turn on/off generation background for all chromosomes.\n", ForTest },
 	//{ HPH, "bind-len", tOpt::NONE,	tINT,	gTREAT, 1, 1, 100, NULL, "minimum binding length.", ForTest },
-	{ 'm', "smode",	tOpt::NONE,	tENUM,	gTREAT, Seq::SE, Seq::SE, ArrCnt(smodes), (char*)smodes,
+	{ 'm', "smode",	tOpt::NONE,	tENUM,	gTREAT, SeqMode::SE, SeqMode::SE, ArrCnt(smodes), (char*)smodes,
 	"sequencing mode: ? - single end, ? - paired end", NULL },
 	//{ HPH, "flat-len",	tOpt::NONE,	tPR_INT,	gTREAT, 0, 0, 0, (char*)&flattens,
 	//"inside, outside BS boundary flattening length.", ForTest },
@@ -121,7 +121,7 @@ If the option is not specified, the read length is fixed", NULL },
 	{ HPH,"rd-ql-patt",	tOpt::NONE,	tNAME,	gREAD, vUNDEF, 0, 0, NULL, "read quality scores pattern", NULL },
 	{ HPH,"rd-ql-map",	tOpt::NONE,	tINT,	gREAD, 255, 0, 255, NULL,
 	"read mapping quality in SAM and BED output", NULL },
-	{ 'f',"format",	tOpt::NONE,	tCOMB,	gOUTPUT, float(Output::eFormat::FG), float(Output::eFormat::FG), ArrCnt(formats),
+	{ 'f',"format",	tOpt::NONE,	tCOMB,	gOUTPUT, float(DataWriter::eFormat::FG), float(DataWriter::eFormat::FG), ArrCnt(formats),
 	(char*)formats,	"format of output data, in any order", NULL },
 	{ 'C',"control",tOpt::NONE,	tENUM,	gOUTPUT, FALSE,	vUNDEF, 2, NULL,
 	"generate control simultaneously with test", NULL },
@@ -145,7 +145,7 @@ const Options::Usage Options::Usages[] = {	// content of 'Usage' variants in hel
 };
 const BYTE Options::UsageCount = ArrCnt(Options::Usages);
 
-void PrintParams(const ChromSizesExt& cSizes, const char* templName, const Features* templ, const Output& oFile);
+void PrintParams(const ChromSizesExt& cSizes, const char* templName, const Features* templ, const DataWriter& oFile);
 
 /*****************************************/
 int main(int argc, char* argv[])
@@ -157,22 +157,22 @@ int main(int argc, char* argv[])
 	Features* templ = NULL;
 	const char* fBedName = fileInd == argc ? NULL : argv[fileInd];	// template name
 
-	// initialize Seq before Read::Init()
-	Seq::Init(Options::GetIVal(oSMODE), ULONG(Options::GetFVal(oRD_LIMIT)));
-	// initialize Read before Output::Init()
+	// initialize SeqMode before Read::Init()
+	SeqMode::Init(Options::GetIVal(oSMODE), ULONG(Options::GetFVal(oRD_LIMIT)));
+	// initialize Read before DataWriter::Init()
 	Read::Init(
 		Options::GetUIVal(oRD_LEN),
 		Options::GetBVal(oRD_NAME),
 		char(Options::GetFVal(oRD_QUAL)),
 		Options::GetUIVal(oRD_LIMIT_N)
 	);
-	// initialize DistrParams before Imitator and Output!!
+	// initialize DistrParams before Imitator and DataWriter!!
 	DistrParams::Init(
 		lnd.Values(), Options::Assigned(oFR_DIST),
 		ssd.Values(), Options::Assigned(oSS_DIST),
 		rdd.Values(), Options::Assigned(oRD_DIST)
 	);
-	Output::Init(
+	DataWriter::Init(
 		Options::GetIVal(oFORMAT),
 		Options::GetUIVal(oMAP_QUAL),
 		Options::GetBVal(oSTRAND),
@@ -211,7 +211,7 @@ int main(int argc, char* argv[])
 	try {
 		// check file names first of all
 		FS::CheckedFileName(fBedName);
-		Output::SetReadQualPatt(FS::CheckedFileName(oRD_QUAL_PATT));	// read quality pattern file name
+		DataWriter::SetReadQualPatt(FS::CheckedFileName(oRD_QUAL_PATT));	// read quality pattern file name
 
 		ChromSizesExt cSizes(
 			Options::GetSVal(oGEN), oCHROM, Imitator::Verbose(eVerb::RT), Options::GetSVal(oSERV));
@@ -245,7 +245,7 @@ int main(int argc, char* argv[])
 			.Throw();
 
 		Imitator::SetThreadNumb(min(chrid(Options::GetFVal(oNUMB_THREAD)), cSizes.TreatedCount()));
-		Output oFile(
+		DataWriter oFile(
 			Options::GetPartFileName(oOUT_FILE, DefFileName[Imitator::TMode].c_str()),
 			Imitator::IsControl(),
 			Options::CommandLine(argc, argv), cSizes
@@ -268,7 +268,7 @@ int main(int argc, char* argv[])
 
 // Prints simulation parameters in -V par mode
 void PrintParams(const ChromSizesExt& cSizes, const char* templName,
-	const Features* templ, const Output& oFile)
+	const Features* templ, const DataWriter& oFile)
 {
 	if (!Imitator::Verbose(eVerb::PAR))		return;
 	cout << SignPar << "Reference" << SepDCl << "genome" << SepCl << cSizes.RefPath();
@@ -290,7 +290,7 @@ void PrintParams(const ChromSizesExt& cSizes, const char* templName,
 		else	cout << "score index" << Equel << Options::GetIVal(oBS_SCORE) << LF;
 	}
 	oFile.PrintFormat(SignPar);		// print output formats, sequencing mode
-	Seq::Print(SignPar);			// print sequencing modes
+	SeqMode::Print(SignPar);			// print sequencing modes
 	cout << SignPar << "Sequencing modification" << SepCl << "ChIP-";
 	if (Imitator::IsExo)
 		cout << "exo" << SepSCl << "exonuclease 'headroom' length" << Equel << Options::GetUIVal(oEXO) << LF;

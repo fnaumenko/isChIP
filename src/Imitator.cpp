@@ -128,7 +128,7 @@ public:
 			ss << HPH << int(DistrParams::ssMean) << HPH << DistrParams::ssSigma;
 		ss << FT::Ext(FT::eType::INI);
 
-		TabFile file(_fName = ss.str(), FT::eType::INI, TxtFile::eAction::READ_ANY);
+		TabReader file(_fName = ss.str(), FT::eType::INI, TxtFile::eAction::READ_ANY);
 		_avrs.reserve(3);		// with a margin
 		while (file.GetNextLine())
 			_avrs.emplace_back(
@@ -316,7 +316,7 @@ int Imitator::ChromView::PrintHeaderGaps()
 //	@densLen: length to print density
 void Imitator::ChromView::PrintReads(GM::eMode gMode, const FragCnt fragCnt, chrlen densLen)
 {
-	ULONG rCnt = ULONG(fragCnt.RecCnt() << Seq::Mode());	// count of reads
+	ULONG rCnt = ULONG(fragCnt.RecCnt() << SeqMode::Mode());	// count of reads
 
 	if (TestMode)							// Ground title
 		if (gMode == GM::eMode::Control)		// can be true only if Imitator::MakeControl is true
@@ -426,10 +426,10 @@ Imitator::ChromCutter::ChromCutter(const Imitator* imitator, Average* avr, bool 
 	_master(master),
 	_gMode(GM::eMode::Test)
 {
-	Output::SetSeqMode(avr);
+	DataWriter::SetSeqMode(avr);
 	_fragCnt.Clear();
 	_fragCnt.SetGMode(GM::eMode::Test);
-	_output = master ? &(imitator->_oFile) : new Output(imitator->_oFile);
+	_output = master ? &(imitator->_oFile) : new DataWriter(imitator->_oFile);
 }
 
 // Prints thread-safe info about treated chroms and stops timer
@@ -456,7 +456,7 @@ void Imitator::ChromCutter::PrintChrom(
 	if (excLimit) {
 		cout << " exceeded limit";
 		if (!Verbose(eVerb::PAR))
-			cout << " of " << Seq::ReadsLimit() << SPACE << FT::ItemTitle(FT::eType::ABED, true);
+			cout << " of " << SeqMode::ReadsLimit() << SPACE << FT::ItemTitle(FT::eType::ABED, true);
 	}
 	cout << endl;
 
@@ -724,14 +724,14 @@ void Imitator::PrintHeader(bool header)
 // Prints total outcome
 void Imitator::PrintTotal()
 {
-	cout << sTotal << " recorded "; Output::PrintItemTitle();
+	cout << sTotal << " recorded "; DataWriter::PrintItemTitle();
 	if (MakeControl)		// add "test:"
 		cout << SepCl << GM::Title(GM::eMode::Test) << COLON;
 	cout << SPACE;
-	Output::PrintItemCount(GlobContext[int(GM::eMode::Test)].RecCnt());
+	DataWriter::PrintItemCount(GlobContext[int(GM::eMode::Test)].RecCnt());
 	if (MakeControl) {	// add "control:"
 		cout << SepCm << GM::Title(GM::eMode::Control) << SepCl;
-		Output::PrintItemCount(GlobContext[int(GM::eMode::Control)].RecCnt());
+		DataWriter::PrintItemCount(GlobContext[int(GM::eMode::Control)].RecCnt());
 	}
 	cout << endl;		// flash cout buffer
 }
@@ -848,7 +848,7 @@ ULONG Imitator::GetReadsCnt(Gr::eType g, chrlen densLen, float factor,
 	BYTE numeric, ULONG maxCnt[], float maxDens[])
 {
 	// Reads count
-	ULONG cnt = (ULONG)(Sample(GM::eMode::Test, g) * densLen * factor) << Seq::Mode();
+	ULONG cnt = (ULONG)(Sample(GM::eMode::Test, g) * densLen * factor) << SeqMode::Mode();
 	if (maxCnt[g] < cnt)		maxCnt[g] = cnt;
 	// Reads density
 	factor = LinearDens(cnt, densLen >> numeric);
@@ -957,8 +957,8 @@ void Imitator::SetSample()
 		totalCnt *= ULLONG(pow(2.f, int(PCRCoeff)));
 	}
 	// *** Estimate adjusted Sample
-	if (totalCnt > Seq::ReadsLimit())
-		AutoSample = Seq::ReadsLimit() / totalCnt;
+	if (totalCnt > SeqMode::ReadsLimit())
+		AutoSample = SeqMode::ReadsLimit() / totalCnt;
 	// *** print debug info
 	if (Verbose(eVerb::PAR)) {
 		cout << SignPar << "Actual fragments size" << SepCl
@@ -975,7 +975,7 @@ void Imitator::SetSample()
 	}
 	if (AutoSample < 1 && Verbose(eVerb::RES))
 		cout << "Added recovery sample = " << setprecision(3) << (AutoSample * 100)
-		<< "% due to reads limit of " << Seq::ReadsLimit() << endl;
+		<< "% due to reads limit of " << SeqMode::ReadsLimit() << endl;
 
 	// *** set Reads statistics params
 	if (TestMode)
@@ -989,7 +989,7 @@ void Imitator::SetSample()
 //long	AlterFQ::_cntReplSeqs = 0;
 //
 //void AlterFQ::ReplaceReads(
-//	FqFile* inFile, FqFile* outFile,
+//	FqReader* inFile, FqReader* outFile,
 //	char *extReads, BYTE perc, int eachReplSeq, const BYTE quality)
 //{
 //	bool isLimited = perc==0;

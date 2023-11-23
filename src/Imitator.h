@@ -8,7 +8,7 @@ Provides chip-seq imitation functionality
 ***********************************************************/
 #pragma once
 #include "ChromSeq.h"
-#include "DataOutFile.h"
+#include "DataWriter.h"
 #include "effPartition.h"
 #include "Feature.h"
 //#include <math.h>       /* log */
@@ -299,7 +299,7 @@ class Imitator
 		
 		bool		_master;	// if true then this instance is master
 		GM::eMode	_gMode;		// generating mode: 0 - Test, 1 - Control
-		Output*		_output;	// partial output files
+		DataWriter*		_output;	// partial output files
 		FragCnts	_fragCnt;	// numbers of selected/recorded fragments for FG & BG, for both Teat & Input
 		FragDistr	_fragDistr;	// normal & lognormal random number generator
 		MDA			_ampl;
@@ -495,7 +495,7 @@ class Imitator
 		//	return: true if Reads limit is exceeded.
 		bool IncrRecFragCount(Gr::eType g, bool primer) {
 			return fCnts[g].RecIncrSaved(primer) + fCnts[!g].RecCnt()
-				>= Seq::FragsLimit();
+				>= SeqMode::FragsLimit();
 		}
 	};
 
@@ -513,7 +513,7 @@ class Imitator
 	//static readlen	BindLen;	// binding length
 
 	const ChromSizesExt& _cSizes;	// ref genome library
-	Output& _oFile;				// output file
+	DataWriter& _oFile;				// output file
 
 	// Returns stated count of cells
 	//	@gm: generated mode
@@ -571,10 +571,10 @@ class Imitator
 	//static bool IncrementRecFragCount(Gr::eType g, bool primer) {
 	//	ULLONG cnt = ChromCutter::IsAmpl() ?
 	//		TotalFragCnt[g].InterlockedIncrRec(primer):
-	//		Output::SingleThread ?
+	//		DataWriter::SingleThread ?
 	//			TotalFragCnt[g].PrimerRec++:
 	//			InterlockedIncrement(&(TotalFragCnt[g].PrimerRec));
-	//	return cnt + TotalFragCnt[!g].Rec() >= Seq::FragsLimit();
+	//	return cnt + TotalFragCnt[!g].Rec() >= SeqMode::FragsLimit();
 	//}
 
 	// Initializes Reads view
@@ -640,7 +640,7 @@ public:
 	// Set number of threads
 	static void SetThreadNumb(BYTE numb) { 
 		FragCnt::Init((ThrCnt=numb) == 1);
-		ReadOutFile::MultiThread = numb > 1;
+		ReadWriter::MultiThread = numb > 1;
 	}
 
 	// Initializes static values
@@ -663,7 +663,7 @@ public:
 	// Creates singleton instance.
 	//  @cFiles: list of chromosomes as fa-files
 	//	@ocSizes: chrom sizes
-	inline Imitator(const ChromSizesExt& cSizes, Output& oFile)
+	inline Imitator(const ChromSizesExt& cSizes, DataWriter& oFile)
 		: _cSizes(cSizes), _oFile(oFile) { Imit = this; }
 
 	// Runs task in current mode and write result to output files

@@ -44,7 +44,7 @@ set(Header_Files
 	ChromSizesExt.h
 	isChIP.h
 	Imitator.h
-	DataOutFile.h
+	DataWriter.h
 	effPartition.h
 	RandomGen.h
 )
@@ -62,7 +62,7 @@ set(Source_Files
 	ChromSizesExt.cpp
 	isChIP.cpp
 	Imitator.cpp
-	DataOutFile.cpp
+	DataWriter.cpp
 	effPartition.cpp
 	RandomGen.cpp
 )
