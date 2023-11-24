@@ -37,7 +37,7 @@ set(Header_Files
 	${BASIC_DIR}/ChromData.h
 	${BASIC_DIR}/DataReader.h
 	${BASIC_DIR}/Distrib.h
-	${BASIC_DIR}/Feature.h
+	${BASIC_DIR}/Features.h
     ${BASIC_DIR}/OrderedData.h
 	${BASIC_DIR}/TxtFile.h
     ${BASIC_DIR}/spline.h
@@ -56,7 +56,7 @@ set(Source_Files
 	${BASIC_DIR}/ChromData.cpp
 	${BASIC_DIR}/DataReader.cpp
 	${BASIC_DIR}/Distrib.cpp
-	${BASIC_DIR}/Feature.cpp
+	${BASIC_DIR}/Features.cpp
     ${BASIC_DIR}/OrderedData.cpp
 	${BASIC_DIR}/TxtFile.cpp
 	ChromSizesExt.cpp

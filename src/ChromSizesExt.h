@@ -8,7 +8,7 @@ Last modified: 11/20/2023
 
 #pragma once
 
-#include "Feature.h"
+#include "Features.h"
 
 // 'ChromSizesExt' provides functionality extention for the ChromSizes
 class ChromSizesExt : public ChromSizes

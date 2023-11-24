@@ -10,7 +10,7 @@ Provides chip-seq imitation functionality
 #include "ChromSeq.h"
 #include "DataWriter.h"
 #include "effPartition.h"
-#include "Feature.h"
+#include "Features.h"
 //#include <math.h>       /* log */
 
 using namespace std;
