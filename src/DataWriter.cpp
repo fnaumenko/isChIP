@@ -870,7 +870,7 @@ int DataWriter::AddRead(chrlen pos, fraglen flen, /*Gr::eType g,*/ bool reverse)
 //	@signOut: output marker
 void DataWriter::PrintFormat(const char* signOut) const
 {
-	const char* output = "DataWriter ";
+	const char* output = "Output ";
 
 	_oFiles[0]->PrintFormat(signOut, output);
 	_dists->PrintFormat(signOut, output);

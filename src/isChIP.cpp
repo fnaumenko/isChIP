@@ -4,7 +4,7 @@ The model is based on the real protocol of ChIP-seq
 
 Copyright (C) 2014-2023 Fedor Naumenko (fedor.naumenko@gmail.com)
 -------------------------
-Last modified: 11/15/2023
+Last modified: 11/23/2023
 -------------------------
 
 This program is free software.
@@ -221,9 +221,8 @@ int main(int argc, char* argv[])
 			templ = new Features(fBedName, cSizes,
 				Options::GetBVal(oOVERL),
 				Options::GetIVal(oBS_SCORE),
-				0, //readlen(Options::GetUIVal(oBS_LEN)),		// binding length
-				true											// print name
-				//Imitator::Verbose(eVerb::DBG)						// print ambigs alarm
+				0, //readlen(Options::GetUIVal(oBS_LEN)),	// binding length
+				false										// print name
 			);
 			//templ->Print();
 			//if(flattens.Values().second)
@@ -290,7 +289,7 @@ void PrintParams(const ChromSizesExt& cSizes, const char* templName,
 		else	cout << "score index" << Equel << Options::GetIVal(oBS_SCORE) << LF;
 	}
 	oFile.PrintFormat(SignPar);		// print output formats, sequencing mode
-	SeqMode::Print(SignPar);			// print sequencing modes
+	SeqMode::Print(SignPar);		// print sequencing modes
 	cout << SignPar << "Sequencing modification" << SepCl << "ChIP-";
 	if (Imitator::IsExo)
 		cout << "exo" << SepSCl << "exonuclease 'headroom' length" << Equel << Options::GetUIVal(oEXO) << LF;
