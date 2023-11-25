@@ -628,13 +628,13 @@ int DataWriter::BioWriters::AddReadPE(const Region& frag, readlen rLen, bool rev
 	if (_bgFiles)		_bgFiles->AddFrag(frag, reverse);			// coverage
 	if (_fragWgFile)	_fragWgFile->AddFragDens(frag);				// frag frequency
 	if (_readWgFile)	_readWgFile->AddReadDens(read1, reverse),	// read frequency
-		_readWgFile->AddReadDens(read2, reverse);
+						_readWgFile->AddReadDens(read2, reverse);
 	if (InclReadName()) {
 		_rName.AddInfo(frag);
 		if (_fqFile1)	_fqFile1->AddRead(read1, false),
-			_fqFile2->AddRead(read2, true);
+						_fqFile2->AddRead(read2, true);
 		if (_bedFile)	_bedFile->AddRead(read1, false, 1),
-			_bedFile->AddRead(read2, true, 2);
+						_bedFile->AddRead(read2, true, 2);
 		if (_samFile)	_samFile->AddTwoReads(read1, read2, frag.Length());
 	}
 
