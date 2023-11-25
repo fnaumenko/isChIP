@@ -261,10 +261,10 @@ void RBedWriter::SetChrom(const string& chr)
 
 void RBedWriter::AddRead(const Read& read, bool reverse, BYTE mate)
 {
-	LineAddInts(read.Start(), read.End());		// start, end
-	LineAddReadName(mate);						// Read name
-	LineAddStr(DataWriter::MapQual);				// score
-	LineAddChar(Read::StrandMark(reverse));		// strand
+	LineAddInts(read.Start, read.End);		// start, end
+	LineAddReadName(mate);					// Read name
+	LineAddStr(DataWriter::MapQual);		// score
+	LineAddChar(Read::StrandMark(reverse));	// strand
 	LineToIOBuff(_offset);
 }
 
@@ -388,13 +388,13 @@ SamWriter::tfAddRead SamWriter::fAddRead;
 void SamWriter::AddFLRead(const Read& read, const string& fld_7_9, const string& flag)
 {
 	LineSetOffset(ReadStartPos);
-	read.Copy(LineCurrPosBuf());					// 10: SEQ: Read
-	LineAddStrBack(fld_7_9);						// 7-9: RNEXT + PNEXT + TLEN
-	LineAddStrBack(Fld_5_6);						// 5-6: MAPQ + CIGAR
-	LineAddStrBack(to_string(read.Start() + 1));	// 4: POS
-	LineAddStrBack(_cName);							// 3: RNAME
-	LineAddStrBack(flag);							// 2: FLAG
-	LineAddReadNameBack();							// 1: QNAME: Read name
+	read.Copy(LineCurrPosBuf());				// 10: SEQ: Read
+	LineAddStrBack(fld_7_9);					// 7-9: RNEXT + PNEXT + TLEN
+	LineAddStrBack(Fld_5_6);					// 5-6: MAPQ + CIGAR
+	LineAddStrBack(to_string(read.Start + 1));	// 4: POS
+	LineAddStrBack(_cName);						// 3: RNAME
+	LineAddStrBack(flag);						// 2: FLAG
+	LineAddReadNameBack();						// 1: QNAME: Read name
 
 	LineBackToBuffer();
 }
@@ -407,15 +407,15 @@ void SamWriter::AddVLRead(const Read& read, const string& fld_7_9, const string&
 {
 	const readlen rlen = read.Length();
 
-	LineAddReadName();							// 1: QNAME: Read name
-	LineAddStr(flag);							// 2: FLAG
-	LineAddStr(_cName);							// 3: RNAME
-	LineAddStr(to_string(read.Start() + 1));	// 4: POS
-	LineAddStr(DataWriter::MapQual);				// 5: MAPQ
-	LineAddStr(to_string(rlen), false);			// 6: CIGAR
+	LineAddReadName();						// 1: QNAME: Read name
+	LineAddStr(flag);						// 2: FLAG
+	LineAddStr(_cName);						// 3: RNAME
+	LineAddStr(to_string(read.Start + 1));	// 4: POS
+	LineAddStr(DataWriter::MapQual);		// 5: MAPQ
+	LineAddStr(to_string(rlen), false);		// 6: CIGAR
 	LineAddChar(CIGAR_M, true);
-	LineAddStr(fld_7_9);						// 7-9: RNEXT + PNEXT + TLEN
-	read.Copy(LineCurrPosBuf());				// 10: SEQ: Read
+	LineAddStr(fld_7_9);					// 7-9: RNEXT + PNEXT + TLEN
+	read.Copy(LineCurrPosBuf());			// 10: SEQ: Read
 	LineIncrOffset(rlen);
 	LineAddChar(TAB);
 	LineFillReadVarPatt(rlen);
@@ -498,8 +498,8 @@ string GetPeFld_7_9(chrlen pos, int fLen)
 //	@fLen: fragment's length
 void SamWriter::AddTwoReads(const Read& read1, const Read& read2, int fLen)
 {
-	(this->*fAddRead)(read1, GetPeFld_7_9(read2.Start(), fLen), FLAG[0]);
-	(this->*fAddRead)(read2, GetPeFld_7_9(read1.Start(), -fLen), FLAG[1]);
+	(this->*fAddRead)(read1, GetPeFld_7_9(read2.Start, fLen), FLAG[0]);
+	(this->*fAddRead)(read2, GetPeFld_7_9(read1.Start, -fLen), FLAG[1]);
 }
 
 /************************ class SamWriter: end ************************/
