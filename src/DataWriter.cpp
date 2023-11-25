@@ -234,14 +234,14 @@ ULLONG	SeqMode::maxFragCnt;	// up limit of saved fragments
 void SeqMode::Print(const char* signOut)
 {
 	cout << signOut << "Sequencing: " << modeTitles[IsPE()] << "-end"
-		<< SepSCl << FT::ItemTitle(FT::eType::ABED) << " limit = " << ReadsLimit() << LF;
+		<< SepSCl << FT::ItemTitle(FT::ABED) << " limit = " << ReadsLimit() << LF;
 }
 
 
 /************************ class RBedWriter ************************/
 
 RBedWriter::RBedWriter(const string& fName, const ReadName& rName, const string* commLine)
-	: ReadWriter(FT::eType::BED, fName, rName)
+	: ReadWriter(FT::BED, fName, rName)
 {
 	if (commLine)	CommLineToIOBuff(*DataWriter::CommLine());
 	if (MultiThread)	Write();
@@ -306,7 +306,7 @@ void FqWriter::AddVLRead(const Read& read, bool reverse)
 //	@fName: file name without extention
 //	@rName: Read's name
 FqWriter::FqWriter(const string& fName, const ReadName& rName)
-	: ReadWriter(FT::eType::FQ, fName, rName, LF)
+	: ReadWriter(FT::FQ, fName, rName, LF)
 {
 	const readlen ReadMaxStrLen = readlen(to_string(Read::VarMaxLen).length());
 
@@ -428,7 +428,7 @@ void SamWriter::AddVLRead(const Read& read, const string& fld_7_9, const string&
 //	@rName: Read's name
 //	@cSizes: chrom sizes
 SamWriter::SamWriter(const string& fName, const ReadName& rName, const ChromSizes& cSizes)
-	: ReadWriter(FT::eType::SAM, fName, rName)
+	: ReadWriter(FT::SAM, fName, rName)
 {
 	if (SeqMode::IsPE())	FLAG[0] = "99", FLAG[1] = "147";
 	else				FLAG[0] = "0", FLAG[1] = "16";

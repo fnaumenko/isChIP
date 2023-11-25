@@ -283,7 +283,7 @@ void PrintParams(const ChromSizesExt& cSizes, const char* templName,
 
 	if (templName) {
 		cout << SignPar << sTemplate << SepCl << templName << SepCl;
-		templ->PrintItemCount(FT::eType::BED, false);
+		templ->PrintItemCount(FT::BED, false);
 		cout << SepSCl;
 		if (templ->IsUniScore())		cout << "uniform score\n";
 		else	cout << "score index" << Equel << Options::GetIVal(oBS_SCORE) << LF;

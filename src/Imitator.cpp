@@ -126,9 +126,9 @@ public:
 		ss << path << DistrParams::lnMean << HPH << DistrParams::lnSigma;
 		if (DistrParams::IsSS())
 			ss << HPH << int(DistrParams::ssMean) << HPH << DistrParams::ssSigma;
-		ss << FT::Ext(FT::eType::INI);
+		ss << FT::Ext(FT::INI);
 
-		TabReader file(_fName = ss.str(), FT::eType::INI, TxtFile::eAction::READ_ANY);
+		TabReader file(_fName = ss.str(), FT::INI, TxtFile::eAction::READ_ANY);
 		_avrs.reserve(3);		// with a margin
 		while (file.GetNextLine())
 			_avrs.emplace_back(
@@ -277,7 +277,7 @@ int Imitator::ChromView::PrintHeader(bool FgHeader)
 {
 	int lineW = 0;
 	// shift title to right in case of little reads count
-	const string& rTitle = FT::ItemTitle(FT::eType::ABED);
+	const string& rTitle = FT::ItemTitle(FT::ABED);
 	const bool w = CountW < rTitle.length();
 
 	cout << right;
@@ -346,8 +346,8 @@ void Imitator::ChromView::Init(ULONG maxCnt, float sample, float maxDens)
 	//CountW = (BYTE)max( DigitsCount(maxCnt, Options::GetBVal(oLOCALE)) + 1,	
 	//	FT::ItemTitle(FT::ABED).length() );		// lengh or "reads"
 	CountW = DigitsCount(maxCnt, Options::GetBVal(oLOCALE)) + 1;	// +1 for total
-	if (CountW < FT::ItemTitle(FT::eType::ABED).length())
-		CountW = BYTE(FT::ItemTitle(FT::eType::ABED).length());
+	if (CountW < FT::ItemTitle(FT::ABED).length())
+		CountW = BYTE(FT::ItemTitle(FT::ABED).length());
 
 	//if(sample <= 0.1)		SampleW = 6;	// 0.099% or <0.01%
 	//else if(sample <= 1.1)	SampleW = 5;	// 0.99%
@@ -456,7 +456,7 @@ void Imitator::ChromCutter::PrintChrom(
 	if (excLimit) {
 		cout << " exceeded limit";
 		if (!Verbose(eVerb::PAR))
-			cout << " of " << SeqMode::ReadsLimit() << SPACE << FT::ItemTitle(FT::eType::ABED, true);
+			cout << " of " << SeqMode::ReadsLimit() << SPACE << FT::ItemTitle(FT::ABED, true);
 	}
 	cout << endl;
 
