@@ -181,7 +181,7 @@ ReadWriter::tfAddReadName ReadWriter::fAddReadNames[] = {	// 'Add qualified Read
 void ReadWriter::LineAddCharsBack(const char* src, size_t len)
 {
 	LineAddCharBack(_delim);		// add delimiter
-	_lineBuffOffset -= rowlen(len);
+	_lineBuffOffset -= reclen(len);
 	memcpy(_lineBuff + _lineBuffOffset, src, len);
 }
 
@@ -245,7 +245,7 @@ RBedWriter::RBedWriter(const string& fName, const ReadName& rName, const string*
 {
 	if (commLine)	CommLineToIOBuff(*DataWriter::CommLine());
 	if (MultiThread)	Write();
-	SetLineBuff(rowlen(
+	SetLineBuff(reclen(
 		Chrom::MaxAbbrNameLength +		// length of chrom name
 		ReadName::MaxLength() + 		// length of Read name
 		2 * CHRLEN_CAPAC +				// start + stop positions
@@ -272,7 +272,7 @@ void RBedWriter::AddRead(const Read& read, bool reverse, BYTE mate)
 
 /************************ class FqWriter ************************/
 
-rowlen FqWriter::ReadStartPos = 0;	// Read field constant start position 
+reclen FqWriter::ReadStartPos = 0;	// Read field constant start position 
 
 FqWriter::fAddRead FqWriter::addRead;
 
@@ -313,7 +313,7 @@ FqWriter::FqWriter(const string& fName, const ReadName& rName)
 	if (DistrParams::IsRVL())
 		SetLineBuff(
 			ReadName::MaxLength() +
-			rowlen(ReadWriter::ReadLenTitle.length()) +	// size of " length="
+			reclen(ReadWriter::ReadLenTitle.length()) +	// size of " length="
 			ReadMaxStrLen +									// size of string representation of max Read len
 			2 * Read::VarMaxLen +							// Read sequence + quality pattern
 			5);												// AT + LF + 3 delimiters
@@ -321,7 +321,7 @@ FqWriter::FqWriter(const string& fName, const ReadName& rName)
 		if (!ReadStartPos)							// if not initialized yet
 			ReadStartPos = ReadName::MaxLength() + 2;		// Read name + AT + LF
 		//== set line write buffer and writing start position
-		const rowlen pos = ReadStartPos + Read::FixedLen + 3;	// + 3 delimiters
+		const reclen pos = ReadStartPos + Read::FixedLen + 3;	// + 3 delimiters
 		SetLineBuff(pos + Read::FixedLen);
 		LineSetOffset(pos - 2);
 		LineAddChar(PLUS, true);
@@ -375,7 +375,7 @@ Bit		Description
 
 */
 
-rowlen SamWriter::ReadStartPos = 0;
+reclen SamWriter::ReadStartPos = 0;
 string SamWriter::Fld_5_6;		// combined value from 5 to 6 field: initialised in constructor
 string SamWriter::FLAG[2];		// FLAG value for SE/PE: nitialised in constructor
 
@@ -475,7 +475,7 @@ SamWriter::SamWriter(const string& fName, const ReadName& rName, const ChromSize
 
 		//=== set SE pattern
 		if (!SeqMode::IsPE()) {
-			LineSetOffset(rowlen(ReadStartPos - Fld_7_9.length() - Fld_5_6.length() - 2));
+			LineSetOffset(reclen(ReadStartPos - Fld_7_9.length() - Fld_5_6.length() - 2));
 			LineAddStr(Fld_5_6);
 			LineAddStr(Fld_7_9);
 		}

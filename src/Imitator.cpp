@@ -132,7 +132,8 @@ public:
 		_avrs.reserve(3);		// with a margin
 		while (file.GetNextLine())
 			_avrs.emplace_back(
-				file.IntField(0), file.FloatField(1), file.FloatField(2), file.FloatField(3));
+				file.IntField(0), file.FloatField(1), file.FloatField(2), file.FloatField(3)
+			);
 	}
 
 	// Writes instance to a file if it's changed.

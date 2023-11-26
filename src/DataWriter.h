@@ -200,7 +200,7 @@ protected:
 	// Sets byte in the line write buffer to the specified value.
 	//	@offset: shift of buffer start position
 	//	@ch: byte to be set
-	void LineSetChar(rowlen offset, char ch) { _lineBuff[offset] = ch; }
+	void LineSetChar(reclen offset, char ch) { _lineBuff[offset] = ch; }
 
 	// Adds byte before the current position of the line write buffer and decreases current position.
 	//	@chr: value to be set
@@ -241,7 +241,7 @@ protected:
 	void LineBackToBuffer() { RecordToIOBuff(_lineBuff + _lineBuffOffset, _lineBuffLen - _lineBuffOffset); }
 
 	// Fills line by Read const quality pattern from the specified position
-	void LineFillReadConstPatt(rowlen pos) const { RqPattern->Fill(_lineBuff + pos); }
+	void LineFillReadConstPatt(reclen pos) const { RqPattern->Fill(_lineBuff + pos); }
 
 	// Fills line by Read variable quality pattern from the current position and increases current position
 	//	@rlen: Read's length
@@ -273,7 +273,7 @@ public:
 // 'RBedWriter' implements methods for writing BED alignment file
 class RBedWriter : public ReadWriter
 {
-	rowlen _offset = 0;		// the length of the constant chrom name in the line buffer
+	reclen _offset = 0;		// the length of the constant chrom name in the line buffer
 
 public:
 	// Creates new instance for writing and initializes line write buffer.
@@ -300,7 +300,7 @@ public:
 class FqWriter : public ReadWriter
 	// 'public' to allow implicit conversion in ReadWriter(const FqWriter&) invoke
 {
-	static rowlen ReadStartPos;		// fixed Read field start position
+	static reclen ReadStartPos;		// fixed Read field start position
 
 	typedef void(FqWriter::* fAddRead)(const Read&, bool);
 	// Current 'add read' method: with fixed or variable length 
@@ -336,7 +336,7 @@ public:
 // 'SamWriter' implements methods for writing SAM file
 class SamWriter : public ReadWriter
 {
-	static rowlen ReadStartPos;			// fixed Read field start position
+	static reclen ReadStartPos;			// fixed Read field start position
 	static string Fld_5_6;				// combined value from 5 to 6 field: initialised in constructor
 	static string FLAG[];				// FLAG value for SE: 00000=0 (+), 10000=16 (-)
 										// FLAG value for PE: 01100011=99 (+), 10010011=147 (-)

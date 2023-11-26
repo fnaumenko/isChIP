@@ -133,7 +133,7 @@ void effPartition::Result::Init(size_t nCnt, ss_id ssCnt)
 	SumDiff = SUM_MAX;
 	Bins.reserve(ssCnt);
 	for(ss_id i=0; i<ssCnt; i++)
-		Bins.emplace_back(rowlen(nCnt) / ssCnt + 2);
+		Bins.emplace_back(reclen(nCnt) / ssCnt + 2);
 }
 
 // Sorts subsets in descending order and sets subsets ID starting with 1
