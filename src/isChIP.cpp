@@ -168,7 +168,7 @@ int main(int argc, char* argv[])
 	);
 	// initialize DistrParams before Imitator and DataWriter!!
 	DistrParams::Init(
-		lnd.Values(), Options::Assigned(oFR_DIST),
+		lnd.Values(),
 		ssd.Values(), Options::Assigned(oSS_DIST),
 		rdd.Values(), Options::Assigned(oRD_DIST)
 	);
@@ -270,6 +270,7 @@ void PrintParams(const ChromSizesExt& cSizes, const char* templName,
 	const Features* templ, const DataWriter& oFile)
 {
 	if (!Imitator::Verbose(eVerb::PAR))		return;
+	// # Reference
 	cout << SignPar << "Reference" << SepDCl << "genome" << SepCl << cSizes.RefPath();
 	cout << SepCm << Chrom::TitleName() << COLON;
 	if (!Chrom::IsCustom())
@@ -280,34 +281,43 @@ void PrintParams(const ChromSizesExt& cSizes, const char* templName,
 
 	if (!cSizes.IsServAsRef())
 		cout << SignPar << "Service folder" << SepCl << cSizes.ServPath() << LF;
-
+	// # template
 	if (templName) {
-		cout << SignPar << sTemplate << SepCl << templName << SepCl;
+		cout << SignPar << sTemplate << SepDCl << templName << SepCl;
 		templ->PrintItemCount(FT::BED, false);
 		cout << SepSCl;
 		if (templ->IsUniScore())		cout << "uniform score\n";
 		else	cout << "score index" << Equel << Options::GetIVal(oBS_SCORE) << LF;
 	}
+	// # Output
 	oFile.PrintFormat(SignPar);		// print output formats, sequencing mode
+	// # Sequencing
 	SeqMode::Print(SignPar);		// print sequencing modes
 	cout << SignPar << "Sequencing modification" << SepCl << "ChIP-";
 	if (Imitator::IsExo)
 		cout << "exo" << SepSCl << "exonuclease 'headroom' length" << Equel << Options::GetUIVal(oEXO) << LF;
 	else
 		cout << "seq\n";
+	// # Count of cells
 	cout << SignPar << "Count of cells" << SepCl << ULONG(Options::GetFVal(oNUMB_CELLS)) << LF;
+	// # Amplification
 	Imitator::PrintAmpl	(SignPar);
+	// # Read
 	Read::PrintParams	(SignPar, DistrParams::IsRVL());
+	// # Read quality
 	oFile.PrintReadQual	(SignPar);
 	DistrParams::PrintReadDistr(cout, SignPar, Read::Title);
+	// # Optimization
 	cout << SignPar << "Optimization: process the entire ref. " << Chrom::Title()
 		<< SepCl << Options::BoolToStr(oLET_GAPS) << LF;
+	// # Stated sample
 	cout << SignPar << "Stated sample: ";
 	if (TestMode) {
 		cout << "foreground" << Equel << SAMPLE_FG()
 			<< PERS << SepSCl << "background" << Equel << SAMPLE_BG() << PERS
 			<< " (relative to the foreground)\n";
 		if (cSizes.TreatedCount() > 1) {
+	// # Background for all chromosomes
 			cout << SignPar << "Background for all " << Chrom::Title(true) << SepCl;
 			if (bool(SAMPLE_BG()))	cout << Options::BoolToStr(oBG_ALL) << LF;
 			else					cout << "negligible due to zero background sample\n";
@@ -325,5 +335,7 @@ void PrintParams(const ChromSizesExt& cSizes, const char* templName,
 		<< SepCl << ws << PERS << LF;
 	if (!Imitator::IsSingleThread())
 		cout << SignPar << "Actual threads" << SepCl << int(Imitator::ThrCnt) << LF;
+	// # Fragment lognorm size distribution
+	// # Fragment size selection distribution
 	DistrParams::PrintFragDistr(cout, SignPar, true);
 }

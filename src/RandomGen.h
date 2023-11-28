@@ -1,12 +1,9 @@
 /**********************************************************
-Random Generator (c) 2014 Fedor Naumenko (fedor.naumenko@gmail.com)
-All rights reserved.
--------------------------
-Last modified: 31.10.2023
--------------------------
+RandomGen.h
 Provides random number, normal and lognormal distribution generation functionality
+2014 Fedor Naumenko (fedor.naumenko@gmail.com)
+Last modified: 11/28/2023
 ***********************************************************/
-
 #pragma once
 
 #include <cmath>
@@ -18,6 +15,15 @@ Provides random number, normal and lognormal distribution generation functionali
 // 'DistrParams' keeps fragment initial lognormal and normal 'size selection' (SS) distributions params
 static struct DistrParams
 {
+private:
+	static const char* Equel;
+	static const char* SepCl;		// colon separator
+	static const char* SepSCl;		// semicolon separator
+
+	static const char* sMean;
+	static const char* sSigma;
+	static const char* sDistrib;
+
 public:
 	typedef std::pair<float, float> pairVal;
 	typedef std::pair<int, int> rdParams;
@@ -32,12 +38,11 @@ public:
 
 	// Initializes distribution values;
 	//	@param ln: expectation & standard deviation of frag lognormal distribution
-	//	@param isLN: true if the paramters of lognorm distribution were assigned by user
 	//	@param ss: expectation & standard deviation of size sel normal distribution
 	//	@param isSS: true if size sel is applied
 	//	@param rd: mean & sigma of Read length distriburion
 	//	@param isRD: true if Read variable length mode is set
-	static void Init(const pairVal& ln, bool isFD, const pairVal& ss, bool isSS, const pairVal& rd, bool isRD);
+	static void Init(const pairVal& ln, const pairVal& ss, bool isSS, const pairVal& rd, bool isRD);
 
 	// Returns mean of lognormal distribtion
 	static float LnMean() { return exp(lnMean + lnSigma * lnSigma / 2); }

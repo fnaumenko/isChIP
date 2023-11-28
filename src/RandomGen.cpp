@@ -1,20 +1,32 @@
+/**********************************************************
+RandomGen.cpp
+Last modified: 11/28/2023
+***********************************************************/
+
 #include "RandomGen.h"
 #include <iomanip>      // std::setprecision
 
 /************************ DistrParams ************************/
 
-float DistrParams::lnMean = 5.92f;
-float DistrParams::lnSigma = 0.4f;
+const char* DistrParams::Equel = " = ";
+const char* DistrParams::SepCl = ": ";
+const char* DistrParams::SepSCl = "; ";
+
+const char* DistrParams::sMean = "mean";
+const char* DistrParams::sSigma = "sigma";
+const char* DistrParams::sDistrib = "distribution";
+
+float DistrParams::lnMean;
+float DistrParams::lnSigma;
 float DistrParams::ssMean = 0;
 int	  DistrParams::ssSigma;
 int	  DistrParams::rdMean = 0;
 int	  DistrParams::rdSigma;
 
-void DistrParams::Init(const pairVal& ln, bool isFD, const pairVal& ss, bool isSS, const pairVal& rd, bool isRD)
+void DistrParams::Init(const pairVal& ln, const pairVal& ss, bool isSS, const pairVal& rd, bool isRD)
 {
-	if (isFD && !isRD)
-		lnMean = ln.first,
-		lnSigma = ln.second;
+	lnMean = ln.first,
+	lnSigma = ln.second;
 	if (isSS)
 		ssMean = ss.first == -1 ? LnMean() : ss.first,
 		ssSigma = int(ss.second);
@@ -24,13 +36,6 @@ void DistrParams::Init(const pairVal& ln, bool isFD, const pairVal& ss, bool isS
 }
 
 #define LF	'\n'
-static const char* Equel = " = ";
-static const char* SepCl = ": ";		// colon separator
-static const char* SepSCl = "; ";		// semicolon separator
-
-static const char* sMean = "mean";
-static const char* sSigma = "sigma";
-static const char* sDistrib = "distribution";
 
 void DistrParams::PrintFragDistr(std::ostream& s, const char* title, bool all)
 {

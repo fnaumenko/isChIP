@@ -209,7 +209,6 @@ public:
 
 /************************ AvrFrags: end ************************/
 
-// Thread-safety increment sizes by ChromSeq
 void Imitator::GenomeSizes::IncrSizes(const ChromSeq& seq)
 {
 	Mutex::Lock(Mutex::eType::INCR_SUM);
@@ -271,9 +270,6 @@ void PrFittedFloat(bool percent, float val, int precision, int width, int padd =
 	else	printf("%*c", width, cFIL_VAL);
 }
 
-// Prints chrom's header: Reads
-//	@FgHeader: true for foreground header
-//	return: header width
 int Imitator::ChromView::PrintHeader(bool FgHeader)
 {
 	int lineW = 0;
@@ -296,7 +292,6 @@ int Imitator::ChromView::PrintHeader(bool FgHeader)
 	return lineW;
 }
 
-// Prints chrom's header: gaps statistics
 int Imitator::ChromView::PrintHeaderGaps()
 {
 	int lineW = 0;
@@ -311,10 +306,6 @@ int Imitator::ChromView::PrintHeaderGaps()
 	return lineW;
 }
 
-// Print info about recorded Reads (count, sample, ampl, density) for ground type defined in this nstance
-//	@gMode: gen mode for which info is printed
-//  @fragCnt: frags counters
-//	@densLen: length to print density
 void Imitator::ChromView::PrintReads(GM::eMode gMode, const FragCnt fragCnt, chrlen densLen)
 {
 	ULONG rCnt = ULONG(fragCnt.RecCnt() << SeqMode::Mode());	// count of reads
@@ -333,7 +324,6 @@ void Imitator::ChromView::PrintReads(GM::eMode gMode, const FragCnt fragCnt, chr
 		PrintMarg(margD_);
 }
 
-// Prints chroms gaps statistics
 void Imitator::ChromView::PrintGaps(const GenomeSizes& s)
 {
 	PrFittedFloat(true, s.GapsInPers(), GapsPr, margD_ + GapsW);
@@ -341,11 +331,9 @@ void Imitator::ChromView::PrintGaps(const GenomeSizes& s)
 	PrFittedFloat(true, s.UndefInPers(), GapsPr, margGexcl + int(strlen(tGapsExcl)));
 }
 
-// Initializes viewing data
-void Imitator::ChromView::Init(ULONG maxCnt, float sample, float maxDens)
+void Imitator::ChromView::Init(size_t maxCnt, float sample, float maxDens)
 {
-	//CountW = (BYTE)max( DigitsCount(maxCnt, Options::GetBVal(oLOCALE)) + 1,	
-	//	FT::ItemTitle(FT::ABED).length() );		// lengh or "reads"
+	cout << ">>> maxCnt " << maxCnt << LF;
 	CountW = DigitsCount(maxCnt, Options::GetBVal(oLOCALE)) + 1;	// +1 for total
 	if (CountW < FT::ItemTitle(FT::ABED).length())
 		CountW = BYTE(FT::ItemTitle(FT::ABED).length());
@@ -837,29 +825,19 @@ void Imitator::CutGenome()
 	PrintHeader(false);
 }
 
-// Gets Reads estimated count per chrom and corrects maximum count and density
-//	@g: ground
-//	@densLen: length on which density is defined
-//	@factor: CellsCnt / recAvr
-//	@numeric: 1 for diploid chromosomes, 0 for haploid ones
-//	@maxCnt: FG|BG maximum counters to fill
-//	@maxDens: FG|BG maximum densities to fill
-//	return: estimated number of Reads
-ULONG Imitator::GetReadsCnt(Gr::eType g, chrlen densLen, float factor,
-	BYTE numeric, ULONG maxCnt[], float maxDens[])
+size_t Imitator::GetEstimReadsCnt(Gr::eType g, chrlen densLen, float factor,
+	BYTE numeric, size_t maxCnt[], float maxDens[])
 {
 	// Reads count
-	ULONG cnt = (ULONG)(Sample(GM::eMode::Test, g) * densLen * factor) << SeqMode::Mode();
+	size_t cnt = size_t((Sample(GM::eMode::Test, g) * densLen * factor)) << SeqMode::Mode();
 	if (maxCnt[g] < cnt)		maxCnt[g] = cnt;
 	// Reads density
 	factor = LinearDens(cnt, densLen >> numeric);
-	if (maxDens[g] < factor)		maxDens[g] = factor;
+	if (maxDens[g] < factor)	maxDens[g] = factor;
 	return cnt;
 }
 
-// Imitates cutting chromosome to reach statistics
-//	return: estimated total number of Reads
-ULLONG Imitator::CutForSample(Average& genFrAvr, FragLenStat* fLenStat)
+size_t Imitator::CutForSample(Average& genFrAvr, FragLenStat* fLenStat)
 {
 	chrlen		pos = 0;
 	ChromCutter cCutter(this, &genFrAvr, false);
@@ -930,11 +908,11 @@ void Imitator::SetSample()
 	if (MakeControl)	// can be true only in TEST task mode
 		GlobContext[int(GM::eMode::Control)].SetControlSample(GlobContext[int(GM::eMode::Test)].GetExactBGCellCnt());
 
-	// *** Determine the total possible numbers of recorded reads
-	ULLONG	totalCnt = 0;		// total number of recorded reads
-	ULONG	maxCnt[] = { 0,0 };
-	float	maxDens[] = { 0,0 };
-	chrlen	enRgnLen;		// length of enriched regions
+	// *** Determine the estimated numbers of reads generated 
+	size_t	totalCnt = 0;			// total estimated number of reads generated
+	size_t	maxCnt[] = { 0,0 };		// FG|BG estimated number of reads generated per chrom
+	float	maxDens[] = { 0,0 };	// FG|BG estimated read densities
+	chrlen	enRgnLen;				// length of enriched regions
 	// coefficient in formula: fragCnt_onLen = CellCnt * Sample * Len / recordedAvrLen
 	// constant countFactor = CellCnt / recordedAvrLen
 	const float	countFactor = float(GlobContext[int(GM::eMode::Test)].CellCnt) /
@@ -946,10 +924,10 @@ void Imitator::SetSample()
 		//	but density not, because basic length is single!
 		if (Templ && Templ->FindChrom(CID(it))) {
 			enRgnLen = Templ->EnrRegnLength(CID(it), 0, SelFragAvr);
-			totalCnt += GetReadsCnt(Gr::FG, enRgnLen, countFactor, 0, maxCnt, maxDens);
+			totalCnt += GetEstimReadsCnt(Gr::FG, enRgnLen, countFactor, 0, maxCnt, maxDens);
 		}
 		else	enRgnLen = 0;
-		totalCnt += GetReadsCnt(Gr::BG, _cSizes.DefEffLength(it) - enRgnLen,
+		totalCnt += GetEstimReadsCnt(Gr::BG, _cSizes.DefEffLength(it) - enRgnLen,
 			countFactor, Chrom::IsAutosome(CID(it)), maxCnt, maxDens);
 	}
 	//if (IsMDA)	totalCnt += totalCnt/5;	// empirical coefficient 1.2: right for small read cnt, but failed for big one

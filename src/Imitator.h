@@ -1,19 +1,15 @@
 /**********************************************************
-Imitator.h (c) 2014 Fedor Naumenko (fedor.naumenko@gmail.com)
-All rights reserved.
--------------------------
-Last modified: 11/12/2023
--------------------------
+Imitator.h
 Provides chip-seq imitation functionality
+2014 Fedor Naumenko (fedor.naumenko@gmail.com)
+Last modified: 11/27/2023
 ***********************************************************/
 #pragma once
+
 #include "ChromSeq.h"
 #include "DataWriter.h"
 #include "effPartition.h"
 #include "Features.h"
-//#include <math.h>       /* log */
-
-using namespace std;
 
 typedef	short	a_cycle;	// type amplification cycles
 typedef	BYTE	a_coeff;	// type coefficient of amplification
@@ -33,7 +29,6 @@ enum class eVerb {	// verbose level
 	DBG		// print vPAR + additional info
 };
 
-
 #define SignPar	"# "	// Marker of output parameter in Usage
 #define	TestMode	(Imitator::TMode==TEST)
 #define	ControlMode (Imitator::TMode==CONTROL)
@@ -47,16 +42,13 @@ public:
 		FG = 0,	// foreground
 		BG = 1	// background
 	};
-	// Count of grounds
-	static const int Cnt = 2;
-
-	// Maximum title length
-	static const BYTE TitleLength = 2;
+	
+	static const BYTE Cnt = 2;			// Count of grounds
+	static const BYTE TitleLength = 2;	// Maximum title length
 
 	// Gets ground title
-	inline static const char* Title(eType g) { return title[g]; }
+	static const char* Title(eType g) { return title[g]; }
 } ground;
-
 
 
 // 'Imitator' implements main algorithm of simulation.
@@ -65,23 +57,19 @@ class Imitator
 	// 'Average' encapsulates average counting
 	class Average
 	{
-	private:
-		bool	_keep;		// true if statistic is accumulated
-		ULONG	_count;
-		ULLONG	_summator;
+		bool	 _keep = true;		// true if statistic is accumulated
+		uint32_t _count = 0;
+		size_t	 _summator = 0;
 
 	public:
-		inline Average() : _summator(0), _count(0), _keep(true)	{}
 		// Gets arithmetic average.
-		inline float Mean()	 const { return (float)_summator/_count; }
-		inline ULLONG Sum()	 const { 
-			return _summator; }
-		inline ULONG Count() const { return _count; }
+		inline float	Mean()	const { return (float)_summator/_count; }
+		inline size_t	Sum()	const { return _summator; }
+		inline uint32_t	Count()	const { return _count; }
 		// Returns parameter val
-		UINT operator+=(UINT val);
+		uint32_t operator+=(uint32_t val);
 	};
 
-//public:
 	// 'FragLenStat' keeps statistics of selected frag length; used in SetSample()
 	struct FragLenStat
 	{
@@ -89,10 +77,11 @@ class Imitator
 		fraglen	Max;	// maximum selected frag length
 		Average	SelAvr;	// average selected frag length 
 
-		inline FragLenStat() : Min(FRAG_MAX), Max(0) {}
+		FragLenStat() : Min(FRAG_MAX), Max(0) {}
 
 		// Accepts frag length in purpose of statistics
-		//	@len: current selected frag length
+		//	@param len: current selected frag length
+		//	called in one place
 		void TakeFragLen(fraglen len) {
 			SelAvr += len;
 			if(len > Max)		Max = len;
@@ -100,116 +89,111 @@ class Imitator
 		}
 	};
 
-//private:
-	// 'FragCnt' - Fragment's Counter - keeps statistics for selected and recorded Reads
-	struct FragCnt {
-	private:
-		typedef ULLONG	(FragCnt::*pRecIncr)(bool);
-		typedef void	(FragCnt::*pSelAdd)	(ULLONG);
+	// Fragment's Counter keeps statistics for selected and recorded Reads
+	class FragCnt {
+		typedef size_t	(FragCnt::*pRecIncr)(bool);
+		typedef void	(FragCnt::*pSelAdd)	(size_t);
 
 		// pointer to the thread-saved 'recorded frag's number increment' method
 		static pRecIncr	pRecIncrSaved;
 		// pointer to the thread-saved 'selected frag's number adding' method
 		static pSelAdd	pSelAddSaved;
 
-		ULLONG sel;		// number of selected fragments
-		ULLONG rec[2];	// number of recorded fragments: 0: derived (amplified), 1: primer (initial)
+		size_t sel;		// number of selected fragments
+		size_t rec[2];	// number of recorded fragments: 0: derived (amplified), 1: primer (initial)
 
 		// Thread-savely increments number of recorded frags
-		//	@primer: if true then increment counter of primer (not amplified) frag
-		//	return: number of recorded frags after increment
-		inline ULLONG RecInterlIncr(bool primer) { return InterlockedIncrement(&rec[primer]); }
+		//	@param primer: if true then increment counter of primer (not amplified) frag
+		//	@return: number of recorded frags after increment
+		size_t RecInterlIncr(bool primer) { return InterlockedIncrement(&rec[primer]); }
 
 		// Thread-savely adds value to number of selected frags
-		inline void SelAddIncr(ULLONG val) { InterlockedExchangeAdd(&sel, val);	}
+		void SelAddIncr(size_t val) { InterlockedExchangeAdd(&sel, val);	}
 
 		// Adds value to number of selected frags
-		inline void SelAdd(ULLONG val) { sel += val; }
+		void SelAdd(size_t val) { sel += val; }
 
 	public:
-		inline static void Init(bool singleThread) {
+		static void Init(bool singleThread) {
 			pRecIncrSaved = singleThread ? &Imitator::FragCnt::RecIncr : &Imitator::FragCnt::RecInterlIncr;
 			pSelAddSaved =	singleThread ? &Imitator::FragCnt::SelAdd : &Imitator::FragCnt::SelAddIncr;
 		}
 
-		inline void Clear() { memset(rec, 0, 2*sizeof(ULLONG));	}
+		void Clear() { memset(rec, 0, 2*sizeof(size_t));	}
 
 		// Gets total number of selected frags
-		inline ULLONG SelCnt()	const { return sel; }
+		size_t SelCnt()	const { return sel; }
 
 		// Gets total number of recorded frags
-		inline ULLONG RecCnt()	const { return rec[0] + rec[1]; }
+		size_t RecCnt()	const { return rec[0] + rec[1]; }
 
 		// Gets percentage of recorded reads in relation to the selected
-		inline float Sample()	const { return Percent(rec[1], sel); }
+		float Sample()	const { return Percent(rec[1], sel); }
 		
 		// Gets ratio primer/derived frag's numbers
-		inline float RealAmplCoeff() const { return rec[1] ? float(rec[0]) / rec[1] : 0; }
+		float RealAmplCoeff() const { return rec[1] ? float(rec[0]) / rec[1] : 0; }
 
 		// Increments number of recorded frags
-		//	@primer: if true then increment counter of primer (not amplified) frag
-		//	return: number of recorded frags after increment
-		inline void SelIncr() { sel += 2; }	// because of double fragment (forward & backward) for each selection
+		//	@param primer: if true then increment counter of primer (not amplified) frag
+		//	@return: number of recorded frags after increment
+		void SelIncr() { sel += 2; }	// because of double fragment (forward & backward) for each selection
 
 		// Increments number of recorded frags
-		//	@primer: if true then increment counter of primer (not amplified) frag
-		//	return: number of recorded frags after increment
-		inline ULLONG RecIncr(bool primer) { return rec[primer]++; }
+		//	@param primer: if true then increment counter of primer (not amplified) frag
+		//	@return: number of recorded frags after increment
+		size_t RecIncr(bool primer) { return rec[primer]++; }
 
 		// Thread-savely increments number of recorded frags
-		//	@primer: true if increment counter of primer (not amplified) frag
-		//	return: number recorded frags after increment
-		inline ULLONG RecIncrSaved(bool primer) {
+		//	@param primer: true if increment counter of primer (not amplified) frag
+		//	@return: number recorded frags after increment
+		size_t RecIncrSaved(bool primer) {
 			return (this->*pRecIncrSaved)(primer), RecCnt();
 		}
 
 		// Thread-savely adds value to number of selected frags
-		inline void SelAddSaved(ULLONG val) { (this->*pSelAddSaved)(val); }
+		void SelAddSaved(size_t val) { (this->*pSelAddSaved)(val); }
 	};
 
-	// 'FragCnts' keeps statistics for selected and recorded Reads, for both Test and MakeControl modes
-	struct FragCnts {
-	private:
+	// Fragment's Counters keeps statistics for selected and recorded Reads, for both Test and MakeControl modes
+	class FragCnts {
 		FragCnt	fCnts[2][Gr::Cnt];
 		GM::eMode	gMode;
 
 	public:
-		inline void SetGMode(GM::eMode mode) { gMode = mode; }
+		void SetGMode(GM::eMode mode) { gMode = mode; }
 
-		inline const FragCnt* GetFragCnts() const { return fCnts[int(gMode)]; }
+		const FragCnt* GetFragCnts() const { return fCnts[int(gMode)]; }
 
-		inline FragCnt& operator[](BYTE g)  { return fCnts[int(gMode)][g]; }
+		FragCnt& operator[](BYTE g)  { return fCnts[int(gMode)][g]; }
 
-		inline const FragCnt& operator[](BYTE g) const { return fCnts[int(gMode)][g]; }
+		const FragCnt& operator[](BYTE g) const { return fCnts[int(gMode)][g]; }
 
 		// Clears all fragment counters
-		inline void Clear() { memset(fCnts, 0, 2*Gr::Cnt*sizeof(FragCnt)); }
+		void Clear() { memset(fCnts, 0, 2*Gr::Cnt*sizeof(FragCnt)); }
 	};
 
-	// 'GenomeSizes' keeps total, defined and gaps length in purpose to print average gap statistics
-	struct GenomeSizes
+	// Genome Sizes keeps total, defined and gaps length in purpose to print average gap statistics
+	class GenomeSizes
 	{
-	private:
-		ULONG	Total;		// sum of chroms length
-		ULONG	Defined;	// sum if chroms defined (effective) length
-		ULONG	Gaps;		// sum of chroms gaps length
+		genlen	Total = 0;		// sum of chroms length
+		genlen	Defined = 0;	// sum of chroms defined (effective) length
+		genlen	Gaps = 0;		// sum of chroms gaps length
 
 	public:
-		inline GenomeSizes() { Total = Defined = Gaps = 0; }
+		GenomeSizes() {}
 
 		// constructor by single chrom
-		inline GenomeSizes(const ChromSeq& seq) : 
+		GenomeSizes(const ChromSeq& seq) : 
 			Total(seq.Length()), Defined(seq.DefRegion().Length()), Gaps(seq.GapLen()) {}
 
 		// Thread-safety increment sizes by ChromSeq
 		void IncrSizes(const ChromSeq& seq);
 
-		inline float GapsInPers() const { return 100.f * Gaps / Total; }
+		float GapsInPers() const { return 100.f * Gaps / Total; }
 
-		inline float UndefInPers() const { return 100.f * (Total - Defined) / Total; }
+		float UndefInPers() const { return 100.f * (Total - Defined) / Total; }
 	};
 
-	//public:
 	// 'ChromCutter' encapsulates thread context and methods to cut chromosomes.
 	class ChromCutter
 	{
@@ -220,19 +204,17 @@ class Imitator
 		private:
 			//typedef fraglen	(FragDistr::*tpLognormNext)();
 
-			Average*_avr;			// average to count the frags (for statistics), or NULL
+			Average*_avr;		// average to count the frags (for statistics), or NULL
 			//tpLognormNext _pLognormNext;
-
 			//fraglen LognormNextWithStat() { return *_avr += Lognormal(); }
 
 		public:
 			//	Initializes size sel factors
-			inline static void Init() { ssFactor0 = float(DistrParams::ssSigma * sqrt(2.f)); }
+			static void Init() { ssFactor0 = float(DistrParams::ssSigma * sqrt(2.f)); }
 
 			// Creates instance
-			//	@avr: generated frags average (for trial mode), or NULL (for working mode)
-			// _normal_x2 is initialized by random double to avoid
-			//		undesirable 'out of range' random initialization
+			//	@param avr: generated frags average (for trial mode), or NULL (for working mode)
+			// _normal_x2 is initialized by random double to avoid undesirable 'out of range' random initialization
 			FragDistr(Average* avr) : _avr(avr)
 			{
 				//_pLognormNext = avr ? 
@@ -243,14 +225,14 @@ class Imitator
 			// Returns next random frag length according to a lognormal distribution,
 			// with or without output accumulation to calculate average
 			// About 1.5 times faster then std::lognormal_distribution (<random>)
-			inline fraglen LognormNext() {
+			fraglen LognormNext() {
 				return _avr ? *_avr += Lognormal() : Lognormal();
 				//return (this->*_pLognormNext)(); 
 			}
 
 			// Returns next random size sel limits
-			//	@min: random min limit
-			//	@max: random max limit
+			//	@param min: random min limit
+			//	@param max: random max limit
 			void SizeSelLimits(fraglen& min, fraglen& max)
 			{
 				const float ssDev = ssFactor0 * float(sqrt(log(ssFactor1 / DRand())));
@@ -262,11 +244,10 @@ class Imitator
 
 			// Returns random fragment's length within 0 and mean frag length
 			// should to round ssMean??
-			inline fraglen RandFragLen() { return Range(int(DistrParams::ssMean)); }
+			fraglen RandFragLen() { return Range(int(DistrParams::ssMean)); }
 
 			//bool ExpoProbability(const readlen len) {
 			//	//return -log(DRand()) / len;
-			//	//return DRand() <= (2 ^ Range(len) - 1) / (2 ^ len - 1);
 			//	return DRand() <= (2 ^ Range(len)) / (2 ^ len);
 			//}
 
@@ -354,10 +335,10 @@ class Imitator
 		//	@master: if true then this instance is master
 		ChromCutter(const Imitator* imitator, Average* avr, bool master);
 		
-		inline ~ChromCutter () { if(!_master)	delete _output; }
+		~ChromCutter () { if(!_master)	delete _output; }
 
 		// Returns number of FG recorded frags
-		inline ULLONG RecFgFragCnt() const { return _fragCnt[Gr::FG].RecCnt(); }
+		size_t RecFgFragCnt() const { return _fragCnt[Gr::FG].RecCnt(); }
 		
 		// Set mode, print chrom name, start timer, return number of cells
 		ULONG PrepareCutting(GM::eMode gm, chrid cID, Timer& timer);
@@ -417,8 +398,8 @@ class Imitator
 		static BYTE GapsWexcl;		// width of excluded gaps field
 
 		// Prints empty margin
-		//	@width: margin width
-		static inline void PrintMarg(BYTE width) { cout << setw(width) << SPACE; }
+		//	@param width: margin width
+		static void PrintMarg(BYTE width) { cout << setw(width) << SPACE; }
 
 		BYTE CountW;		// width of 'number of Reads' field
 		BYTE SampleWRP;		// 'sample' field right padding: space to the right of the value (0|1)
@@ -439,29 +420,32 @@ class Imitator
 		// Prints chroms gaps statistics
 		static void PrintGaps(const GenomeSizes& s);
 
-		static inline void PrintGapsMarg() { PrintMarg(margD_ + GapsW + margGexcl + GapsWexcl); }
+		static void PrintGapsMarg() { PrintMarg(margD_ + GapsW + margGexcl + GapsWexcl); }
 
-		inline ChromView(Gr::eType grType) : GrType(grType) {}
+		ChromView(Gr::eType grType) : GrType(grType) {}
 
 		// Prints chrom's header: Reads
-		//	@FgHeader: true for foreground header
-		//	return: header width
+		//	@param FgHeader: true for foreground header
+		//	@return: header width
 		int PrintHeader(bool FgHeader);
 
 		// Prints chrom's header: gaps statistics
 		static int PrintHeaderGaps();
 
 		// Print info about recorded Reads (count, sample, ampl, density) for ground type of this nstance
-		//	@gMode: gen mode for which info is printed
-		//  @fragCnt: Reads counters
-		//	@densLen: length on which the density is determined
+		//	@param gMode: gen mode for which info is printed
+		//  @param fragCnt: Reads counters
+		//	@param densLen: length on which the density is determined
 		void PrintReads(GM::eMode gMode, const FragCnt fragCnt, chrlen densLen);
 
 		// Set task mode
 		//static void SetMode() { margC_R -= (gMode = BYTE(TestMode)); }
 
 		// Initializes viewing data
-		void Init(ULONG maxCnt, float sample, float maxDens);
+		//	@param maxCnt: estimated maximum number of generated reads (FG or BG)
+		//	@param sample: sampling value
+		//	@param maxDens: estimated maximum read density (FG or BG)
+		void Init(size_t maxCnt, float sample, float maxDens);
 #ifdef DEBUG
 		void Print(ULONG maxCnt);
 #endif
@@ -473,18 +457,18 @@ class Imitator
 		FragCnt	fCnts[Gr::Cnt];		// fragment counters: [0] - fg, [1] - bg
 
 		// Gets total number of recorded frags
-		inline ULLONG RecCnt()	const{ return fCnts[Gr::FG].RecCnt() + fCnts[Gr::BG].RecCnt(); }
+		size_t RecCnt()	const{ return fCnts[Gr::FG].RecCnt() + fCnts[Gr::BG].RecCnt(); }
 
 		// Sets sample for both grounds
-		inline void SetSample(float sample) { Sample[Gr::FG] = Sample[Gr::BG] = sample; }
+		void SetSample(float sample) { Sample[Gr::FG] = Sample[Gr::BG] = sample; }
 
-		inline void ClearFragCounters() { fCnts[Gr::FG].Clear(); fCnts[Gr::BG].Clear(); }
+		void ClearFragCounters() { fCnts[Gr::FG].Clear(); fCnts[Gr::BG].Clear(); }
 		
 		// Returns exact number of 'background' cells according to background sample
-		inline float GetExactBGCellCnt() const { return Sample[Gr::BG] * CellCnt; }
+		float GetExactBGCellCnt() const { return Sample[Gr::BG] * CellCnt; }
 
 		// Sets Control number of cells and sample according to exact count of Test 'background' cells
-		//	@exactCellCnt: exact count of Test 'background' cells
+		//	@param exactCellCnt: exact count of Test 'background' cells
 		void SetControlSample(float exactCellCnt) {
 			Sample[Gr::BG] = exactCellCnt/(CellCnt = UINT(ceil(exactCellCnt)));
 		}
@@ -506,7 +490,7 @@ class Imitator
 	static float	AutoSample;		// adjusted FG sample to stay in limit
 	static float	SelFragAvr;		// mean length of selected fragments
 	static a_coeff	PCRCoeff;		// user-stated amplification coefficient
-	static eVerb	Verb;				// verbose level
+	static eVerb	Verb;			// verbose level
 	static bool	MakeControl;		// true if control file (input) should be produced
 	static Imitator	*Imit;			// singletone instance: to call threads only
 	static const Features *Templ;	// template features or NULL (control mode)
@@ -517,18 +501,18 @@ class Imitator
 
 	// Returns stated count of cells
 	//	@gm: generated mode
-	inline static UINT CellCnt(GM::eMode gm) { return GlobContext[int(gm)].CellCnt; }
+	static UINT CellCnt(GM::eMode gm) { return GlobContext[int(gm)].CellCnt; }
 
-	// Gets Reads estimated count per chrom and corrects maximum count and density
-	//	@g: ground
-	//	@densLen: length on which density is defined
-	//	@factor: CellsCnt / recAvrLen
-	//	@numeric: 1 for diploid chromosomes, 0 for haploid ones
-	//	@maxCnt: FG|BG maximum counters to fill
-	//	@maxDens: FG|BG maximum densities to fill
-	//	return: estimated number of Reads
-	static ULONG GetReadsCnt(Gr::eType g, chrlen densLen, float factor, 
-		BYTE numeric, ULONG maxCnt[], float maxDens[]);
+	// Gets estimated number of reads generated per chrom and corrects maximum count and density
+	//	@param g: ground
+	//	@param densLen: length on which density is defined
+	//	@param factor: CellsCnt / recAvrLen
+	//	@param numeric: 1 for diploid chromosomes, 0 for haploid ones
+	//	@param maxCnt: FG|BG reads maximum counters to fill
+	//	@param maxDens: FG|BG maximum read densities to fill
+	//	@return: estimated number of reads generated per chrom
+	static size_t GetEstimReadsCnt(Gr::eType g, chrlen densLen, float factor,
+		BYTE numeric, size_t maxCnt[], float maxDens[]);
 
 	// Returns stated sample
 	//	@gm: generated mode
@@ -578,19 +562,19 @@ class Imitator
 	//}
 
 	// Initializes Reads view
-	//	@g: ground
-	//	@maxCnt: FG|BG maximum count of reads
-	//	@maxDens: FG|BG maximum density
-	static void InitReadsView(Gr::eType g, ULONG maxCnt[], float maxDens[])
+	//	@param g: ground
+	//	@param maxCnt: FG|BG estimated maximum number of generated reads
+	//	@param maxDens: FG|BG estimated maximum read density
+	static void InitReadsView(Gr::eType g, size_t maxCnt[], float maxDens[])
 	{
-		ChrView[int(g)].Init(
-			ULONG(maxCnt[int(g)] * AutoSample),
+		ChrView[g].Init(
+			size_t(maxCnt[g] * AutoSample),
 			// max() works only in case MakeControl==true and g==Gr::BG,
 			// to set maximum BG sample among Test and Control.
 			// In other cases Sample(GM::Control, g) always returns 0.
 			//max(Sample(GM::Test, g), Sample(GM::Control, g)) * AutoSample,
 			Sample(GM::eMode::Test, g) * AutoSample,
-			maxDens[int(g)] * AutoSample
+			maxDens[g] * AutoSample
 		);
 	}
 
@@ -598,14 +582,14 @@ class Imitator
 	void	CutGenome	();
 	
 	// Cuts genome into fragments and generate output
-	//	@arg: pointer to ChrSubset - set of chrom IDs treated in this thread
-	//	@master: if true then this instance it master
-	inline void CutChrom(const effPartition::Subset& arg, bool master)
+	//	@param arg: pointer to ChrSubset - set of chrom IDs treated in this thread
+	//	@param master: if true then this a master instance
+	void CutChrom(const effPartition::Subset& arg, bool master)
 	{ ChromCutter(this, NULL, master).Execute(arg); }
 
 	// Imitates cutting chromosome to reach statistics
-	//	return: estimated total number of Reads
-	ULLONG CutForSample(Average& genFrAvr, FragLenStat* frLenStat);
+	//	@return: estimated total number of Reads
+	size_t CutForSample(Average& genFrAvr, FragLenStat* frLenStat);
 
 	// Sets adjusted Sample and clear all counter and means.
 	// Sample are needed for the control of BF&FG levels by percent (given by user),
@@ -614,12 +598,12 @@ class Imitator
 
 public:
 	static bool	UniScore;	// true if template features scores are ignored
-	static BYTE	ThrCnt;			// actual number of threads
+	static BYTE	ThrCnt;		// actual number of threads
 	static bool	IsExo;
 	static bool	IsMDA;
-	static eMode TMode;			// current task mode
-	static short FlatLen;		// BS edge flattening length
-	static fraglen FragLenMin;	// minimal length of selected fragments:
+	static eMode	TMode;		// current task mode
+	static short	FlatLen;	// BS edge flattening length
+	static fraglen	FragLenMin;	// minimal length of selected fragments:
 								// established by --frag-dev or Read::FixedLen if size filter is OFF
 	static bool All;	// true if total genome is treated
 						// false only in Test mode if custom chrom and BG_ALL is false.
