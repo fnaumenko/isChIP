@@ -2,7 +2,7 @@
 Imitator.h
 Provides chip-seq imitation functionality
 2014 Fedor Naumenko (fedor.naumenko@gmail.com)
-Last modified: 11/27/2023
+Last modified: 01/19/2024
 ***********************************************************/
 #pragma once
 

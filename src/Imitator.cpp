@@ -1,10 +1,8 @@
 /**********************************************************
-Imitator.cpp (c) 2014 Fedor Naumenko (fedor.naumenko@gmail.com)
-All rights reserved.
--------------------------
-Last modified: 11/12/2023
--------------------------
+Imitator.cpp
 Provides chip-seq imitation functionality
+2014 Fedor Naumenko (fedor.naumenko@gmail.com)
+Last modified: 01/19/2024
 ***********************************************************/
 
 #include "isChIP.h"

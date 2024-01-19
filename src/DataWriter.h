@@ -2,7 +2,7 @@
 DataWriter.h
 Provides bioinfo writers functionality
 2014 Fedor Naumenko (fedor.naumenko@gmail.com)
-Last modified: 11/23/2023
+Last modified: 01/19/2024
 ***********************************************************/
 #pragma once
 
