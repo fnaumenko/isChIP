@@ -11,7 +11,7 @@ Last modified: 11/27/2023
 #include "effPartition.h"
 #include "Features.h"
 
-typedef	short	a_cycle;	// type amplification cycles
+typedef	int16_t	a_cycle;	// type amplification cycles
 typedef	BYTE	a_coeff;	// type coefficient of amplification
 
 #define FRAG_MAX	UINT32_MAX		// maximum fragment length
@@ -63,11 +63,11 @@ class Imitator
 
 	public:
 		// Gets arithmetic average.
-		inline float	Mean()	const { return (float)_summator/_count; }
-		inline size_t	Sum()	const { return _summator; }
-		inline uint32_t	Count()	const { return _count; }
+		float	 Mean()	 const { return (float)_summator/_count; }
+		size_t	 Sum()	 const { return _summator; }
+		uint32_t Count() const { return _count; }
 		// Returns parameter val
-		uint32_t operator+=(uint32_t val);
+		uint32_t operator += (uint32_t val);
 	};
 
 	// 'FragLenStat' keeps statistics of selected frag length; used in SetSample()
@@ -82,7 +82,7 @@ class Imitator
 		// Accepts frag length in purpose of statistics
 		//	@param len: current selected frag length
 		//	called in one place
-		void TakeFragLen(fraglen len) {
+		void AddFragLen(fraglen len) {
 			SelAvr += len;
 			if(len > Max)		Max = len;
 			else if(len < Min)	Min = len;
@@ -280,7 +280,7 @@ class Imitator
 		
 		bool		_master;	// if true then this instance is master
 		GM::eMode	_gMode;		// generating mode: 0 - Test, 1 - Control
-		DataWriter*		_output;	// partial output files
+		DataWriter*	_writer;
 		FragCnts	_fragCnt;	// numbers of selected/recorded fragments for FG & BG, for both Teat & Input
 		FragDistr	_fragDistr;	// normal & lognormal random number generator
 		MDA			_ampl;
@@ -299,7 +299,7 @@ class Imitator
 		void IncrTotalSelFragCount();
 
 		// Returns local (instance-defined) random true or false according to rate
-		inline bool Sample(float rate) { return _fragDistr.Sample(rate); }
+		bool Sample(float rate) { return _fragDistr.Sample(rate); }
 
 		// Prints thread-safe info about treated chroms and stops timer
 		//  @seq: current reference chromosome
@@ -324,37 +324,41 @@ class Imitator
 
 	public:
 		// Returns true if PCR amplification is established
-		inline static bool IsPCR()	{ return _PCRdcycles > 1; }
+		static bool IsPCR()	{ return _PCRdcycles > 1; }
 
 		// Set amplification
-		inline static void SetAmpl() { _PCRdcycles = 1<<PCRCoeff; }
+		static void SetAmpl() { _PCRdcycles = 1<<PCRCoeff; }
 
-		// Creates instance
-		//	@imitator: the owner
-		//	@avr: recorded frags average (trial for sampling), or NULL
-		//	@master: if true then this instance is master
+		// Constructor
+		//	@param imitator: the owner
+		//	@param avr: recorded frags average (trial for sampling), or NULL
+		//	@param master: if true then this instance is master
 		ChromCutter(const Imitator* imitator, Average* avr, bool master);
 		
-		~ChromCutter () { if(!_master)	delete _output; }
+		~ChromCutter () { if(!_master)	delete _writer; }
 
 		// Returns number of FG recorded frags
 		size_t RecFgFragCnt() const { return _fragCnt[Gr::FG].RecCnt(); }
 		
-		// Set mode, print chrom name, start timer, return number of cells
-		ULONG PrepareCutting(GM::eMode gm, chrid cID, Timer& timer);
+		// Set mode, print chrom name, start timer
+		//	@param gm: generation mode
+		//	@param cID: chrom ID
+		//	@param timer: timer to start
+		//	@return: number of cells
+		UINT CuttingInit(GM::eMode gm, chrid cID, Timer& timer);
 
 		// Treats chromosomes given for current thread
-		//	@cSubset: pointer to ChrSubset - set of chrom IDs treated in this thread
+		//	@param cSubset: pointer to ChrSubset - set of chrom IDs treated in this thread
 		void Execute(const effPartition::Subset& cSubset);
 		
 		// Cuts chromosome until reaching end position of current treated feature
-		//	@cLen: chromosome's 'end' position
-		//	@fStart: fragment start position
-		//	@ft: current treated feature
-		//	@scores: FG (in-feature, first) and BG (out-feature, second) scores
-		//	@bg: if true then generate background (swap foreground and background)
-		//	@fStat: statistics of selected fragments average counter, or NULL under work mode
-		//	return: 0 if success,
+		//	@param cLen: chromosome's 'end' position
+		//	@param fStart: fragment start position
+		//	@param ft: current treated feature
+		//	@param scores: FG (in-feature, first) and BG (out-feature, second) scores
+		//	@param bg: if true then generate background (swap foreground and background)
+		//	@param fStat: statistics of selected fragments average counter, or NULL under work mode
+		//	@return: 0 if success,
 		//		1 if end chromosome is reached (continue treatment),
 		//		-1 if limit is achieved (cancel treatment)
 		int	CutChrom (chrlen cLen, chrlen& fStart, const Featr& ft, 
@@ -486,7 +490,7 @@ class Imitator
 	static GenomeSizes gSizes;		// genome total sizes; needed to define average % of gaps, excl gaps
 	static ChromView ChrView[];		// FG, BF chrom views
 	static ULONG	TreatedLen[];	// FG, BF genome treated length; needed to define total density
-	static Context	GlobContext[];	// TM, CM global generation context
+	static Context	GlobContext[];	// TestMode, ControlMode global generation context
 	static float	AutoSample;		// adjusted FG sample to stay in limit
 	static float	SelFragAvr;		// mean length of selected fragments
 	static a_coeff	PCRCoeff;		// user-stated amplification coefficient
@@ -496,8 +500,8 @@ class Imitator
 	static const Features *Templ;	// template features or NULL (control mode)
 	//static readlen	BindLen;	// binding length
 
-	const ChromSizesExt& _cSizes;	// ref genome library
-	DataWriter& _oFile;				// output file
+	const ChromSizesExt& _cSizes;	// chrom sizes
+	DataWriter& _writer;			// data writer
 
 	// Returns stated count of cells
 	//	@gm: generated mode
@@ -517,7 +521,7 @@ class Imitator
 	// Returns stated sample
 	//	@gm: generated mode
 	//	@g: ground 
-	inline static float Sample(GM::eMode gm, Gr::eType g) { return GlobContext[int(gm)].Sample[g]; }
+	static float Sample(GM::eMode gm, Gr::eType g) { return GlobContext[int(gm)].Sample[g]; }
 
 	// Prints chromosome's name
 	//	@cID: chromosomes ID, or CHRID_UNDEF to print "total" instead chrom name
@@ -525,7 +529,7 @@ class Imitator
 	//	@print: true if chromosomes name should be printed
 	static void PrintChromName(chrid cID, GM::eMode gm, bool print);
 
-	inline static void PrintReadInfo(
+	static void PrintReadInfo(
 		Gr::eType gr, GM::eMode gMode, const FragCnt fCnts[], const ULONG rgnLens[])
 	{ ChrView[gr].PrintReads(gMode, fCnts[gr], rgnLens[gr]); }
 
@@ -613,13 +617,13 @@ public:
 	static void PrintAmpl(const char* signOut);
 
 	// Returns true if control is set
-	static inline bool IsControl()			{ return MakeControl; }
+	static bool IsControl()			{ return MakeControl; }
 
 	// Returns true if single thread is set
-	static inline bool IsSingleThread()		{ return ThrCnt == 1; }
+	static bool IsSingleThread()	{ return ThrCnt == 1; }
 
 	// Returns true if given verbose level is active
-	static inline bool Verbose(eVerb level)	{ return Imitator::Verb >= level; }
+	static bool Verbose(eVerb level){ return Imitator::Verb >= level; }
 
 	// Set number of threads
 	static void SetThreadNumb(BYTE numb) { 
@@ -647,8 +651,8 @@ public:
 	// Creates singleton instance.
 	//  @cFiles: list of chromosomes as fa-files
 	//	@ocSizes: chrom sizes
-	inline Imitator(const ChromSizesExt& cSizes, DataWriter& oFile)
-		: _cSizes(cSizes), _oFile(oFile) { Imit = this; }
+	Imitator(const ChromSizesExt& cSizes, DataWriter& oFile)
+		: _cSizes(cSizes), _writer(oFile) { Imit = this; }
 
 	// Runs task in current mode and write result to output files
 	//	@templ: input template or NULL

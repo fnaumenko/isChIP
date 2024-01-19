@@ -812,30 +812,30 @@ DataWriter::DataWriter(
 	_gMode(BYTE(GM::eMode::Test))
 {
 	commLine = &cmLine;
-	_oFiles[0].reset(new BioWriters(fName, cSizes));
-	if (control)	_oFiles[1].reset(new BioWriters(fName + "_input", cSizes));
+	_writers[0].reset(new BioWriters(fName, cSizes));
+	if (control)	_writers[1].reset(new BioWriters(fName + "_input", cSizes));
 }
 
 // Clone constructor for multithreading.
 //	@file: original instance
 DataWriter::DataWriter(const DataWriter& file) : _dists(file._dists), _gMode(file._gMode)
 {
-	_oFiles[0].reset(new BioWriters(*file._oFiles[0]));
-	if (file._oFiles[1])	_oFiles[1].reset(new BioWriters(*file._oFiles[1]));
+	_writers[0].reset(new BioWriters(*file._writers[0]));
+	if (file._writers[1])	_writers[1].reset(new BioWriters(*file._writers[1]));
 }
 
 // Starts recording chrom
 void DataWriter::BeginWriteChrom(const ChromSeq& seq)
 {
-	_oFiles[0]->BeginWriteChrom(seq);
-	if (_oFiles[1])	_oFiles[1]->BeginWriteChrom(seq);
+	_writers[0]->BeginWriteChrom(seq);
+	if (_writers[1])	_writers[1]->BeginWriteChrom(seq);
 }
 
 // Stops recording chrom
 void DataWriter::EndWriteChrom()
 {
-	_oFiles[0]->EndWriteChrom();
-	if (_oFiles[1])	_oFiles[1]->EndWriteChrom();
+	_writers[0]->EndWriteChrom();
+	if (_writers[1])	_writers[1]->EndWriteChrom();
 }
 
 // Adds read(s) to output file
@@ -863,7 +863,7 @@ int DataWriter::AddRead(chrlen pos, fraglen flen, /*Gr::eType g,*/ bool reverse)
 		if (rlen > Read::VarMaxLen || rlen > flen)	rlen = flen;
 	}
 	_dists->AddFrag(flen, rlen);
-	return _oFiles[_gMode]->AddRead(Region(pos, pos + flen), rlen, reverse);
+	return _writers[_gMode]->AddRead(Region(pos, pos + flen), rlen, reverse);
 }
 
 // Prints output file formats and sequencing mode
@@ -872,9 +872,9 @@ void DataWriter::PrintFormat(const char* signOut) const
 {
 	const char* output = "Output ";
 
-	_oFiles[0]->PrintFormat(signOut, output);
+	_writers[0]->PrintFormat(signOut, output);
 	_dists->PrintFormat(signOut, output);
-	if (_oFiles[1])	cout << signOut << output << "control supplied\n";
+	if (_writers[1])	cout << signOut << output << "control supplied\n";
 }
 
 // Prints Read quality settins

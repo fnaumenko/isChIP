@@ -559,7 +559,7 @@ private:
 	// Returns true if both formats is defined
 	static bool HasBothFormats(eFormat f1, eFormat f2) { return OnesCount(Format & (int(f1) | int(f2))) == 2; }
 
-	unique_ptr<BioWriters> _oFiles[2];	// test [0] and control [1] BioWriters objects
+	unique_ptr<BioWriters> _writers[2];	// test [0] and control [1] writers
 	shared_ptr<DistrWriters> _dists;	// frag's & read's distribution; common for duplicates
 	Random	_rng;					// random generator; needed for Read variable length generation
 	BYTE	_gMode;					// current generation mode as int,
