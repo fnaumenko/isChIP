@@ -1,10 +1,10 @@
 /************************************************************************************
 isChIP (In-Silico ChIP) is a fast realistic ChIP-seq simulator.
-The model is based on the real protocol of ChIP-seq
+The model is based on the real ChIP-seq protocol
 
-Copyright (C) 2014-2023 Fedor Naumenko (fedor.naumenko@gmail.com)
+Fedor Naumenko (fedor.naumenko@gmail.com)
 -------------------------
-Last modified: 11/23/2023
+Last modified: 01/20/2024
 -------------------------
 
 This program is free software.
