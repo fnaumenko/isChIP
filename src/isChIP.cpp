@@ -68,7 +68,7 @@ Options::Option Options::List[] = {
 	{ 'g',	sGen,	tOpt::OBLIG,tNAME,	gTREAT, vUNDEF, 0, 0, NULL, "reference genome library.", NULL },
 	//{ 'p',"prot",	tOpt::NONE,	tENUM,	gTREAT, 0, 0, 1, (char*)prots,
 	//"protocol: ? - Illumina, ? - Ion Torent", NULL },
-	{ 'n',"cells",	tOpt::NONE,	tINT,	gTREAT, 1, 1, 2e6, NULL, "number of nominal cells", NULL },
+	{ 'n',"cells",	tOpt::NONE,	tINT,	gTREAT, 1, 1, 32000, NULL, "number of nominal cells", NULL },
 	{ 'G',"ground",	tOpt::NONE,	tPR_FL,	gTREAT, 0, 0, 0, (char*)&grounds,
 	"fore- and background levels:\nnumber of selected fragments inside/outside binding sites,\n\
 in percent of all/foreground.\nIn control mode background is ignored ", NULL },
