@@ -311,8 +311,8 @@ class Imitator
 		void PrintChrom (const ChromSeq& seq, chrlen enRegLen, Timer& timer, bool excLimit);
 
 		// Sets terminate's output message
-		//	@tID: thread ID
-		//	@msg: message
+		//	@param tID: thread ID
+		//	@param msg: message to output to cerr
 		void Terminate(thrid tID, const char*msg) {
 			cerr << sThread << int(tID) << SepCl << msg << endl;
 		}
@@ -347,7 +347,7 @@ class Imitator
 		//	@param cID: chrom ID
 		//	@param timer: timer to start
 		//	@return: number of cells
-		UINT CuttingInit(GM::eMode gm, chrid cID, Timer& timer);
+		cells_cnt Init(GM::eMode gm, chrid cID, Timer& timer);
 
 		// Treats chromosomes given for current thread
 		//	@param cSubset: pointer to ChrSubset - set of chrom IDs treated in this thread

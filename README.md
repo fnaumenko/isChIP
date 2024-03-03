@@ -257,7 +257,7 @@ Besides the number of cells, the program’s run time heavily depends on the par
 In general, with the default fragment size distribution, a number of nominal cells from 1 to 5 
 provides an output read’s mean density comparable with real ‘inputs’, 
 and a value from 50 to 300 leads to generated simulated data, which is comparable with real tests in terms of density.<br>
-Range: 1-65000<br>
+Range: 1-30000<br>
 Default: 1
 
 `-G|--ground <[float]:[float]>`<br>

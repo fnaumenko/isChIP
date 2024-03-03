@@ -448,7 +448,7 @@ void Imitator::ChromCutter::PrintChrom(
 	Mutex::Unlock(Mutex::eType::OUTPUT);
 }
 
-UINT Imitator::ChromCutter::CuttingInit(GM::eMode gm, chrid cID, Timer& timer)
+cells_cnt Imitator::ChromCutter::Init(GM::eMode gm, chrid cID, Timer& timer)
 {
 	SetGMode(gm);
 	PrintChromName(cID, gm, IsSingleThread());			// print chrom name before cutting
@@ -464,7 +464,7 @@ void Imitator::ChromCutter::Execute(const effPartition::Subset& cIDSet)
 		for (chrid cID : cIDSet.NumbIDs()) {	// loop through chroms
 			const ChromSeq seq(cID, _cSizes);
 			const chrlen cLen = seq.End();		// chrom 'end' position
-			const UINT cellCnt = CuttingInit(GM::eMode::Test, cID, timer);
+			const auto cellCnt = Init(GM::eMode::Test, cID, timer);
 			float scores[]{ 1,1 };
 			Features::cIter	cit;				// template chrom's iterator
 			chrlen	fCnt = 0, enrRegLen = 0;	// count of features, length of enriched regions
@@ -476,7 +476,7 @@ void Imitator::ChromCutter::Execute(const effPartition::Subset& cIDSet)
 			}
 			_fragCnt.Clear();
 			_writer->BeginWriteChrom(seq);
-			for (UINT n = 0; n < cellCnt; n++) {
+			for (auto n = 0; n < cellCnt; n++) {
 				chrlen currPos = seq.Start() + _fragDistr.RandFragLen();	// random shift from the beginning
 				for (chrlen k = 0; k < fCnt; k++)
 					if (res = CutChrom(cLen, currPos, Templ->Feature(cit, k), scores, false))
@@ -490,8 +490,8 @@ void Imitator::ChromCutter::Execute(const effPartition::Subset& cIDSet)
 			// collect total enriched regions length to calculate total density
 			IncrementTotalLength(seq, enrRegLen);
 			if (MakeControl) {
-				const UINT cellCnt = CuttingInit(GM::eMode::Control, seq.ID(), timer);
-				for (UINT n = 0; n < cellCnt; n++) {
+				const auto cellCnt = Init(GM::eMode::Control, seq.ID(), timer);
+				for (auto n = 0; n < cellCnt; n++) {
 					chrlen currPos = seq.Start() + _fragDistr.RandFragLen();	// random shift from the beginning
 					CutChrom(cLen, currPos, seq.DefRegion(), scores, true);
 				}
