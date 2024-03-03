@@ -2,7 +2,7 @@
 Imitator.h
 Provides chip-seq imitation functionality
 2014 Fedor Naumenko (fedor.naumenko@gmail.com)
-Last modified: 01/19/2024
+Last modified: 03/03/2024
 ***********************************************************/
 #pragma once
 
@@ -11,8 +11,9 @@ Last modified: 01/19/2024
 #include "effPartition.h"
 #include "Features.h"
 
-typedef	int16_t	a_cycle;	// type amplification cycles
-typedef	BYTE	a_coeff;	// type coefficient of amplification
+using cells_cnt = uint16_t;	// type number of cells
+using a_cycle	= int16_t;	// type PCR amplification cycles
+using a_coeff	= BYTE;		// type coefficient of PCR amplification
 
 #define FRAG_MAX	UINT32_MAX		// maximum fragment length
 
@@ -265,13 +266,14 @@ class Imitator
 			Random&	_rng;		// used to invoke Range() only
 
 			void Split(fraglen shift, fraglen len, fraglen minLen);
+
 		public:
 			MDA(Random& rng) :_rng(rng)
 			{ reserve(IsMDA ? size_t(4 * SelFragAvr / Read::FixedLen) : 1); }
 
 			// Generats amplified fragment collection
-			//	@fLen: current fragment length
-			//	@fLenMin: current minimal fragment length
+			//	@param fLen: current fragment length
+			//	@param fLenMin: current minimal fragment length
 			void  Generate (fraglen fLen, fraglen fLenMin);
 		};
 
@@ -456,9 +458,9 @@ class Imitator
 	};
 
 	struct Context {
-		UINT	CellCnt;			// count of cells
-		float	Sample[Gr::Cnt];	// user-defined samples: [0] - fg, [1] - bg
-		FragCnt	fCnts[Gr::Cnt];		// fragment counters: [0] - fg, [1] - bg
+		cells_cnt	CellCnt;			// count of cells
+		float		Sample[Gr::Cnt];	// user-defined samples: [0] - fg, [1] - bg
+		FragCnt		fCnts[Gr::Cnt];		// fragment counters: [0] - fg, [1] - bg
 
 		// Gets total number of recorded frags
 		size_t RecCnt()	const{ return fCnts[Gr::FG].RecCnt() + fCnts[Gr::BG].RecCnt(); }
@@ -474,7 +476,7 @@ class Imitator
 		// Sets Control number of cells and sample according to exact count of Test 'background' cells
 		//	@param exactCellCnt: exact count of Test 'background' cells
 		void SetControlSample(float exactCellCnt) {
-			Sample[Gr::BG] = exactCellCnt/(CellCnt = UINT(ceil(exactCellCnt)));
+			Sample[Gr::BG] = exactCellCnt/(CellCnt = cells_cnt(ceil(exactCellCnt)));
 		}
 
 		// Thread-safely increments counters of local and total recorded fragments
@@ -504,8 +506,8 @@ class Imitator
 	DataWriter& _writer;			// data writer
 
 	// Returns stated count of cells
-	//	@gm: generated mode
-	static UINT CellCnt(GM::eMode gm) { return GlobContext[int(gm)].CellCnt; }
+	//	@param gm: generated mode
+	static cells_cnt CellCnt(GM::eMode gm) { return GlobContext[int(gm)].CellCnt; }
 
 	// Gets estimated number of reads generated per chrom and corrects maximum count and density
 	//	@param g: ground
@@ -633,19 +635,19 @@ public:
 
 	// Initializes static values
 	static void	Init(
-		eMode	tmode,				// task mode
-		bool	input,				// true if control should be generated as well
-		ULONG	cellsCnt,			// count of cells
-		bool	isExo,				// true if EXO mode
-		bool	isReadLenAssigned,	// true if Read length is assigned by user
-		bool	isMDA,				// true if MDA is assigned
-		a_coeff	amplCoeff,			// coefficient of PCR
-		UINT	verb,				// verbosity level
-		bool	allBg,				// true if all background mode is assigned
+		eMode		tmode,				// task mode
+		bool		input,				// true if control should be generated as well
+		cells_cnt	cellsCnt,			// count of cells
+		bool		isExo,				// true if EXO mode
+		bool		isReadLenAssigned,	// true if Read length is assigned by user
+		bool		isMDA,				// true if MDA is assigned
+		a_coeff		amplCoeff,			// coefficient of PCR
+		UINT		verb,				// verbosity level
+		bool		allBg,				// true if all background mode is assigned
 		//bool	uniformScore,		// true if uniform template score is assigned
 		//readlen bindLen,
 		//const pairVal& flattens
-		UINT	unstBindLen			// unstable binding length
+		UINT		unstBindLen			// unstable binding length
 	);
 
 	// Creates singleton instance.

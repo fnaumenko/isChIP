@@ -4,7 +4,7 @@ The model is based on the real ChIP-seq protocol
 
 Fedor Naumenko (fedor.naumenko@gmail.com)
 -------------------------
-Last modified: 01/20/2024
+Last modified: 03/03/2024
 -------------------------
 
 This program is free software.
@@ -68,7 +68,7 @@ Options::Option Options::List[] = {
 	{ 'g',	sGen,	tOpt::OBLIG,tNAME,	gTREAT, vUNDEF, 0, 0, NULL, "reference genome library.", NULL },
 	//{ 'p',"prot",	tOpt::NONE,	tENUM,	gTREAT, 0, 0, 1, (char*)prots,
 	//"protocol: ? - Illumina, ? - Ion Torent", NULL },
-	{ 'n',"cells",	tOpt::NONE,	tINT,	gTREAT, 1, 1, 32000, NULL, "number of nominal cells", NULL },
+	{ 'n',"cells",	tOpt::NONE,	tINT,	gTREAT, 1, 1, 65000, NULL, "number of nominal cells", NULL },
 	{ 'G',"ground",	tOpt::NONE,	tPR_FL,	gTREAT, 0, 0, 0, (char*)&grounds,
 	"fore- and background levels:\nnumber of selected fragments inside/outside binding sites,\n\
 in percent of all/foreground.\nIn control mode background is ignored ", NULL },
@@ -76,7 +76,7 @@ in percent of all/foreground.\nIn control mode background is ignored ", NULL },
 	"apply ChIP-exo protocol with specified exonuclease 'headroom' length.\n\
 If the option is not specified, ChIP-exo is not applied", NULL },
 	{ 'D',"mda",	tOpt::NONE,	tENUM,	gTREAT,	FALSE,	vUNDEF, 2, NULL, "apply MDA technique", NULL },
-	{ 'a',"pcr",	tOpt::NONE,	tINT,	gTREAT, 0, 0, 500, NULL, "number of PCR cycles", NULL },
+	{ 'a',"pcr",	tOpt::NONE,	tINT,	gTREAT, 0, 0, 10, NULL, "number of PCR cycles", NULL },
 	{ 'c',Chrom::Abbr,tOpt::NONE,tNAME,	gTREAT, vUNDEF, 0, 0, NULL,
 	"generate output for the specified chromosome only", NULL },
 	{ HPH,"bg-all",	tOpt::NONE,	tENUM,	gTREAT, TRUE, 0, 2, (char*)Options::Booleans,
@@ -186,7 +186,7 @@ int main(int argc, char* argv[])
 	Imitator::Init(
 		fBedName != NULL ? TEST : CONTROL,	// fBedName should be set
 		Options::GetBVal(oMAKE_INPUT),
-		ULONG(Options::GetFVal(oNUMB_CELLS)),
+		cells_cnt(Options::GetFVal(oNUMB_CELLS)),
 		Options::Assigned(oEXO),
 		Options::Assigned(oRD_LEN),
 		Options::GetBVal(oMDA),

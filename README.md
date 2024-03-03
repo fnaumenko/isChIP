@@ -257,7 +257,7 @@ Besides the number of cells, the program’s run time heavily depends on the par
 In general, with the default fragment size distribution, a number of nominal cells from 1 to 5 
 provides an output read’s mean density comparable with real ‘inputs’, 
 and a value from 50 to 300 leads to generated simulated data, which is comparable with real tests in terms of density.<br>
-Range: 1-32000<br>
+Range: 1-65000<br>
 Default: 1
 
 `-G|--ground <[float]:[float]>`<br>
@@ -299,7 +299,7 @@ specifies the number of [PCR](https://en.wikipedia.org/wiki/Polymerase_chain_rea
 See [Model: brief description](#model-brief-description) for more details.<br>
 If MDA is applied, PCR performs after it. The process applies to all fragments.<br>
 Value 0 means the absence of amplification.<br>
-Range: 0-100<br>
+Range: 0-10<br>
 Default: 0
 
 `-c|--chr <name>`<br>

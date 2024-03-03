@@ -2,7 +2,7 @@
 Imitator.cpp
 Provides chip-seq imitation functionality
 2014 Fedor Naumenko (fedor.naumenko@gmail.com)
-Last modified: 01/19/2024
+Last modified: 03/03/2024
 ***********************************************************/
 
 #include "isChIP.h"
@@ -59,15 +59,17 @@ void Imitator::ChromCutter::MDA::Split(fraglen shift, fraglen len, fraglen minLe
 	Split(shift + len1, len - len1, minLen);	// split right fraction
 }
 
-// Generats amplified fragment collection
-//	@fLen: current fragment length
-//	@fLenMin: current minimal fragment length
 void Imitator::ChromCutter::MDA::Generate(fraglen fLen, fraglen fLenMin)
 {
 	clear();
-	if (fLen >= fLenMin)
-		if (IsMDA)	Split(0, fLen, fLenMin);
-		else 		emplace_back(0, fLen);		// original fragment
+	if (IsMDA)
+		Split(0, fLen, fLenMin);
+	else if (fLen >= fLenMin)
+		emplace_back(0, fLen);		// a single member: original fragment
+
+	//if (fLen >= fLenMin)
+	//	if (IsMDA)	Split(0, fLen, fLenMin);
+	//	else 		emplace_back(0, fLen);		// a single member: original fragment
 
 	//cout << "MDA " << size() << LF;
 	//for(Fraction f : *this)	cout << f.first << TAB << f.second << LF;
@@ -451,7 +453,7 @@ UINT Imitator::ChromCutter::CuttingInit(GM::eMode gm, chrid cID, Timer& timer)
 	SetGMode(gm);
 	PrintChromName(cID, gm, IsSingleThread());			// print chrom name before cutting
 	timer.Start();
-	return CellCnt(gm) << UINT(Chrom::IsAutosome(cID));	// multiply twice for autosomes
+	return CellCnt(gm) << cells_cnt(Chrom::IsAutosome(cID));	// multiply twice for autosomes
 }
 
 void Imitator::ChromCutter::Execute(const effPartition::Subset& cIDSet)
@@ -731,19 +733,19 @@ void Imitator::IncrementTotalLength(const ChromSeq& seq, chrlen enrRgnLen)
 
 // Initializes static values
 void	Imitator::Init(
-	eMode	tmode,				// task mode
-	bool	input,				// true if control should be generated as well
-	ULONG	cellsCnt,			// count of cells
-	bool	isExo,				// true if EXO mode
-	bool	isReadLenAssigned,	// true if Read length is assigned by user
-	bool	isMDA,				// true if MDA is assigned
-	a_coeff	amplCoeff,			// coefficient of PCR
-	UINT	verb,				// verbosity level
-	bool	allBg,				// true if all background mode is assigned
+	eMode		tmode,				// task mode
+	bool		input,				// true if control should be generated as well
+	cells_cnt	cellsCnt,			// count of cells
+	bool		isExo,				// true if EXO mode
+	bool		isReadLenAssigned,	// true if Read length is assigned by user
+	bool		isMDA,				// true if MDA is assigned
+	a_coeff		amplCoeff,			// coefficient of PCR
+	UINT		verb,				// verbosity level
+	bool		allBg,				// true if all background mode is assigned
 	//bool	uniScore,			// true if uniform template score is assigned
 	//readlen bindLen,
 	//const pairVal& flattens
-	fraglen	unstBindLen			// unstable binding length
+	fraglen		unstBindLen			// unstable binding length
 ) {
 	TMode = tmode;
 	MakeControl = TestMode ? input : false;
