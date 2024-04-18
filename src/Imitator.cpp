@@ -771,7 +771,8 @@ void Imitator::SetSample()
 		AutoSample = SeqMode::ReadsLimit() / rTotalCnt;
 	// *** print debug info
 	if (Verbose(eVerb::PAR))
-		cout << SignPar << "Actual fragments size" << SepCl << "Mean" << Equel << FragMean << endl;
+		cout << SignPar << "Actual fragments Mean" << SepCl
+		<< (DistrParams::IsSS() ? DistrParams::ssMean : FragMean) << endl;
 	if (Verbose(eVerb::DBG)) {
 		if (MakeControl)
 			cout << SignDbg << "Generated " << GM::Title(GM::eMode::Control) << SepDCl
