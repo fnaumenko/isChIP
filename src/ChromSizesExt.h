@@ -36,7 +36,7 @@ public:
 
 	// Sets actually treated chromosomes according template and custom chrom
 	//	@param templ: template bed or NULL
-	//	@return: number of treated chromosomes
+	//	@returns: number of treated chromosomes
 	chrid	SetTreatedChroms(bool statedAll, const Features* const templ);
 
 	// Prints threated chroms short names

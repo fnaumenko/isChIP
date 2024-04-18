@@ -292,7 +292,10 @@ Default (if applied): 6
 `-D|--mda`<br>
 applies [MDA](https://en.wikipedia.org/wiki/Multiple_displacement_amplification) technique.<br>
 See [Model: brief description](#model-brief-description) for more details.<br>
-The process applies to all fragments (fore- and background) and is somewhat time consuming.
+The process applies to all fragments (fore- and background) and is somewhat time consuming.<br>
+Note that when size selection is applied, the number of amplified fragments strongly depends on the mean value 
+of size selection distribution - the lower it is, the greater is the yield. 
+Because a specific feature of MDA is a significant predominance of short fragments over long ones.
 
 `-a|--pcr <int>`<br>
 specifies the number of [PCR](https://en.wikipedia.org/wiki/Polymerase_chain_reaction) amplification cycles.<br>
@@ -367,8 +370,8 @@ Range: 1-20<br>
 Default: 0
 
 `--serv <name>`<br>
-specifies the service directory – a place for keeping service files *chr\<x\>.region*, chromosome sizes file and sample files. 
-The program generates these files on first launch, and then reuses them. 
+specifies the service directory – a place for keeping service files *chr\<x\>.region* and chromosome sizes file. 
+The program generates these files once. 
 By default, they are stored in the reference genome folder. 
 But if this folder is closed for writing, or you want to store these files separately for your own reasons, that is the place.<br>
 Default: reference genome directory

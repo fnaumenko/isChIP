@@ -196,7 +196,7 @@ public:
 
 	// Normal distribution with mean=0 and variance=1 (standard deviation = 1)
 	//	Used Agner Fog method
-	//	@return: value with Gaussian likelihood between about -5 and +5 (from -6 to 6 in 1000000000 cycles) 
+	//	@returns: value with Gaussian likelihood between about -5 and +5 (from -6 to 6 in 1000000000 cycles) 
 	double Normal();
 
 	// Random number distrib that produces values according to a lognormal distrib.

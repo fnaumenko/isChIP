@@ -168,7 +168,7 @@ void effPartition::Result::Fill(effPartition::IdNumbers& numbers, char ind, numb
 // Sets the minimum/maximum subset sums and their difference for this instance
 //	@minSum: minimum subset sum to be retrieved
 //	@maxSum: maximum subset sum to be retrieved
-//	@return: true if sum difference is updated
+//	@returns: true if sum difference is updated
 bool effPartition::Result::SetSumDiff(ss_sum& minSum, ss_sum& maxSum)
 {
 	ss_cit it = Bins.begin();
