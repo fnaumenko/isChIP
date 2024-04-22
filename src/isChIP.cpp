@@ -4,7 +4,7 @@ The model is based on the real ChIP-seq protocol
 
 Fedor Naumenko (fedor.naumenko@gmail.com)
 -------------------------
-Last modified: 03/03/2024
+Last modified: 04/22/2024
 -------------------------
 
 This program is free software.
@@ -202,7 +202,7 @@ int main(int argc, char* argv[])
 	ChromSeq::StatGaps = Imitator::Verbose(eVerb::PAR);		// Imitator::Init() should be called before
 	Random::SetSeed(Options::GetUIVal(oSEED), Options::GetUIVal(oEXO));
 	if (Options::GetBVal(oLOCALE))	cout.imbue(locale(LOCALE_ENG));
-	Chrom::SetCustomOption(oCHROM);
+	Chrom::SetUserChrom(oCHROM);
 
 	// execution
 	Mutex::Init(Options::GetIVal(oNUMB_THREAD) > 1);
