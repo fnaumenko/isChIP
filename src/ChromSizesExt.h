@@ -22,10 +22,9 @@ class ChromSizesExt : public ChromSizes
 public:
 	// Creates and initializes an instance.
 	//	@param gName: reference genome directory
-	//	@param customChrOpt: id of 'custom chrom' option
 	//	@param printMsg: true if print message about chrom.sizes generation (in case of reference genome)
-	ChromSizesExt(const char* gName, BYTE customChrOpt, bool printMsg, const char* sPath)
-		: _treatedCnt(0), ChromSizes(gName, customChrOpt, printMsg, sPath, true) {}
+	ChromSizesExt(const char* gName, bool printMsg, const char* sPath)
+		: _treatedCnt(0), ChromSizes(gName, printMsg, sPath, true) {}
 
 	// Gets chrom's defined effective (treated) length
 	//	@param it: ChromSizes iterator

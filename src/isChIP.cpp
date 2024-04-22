@@ -202,6 +202,7 @@ int main(int argc, char* argv[])
 	ChromSeq::StatGaps = Imitator::Verbose(eVerb::PAR);		// Imitator::Init() should be called before
 	Random::SetSeed(Options::GetUIVal(oSEED), Options::GetUIVal(oEXO));
 	if (Options::GetBVal(oLOCALE))	cout.imbue(locale(LOCALE_ENG));
+	Chrom::SetCustomOption(oCHROM);
 
 	// execution
 	Mutex::Init(Options::GetIVal(oNUMB_THREAD) > 1);
@@ -214,7 +215,7 @@ int main(int argc, char* argv[])
 		DataWriter::SetReadQualPatt(FS::CheckedFileName(oRD_QUAL_PATT));	// read quality pattern file name
 
 		ChromSizesExt cSizes(
-			Options::GetSVal(oGEN), oCHROM, Imitator::Verbose(eVerb::RT), Options::GetSVal(oSERV));
+			Options::GetSVal(oGEN), Imitator::Verbose(eVerb::RT), Options::GetSVal(oSERV));
 
 		if (fBedName) {
 			//Obj::Ambig::SetSupplAlarm(Obj::Ambig::SHORT, "for given binding Imitator::FlatLenlength");
