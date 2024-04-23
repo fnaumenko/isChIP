@@ -17,7 +17,7 @@ chrid ChromSizesExt::SetTreatedChroms(bool statedAll, const Features* const temp
 
 	for (Iter it = Begin(); it != End(); it++)
 		_treatedCnt +=
-		(it->second.Treated = Chrom::IsCustom(CID(it))
+		(it->second.Treated = Chrom::IsSetByUser(CID(it))
 			&& (statedAll || !templ || templ->FindChrom(CID(it))));
 	return _treatedCnt;
 }

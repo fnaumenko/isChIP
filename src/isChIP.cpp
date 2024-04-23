@@ -202,7 +202,7 @@ int main(int argc, char* argv[])
 	ChromSeq::StatGaps = Imitator::Verbose(eVerb::PAR);		// Imitator::Init() should be called before
 	Random::SetSeed(Options::GetUIVal(oSEED), Options::GetUIVal(oEXO));
 	if (Options::GetBVal(oLOCALE))	cout.imbue(locale(LOCALE_ENG));
-	Chrom::SetUserChrom(oCHROM);
+	Chrom::SetUserChrom(Options::GetSVal(oCHROM));
 
 	// execution
 	Mutex::Init(Options::GetIVal(oNUMB_THREAD) > 1);
@@ -241,7 +241,7 @@ int main(int argc, char* argv[])
 
 		// set treated chroms
 		if (!cSizes.SetTreatedChroms(Imitator::All, templ))
-			Err(Err::TF_EMPTY, fBedName, "features per stated " + Chrom::ShortName(Chrom::CustomID()))
+			Err(Err::TF_EMPTY, fBedName, "features per stated " + Chrom::ShortName(Chrom::UserCID()))
 			.Throw();
 
 		Imitator::SetThreadNumb(min(chrid(Options::GetFVal(oNUMB_THREAD)), cSizes.TreatedCount()));
@@ -274,8 +274,8 @@ void PrintParams(const ChromSizesExt& cSizes, const char* templName,
 	// # Reference
 	cout << SignPar << "Reference" << SepDCl << "genome" << SepCl << cSizes.RefPath();
 	cout << SepCm << Chrom::TitleName() << COLON;
-	if (!Chrom::IsCustom())
-		cout << SPACE << Chrom::Mark(Chrom::CustomID());
+	if (!Chrom::IsSetByUser())
+		cout << SPACE << Chrom::Mark(Chrom::UserCID());
 	else 
 		cSizes.PrintTreatedChroms();
 	cout << LF;
