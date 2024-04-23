@@ -4,7 +4,7 @@ The model is based on the real ChIP-seq protocol
 
 Fedor Naumenko (fedor.naumenko@gmail.com)
 -------------------------
-Last modified: 04/22/2024
+Last modified: 04/23/2024
 -------------------------
 
 This program is free software.
@@ -212,7 +212,7 @@ int main(int argc, char* argv[])
 	try {
 		// check file names first of all
 		FS::CheckedFileName(fBedName);
-		DataWriter::SetReadQualPatt(FS::CheckedFileName(oRD_QUAL_PATT));	// read quality pattern file name
+		DataWriter::SetReadQualPatt(FS::CheckedFileName(Options::GetSVal(oRD_QUAL_PATT)));	// read quality pattern file name
 
 		ChromSizesExt cSizes(
 			Options::GetSVal(oGEN), Imitator::Verbose(eVerb::RT), Options::GetSVal(oSERV));
