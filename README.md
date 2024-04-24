@@ -306,7 +306,8 @@ Range: 0-10<br>
 Default: 0
 
 `-c|--chr <name>`<br>
-Generate output for the specified chromosome only. `name` identifies chromosome by number or character, e.g. `10` or `X`.<br>
+generate output for the specified chromosome only.<br>
+`name` identifies chromosome by number or character, e.g. `10` or `X`. Character is case-insensitive.<br>
 This option forces to ignore all other chromosomes from reference genome and *template*, 
 and abolishes the impact of option `--bg-all`. 
 If the specified chromosome is absent in *template*, the program has nothing to simulate.

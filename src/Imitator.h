@@ -17,12 +17,13 @@ using a_coeff	= BYTE;		// type coefficient of PCR amplification
 
 #define FRAG_MAX	UINT32_MAX		// maximum fragment length
 
-extern const Options::PairVals grounds;
+extern const PairVals grounds;
 
 // Task modes
 enum eMode { TEST, CONTROL };	// using 'enum class' in this case is inconvenient
 
-enum class eVerb {	// verbose level
+// Verbose level
+enum class eVerb {
 	CRIT,	// print critical messages only
 	RES,	// print vCRIT + results
 	RT,		// print vRES + runtime info

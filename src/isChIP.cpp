@@ -4,7 +4,7 @@ The model is based on the real ChIP-seq protocol
 
 Fedor Naumenko (fedor.naumenko@gmail.com)
 -------------------------
-Last modified: 04/23/2024
+Last modified: 04/24/2024
 -------------------------
 
 This program is free software.
@@ -18,6 +18,7 @@ Ensembl hg38 genome:	ftp://ftp.ensembl.org/pub/release-100/fasta/homo_sapiens/dn
 ************************************************************************************/
 
 #include "isChIP.h"
+#include "Options.h"
 #include "Imitator.h"
 
 using namespace std;
@@ -32,21 +33,21 @@ const string OutFileTip = "location of output files or existing folder\n[TEST mo
 	"CONTROL mode: " + DefFileName[CONTROL] + ".*]";
 
 // --smode option
-const char* smodes[] = { "SE","PE" };						// corresponds to BioWriters::eMode
+const char* smodes[] = { "SE","PE" };				// corresponds to BioWriters::eMode
 // --format option: format notations
 const char* formats[] = { "FQ","BED","SAM","BG","FDENS","RDENS","FDIST","RDIST" };	// corresponds to DataWriter::oFormat	
 // --verbose option: verbose notations
 const char* verbs[] = { "SL","RES","RT","PAR","DBG" };
 // --ground option
-const Options::PairVals grounds(50, 1, 0, 0, 100, 100);		// defFG, defBG, minFG, minBG, maxFG, maxFG
+const PairVals grounds(50, 1, 0, 0, 100, 100);		// defFG, defBG, minFG, minBG, maxFG, maxFG
 // --lndist option
-const Options::PairVals lnd(5.26f, 0.3f, 3, 0.01f, 9, 1);	// defMean, defSD, minMean, minSD, maxMean, maxSD
+const PairVals lnd(5.26f, 0.3f, 3, 0.01f, 9, 1);	// defMean, defSD, minMean, minSD, maxMean, maxSD
 // --ssddist option
-const Options::PairVals ssd(vUNDEF, 30, 50, 2, 2000, 500);	// "auto", defSD, minMean, minSD, maxMean, maxSD
+const PairVals ssd(vUNDEF, 30, 50, 2, 2000, 500);	// "auto", defSD, minMean, minSD, maxMean, maxSD
 // --rd-dist option
-const Options::PairVals rdd(200, 20, 50, 2, 1000, 300);		// defMean, defSD, minMean, minSD, maxMean, maxSD
+const PairVals rdd(200, 20, 50, 2, 1000, 300);		// defMean, defSD, minMean, minSD, maxMean, maxSD
 // --flat-len option
-//const Options::PairVals flattens(0, 0, 0, 0, 50, 50);
+//const PairVals flattens(0, 0, 0, 0, 50, 50);
 
 const BYTE Options::Option::IndentInTabs = 3;
 
@@ -79,7 +80,7 @@ If the option is not specified, ChIP-exo is not applied", NULL },
 	{ 'a',"pcr",	tOpt::NONE,	tINT,	gTREAT, 0, 0, 10, NULL, "number of PCR cycles", NULL },
 	{ 'c',Chrom::Abbr,tOpt::NONE,tNAME,	gTREAT, vUNDEF, 0, 0, NULL,
 	"generate output for the specified chromosome only", NULL },
-	{ HPH,"bg-all",	tOpt::NONE,	tENUM,	gTREAT, TRUE, 0, 2, (char*)Options::Booleans,
+	{ HPH,"bg-all",	tOpt::NONE,	tENUM,	gTREAT, TRUE, 0, 2, (char*)Booleans,
 	"turn on/off generation background for all chromosomes.\n", ForTest },
 	//{ HPH, "bind-len", tOpt::NONE,	tINT,	gTREAT, 1, 1, 100, NULL, "minimum binding length.", ForTest },
 	{ 'm', "smode",	tOpt::NONE,	tENUM,	gTREAT, SeqMode::SE, SeqMode::SE, ArrCnt(smodes), (char*)smodes,
@@ -97,7 +98,7 @@ If the option is not specified, ChIP-exo is not applied", NULL },
 	"folder to store service files [-g|--gen]", NULL },
 	{ HPH, "seed",	tOpt::NONE,	tINT,	gTREAT, 0, 0, 1000, NULL,
 	"fix random emission with given seed, or 0 if don't fix", NULL },
-	{ 'o', "overl",	tOpt::NONE,	tENUM,	gTEMPL, FALSE,	0, 2, (char*)Options::Booleans,
+	{ 'o', "overl",	tOpt::NONE,	tENUM,	gTEMPL, FALSE,	0, 2, (char*)Booleans,
 	"allow (and merge) overlapping template features", NULL },
 	{ 's',"bscore",	tOpt::ALLOW0,tINT,	gTEMPL, 5, 4, 12, NULL,
 	"index of the template field used to score each binding event.\n\
