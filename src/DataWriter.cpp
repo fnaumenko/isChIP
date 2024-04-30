@@ -32,7 +32,7 @@ void ReadName::AddNumb(const Region&)
 	//move(s.begin(), s.end(), ++buf);
 	//_len = BYTE(_headChrLen + s.size() + 1);
 
-	_len = _headChrLen + BYTE(sprintf(_name + _headChrLen, "%c%llu", Read::NmNumbDelimiter, CountIncr()));
+	_len = _headChrLen + BYTE(sprintf(_name + _headChrLen, "%c%llu", DOT, CountIncr()));
 }
 
 void ReadName::AddPosSE(const Region& frag)
@@ -48,7 +48,7 @@ void ReadName::AddPosSE(const Region& frag)
 //	_len = _len + PrintDelimNumbToBuff(_name + _len, Read::NmNumbDelimiter, CountIncr());
 //#else
 
-	_len = _headChrLen + BYTE(sprintf(_name + _headChrLen, "%u%c%llu", frag.Start, Read::NmNumbDelimiter, CountIncr()));
+	_len = _headChrLen + BYTE(sprintf(_name + _headChrLen, "%u%c%llu", frag.Start, DOT, CountIncr()));
 
 	//#endif
 }
@@ -65,7 +65,7 @@ void ReadName::AddPosPE(const Region& frag)
 //	AddNumb(_len);
 //#else
 	_len = _headChrLen + BYTE(sprintf(_name + _headChrLen, "%u%c%u%c%llu",
-		frag.Start, Read::NmPos2Delimiter, frag.End, Read::NmNumbDelimiter, CountIncr()));
+		frag.Start, Read::NmPos2Delimiter, frag.End, DOT, CountIncr()));
 	//#endif
 }
 
