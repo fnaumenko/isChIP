@@ -4,7 +4,7 @@ The model is based on the real ChIP-seq protocol
 
 Fedor Naumenko (fedor.naumenko@gmail.com)
 -------------------------
-Last modified: 04/24/2024
+Last modified: 05/01/2024
 -------------------------
 
 This program is free software.
@@ -247,9 +247,10 @@ int main(int argc, char* argv[])
 
 		Imitator::SetThreadNumb(min(chrid(Options::GetFVal(oNUMB_THREAD)), cSizes.TreatedCount()));
 		DataWriter oFile(
-			Options::GetPartFileName(oOUT_FILE, DefFileName[Imitator::TMode].c_str()),
+			FS::ComposeFileName(Options::GetSVal(oOUTFILE), DefFileName[Imitator::TMode].c_str()),
 			Imitator::IsControl(),
-			Options::CommandLine(argc, argv), cSizes
+			Options::CommandLine(argc, argv),
+			cSizes
 		);
 
 		PrintParams(cSizes, fBedName, templ, oFile);
@@ -275,7 +276,7 @@ void PrintParams(const ChromSizesExt& cSizes, const char* templName,
 	// # Reference
 	cout << SignPar << "Reference" << SepDCl << "genome" << SepCl << cSizes.RefPath();
 	cout << SepCm << Chrom::TitleName() << COLON;
-	if (!Chrom::IsSetByUser())
+	if (Chrom::IsSetByUser())
 		cout << SPACE << Chrom::Mark(Chrom::UserCID());
 	else 
 		cSizes.PrintTreatedChroms();

@@ -2,7 +2,7 @@
 DataWriter.h
 Provides bioinfo writers functionality
 2014 Fedor Naumenko (fedor.naumenko@gmail.com)
-Last modified: 01/19/2024
+Last modified: 05/01/2024
 ***********************************************************/
 #pragma once
 
@@ -518,13 +518,7 @@ private:
 		function<void(readlen rlen)> _fAddRead = [](readlen) {};	// 'add read to distribution' function
 
 		// Returns file name for fragments (ind=0) and reads (ind=1) distributions
-		const string FileName(BYTE ind) const {
-			return _fName + fExt[ind]
-#ifdef OS_Windows
-				+ ".txt"
-#endif
-				;
-		}
+		const string FileName(BYTE ind) const { return _fName + fExt[ind]; }
 
 	public:
 		DistrWriters(const string& fName, bool isFragDist, bool isReadDist);
