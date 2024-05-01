@@ -498,7 +498,7 @@ In *control* mode is ignored.
 forces to generate two additional WIG files, one per each strand.<br> 
 It only matters in `SE` sequencing mode and activated WIG output format.
 
-`-o|--out <file>`<br>
+`-O|--out <file>`<br>
 specifies output files location. `file` is treated as a common file name (the possible extension is ignored). 
 If `file` is a directory, the default file name is used.<br>
 Default: *test* mode: **mTest.\***, *control* mode: **mInput.\***
