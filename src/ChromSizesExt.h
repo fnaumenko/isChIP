@@ -2,7 +2,7 @@
 ChromSizesExt  2023 Fedor Naumenko (fedor.naumenko@gmail.com)
 All rights reserved.
 -------------------------
-Last modified: 11/20/2023
+Last modified: 05/02/2024
 -------------------------
 ***********************************************************/
 
@@ -34,9 +34,10 @@ public:
 	chrid TreatedCount() const { return _treatedCnt; }
 
 	// Sets actually treated chromosomes according template and custom chrom
+	//	@param all: if true then all chroms are pre-approved
 	//	@param templ: template bed or NULL
 	//	@returns: number of treated chromosomes
-	chrid	SetTreatedChroms(bool statedAll, const Features* const templ);
+	chrid	SetTreatedChroms(bool all, const Features* const templ);
 
 	// Prints threated chroms short names
 	void	PrintTreatedChroms() const;

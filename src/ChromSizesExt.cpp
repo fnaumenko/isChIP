@@ -11,14 +11,23 @@ chrlen ChromSizesExt::DefEffLength(cIter it) const
 	return Data(it).Defined = rgns.DefLength() << int(Chrom::IsAutosome(CID(it)));
 }
 
-chrid ChromSizesExt::SetTreatedChroms(bool statedAll, const Features* const templ)
+chrid ChromSizesExt::SetTreatedChroms(bool all, const Features* const templ)
 {
-	_treatedCnt = 0;
+	// _treatedCnt is 0 after constructor
 
-	for (Iter it = Begin(); it != End(); it++)
-		_treatedCnt +=
-		(it->second.Treated = Chrom::IsSetByUser(CID(it))
-			&& (statedAll || !templ || templ->FindChrom(CID(it))));
+	if (Chrom::IsSetByUser())
+		if (templ) {
+			chrid userChr = Chrom::UserCID();
+			if (templ->FindChrom(userChr))
+				GetIter(userChr)->second.Treated = ++_treatedCnt;
+		}
+		else
+			GetIter(Chrom::UserCID())->second.Treated = ++_treatedCnt;
+	else
+		for (Iter it = Begin(); it != End(); it++)
+			_treatedCnt += 
+				it->second.Treated = all || (templ && templ->FindChrom(CID(it)));
+
 	return _treatedCnt;
 }
 
