@@ -2,7 +2,7 @@
 Imitator.cpp
 Provides chip-seq imitation functionality
 2014 Fedor Naumenko (fedor.naumenko@gmail.com)
-Last modified: 04/24/2024
+Last modified: 05/02/2024
 ***********************************************************/
 
 #include "isChIP.h"
@@ -102,10 +102,9 @@ void Imitator::GenomeSizes::IncrSizes(const ChromSeq& seq)
 	0.12    0.00
 */
 
-//#define cFIL_VAL	'*'
 #define cFIL_VAL SPACE
 const char* Imitator::ChromView::tGapsExcl = "g_excl";
-const char* Imitator::ChromView::tTime = "mm:ss";
+const char* Imitator::ChromView::tTime = "time";	// "mm:ss"
 BYTE Imitator::ChromView::GapsWexcl;
 
 // Prints str on given field and return field width
@@ -179,9 +178,9 @@ void Imitator::ChromView::PrintReads(GM::eMode gMode, const FragCnt fragCnt, chr
 {
 	ULONG rCnt = ULONG(fragCnt.RecCnt() << SeqMode::Mode());	// count of reads
 
-	if (TestMode)							// Ground title
+	if (TestMode)								// Ground title
 		if (gMode == GM::eMode::Control)		// can be true only if Imitator::MakeControl is true
-			PrintMarg(Gr::TitleLength + 1);					// print blanks instead of Gr title
+			PrintMarg(Gr::TitleLength + 1);		// print blanks instead of Gr title
 		else
 			cout << right << Gr::Title(GrType) << COLON;	// print Gr title
 	PrFittedInt(rCnt, marg_R + CountW);												// count of Reads
@@ -305,7 +304,7 @@ void Imitator::ChromCutter::PrintChrom(
 			ChromView::PrintGaps(s);
 		}
 		else if (Timer::Enabled)	ChromView::PrintGapsMarg();
-	timer.Stop(ChromView::marg_T);		// print time
+	timer.Stop(ChromView::marg_T, false, false);		// print time
 	if (excLimit) {
 		cout << " exceeded limit";
 		if (!Verbose(eVerb::PAR))
