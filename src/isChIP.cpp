@@ -4,7 +4,7 @@ The model is based on the real ChIP-seq protocol
 
 Fedor Naumenko (fedor.naumenko@gmail.com)
 -------------------------
-Last modified: 05/01/2024
+Last modified: 05/03/2024
 -------------------------
 
 This program is free software.
@@ -263,7 +263,7 @@ int main(int argc, char* argv[])
 	//Mutex::Finalize();
 	if (!ret)
 		Timer::StopCPU(false),
-		timer.Stop("\twall-clock: ", false, true);
+		timer.Stop("\twall-clock: ", false, true);	dout << LF;
 	//MemStatus::StopObserve();
 	return ret;
 }

@@ -2,7 +2,7 @@
 Imitator.cpp
 Provides chip-seq imitation functionality
 2014 Fedor Naumenko (fedor.naumenko@gmail.com)
-Last modified: 05/02/2024
+Last modified: 05/03/2024
 ***********************************************************/
 
 #include "isChIP.h"
@@ -201,7 +201,7 @@ void Imitator::ChromView::PrintGaps(const GenomeSizes& s)
 
 void Imitator::ChromView::Init(size_t maxCnt, float sample, float maxDens)
 {
-	CountW = DigitsCount(maxCnt, Options::GetBVal(oLOCALE)) + 1;	// +1 for total
+	CountW = DigitsCountLocale(maxCnt, Options::GetBVal(oLOCALE)) + 1;	// +1 for total
 	if (CountW < FT::ItemTitle(FT::ABED).length())
 		CountW = BYTE(FT::ItemTitle(FT::ABED).length());
 
