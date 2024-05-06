@@ -218,6 +218,19 @@ Alternatively, the scores can be entered manually.<br>
 All features within each chromosome must be sorted.<br>
 Optional track definition line is ignored.
 
+### Output read name format
+Read name makes sense for [FQ](https://en.wikipedia.org/wiki/FASTQ_format), 
+[BED](https://genome.ucsc.edu/FAQ/FAQformat.html#format1) and [SAM](https://en.wikipedia.org/wiki/SAM_(file_format) outputs.
+
+Possible formats:<br>
+\<prog title\>:\<chr\>.<\number\>														default<br>
+\<prog title\>:\<chr\>:<\start read position\>.\<number\>								including position for SE read<br>
+\<prog title\>:\<chr\>:<\start fragment position\>-\<end fragment position\>.\<number\>	including position for PE read<br>
+
+The \<chr\> field denotes the 'true' chromosome from which the read was generated.<br>
+It has constant width for any chromosome. Possible alignment is filled by '=' symbol.<br>
+Adding a position is regulated by `-l|--rd-pos` option.
+
 ### Options description
 
 *Notes:*<br>
@@ -420,9 +433,8 @@ Default (if applied): 200:30
 
 `-l|--rd-pos`<br>
 Adds read’s actual start position (location) to its name in the output files. It is useful for verifying aligners.<br>
-In case of PE reads start and end positions of fragment are added.<br>
-Read’s name format:  \<app\>:\<chr\>[:pos|:start-end].\<numb\>[/mate]<br>
-Mate is only added in BED output.
+See [Output read name format](#output-read-name-format).<br>
+For BED, mate ('/1' or '/2') is added to the number
 
 `--rd-Nlim <int>`<br>
 Maximum permitted number of ambiguous code N in read. Reads exceeding this limit are ignored. 
