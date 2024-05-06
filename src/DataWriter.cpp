@@ -409,9 +409,13 @@ SamWriter::SamWriter(const string& fName, ReadName& rName, const ChromSizes& cSi
 // Returns string containing initialized PE feilds 7-9
 string GetPeFld_7_9(chrlen pos, int fLen)
 {
-	ostringstream ss;
-	ss << "=\t" << ++pos << TAB << fLen;
-	return ss.str();
+	string res(DigitsCountUInt(++pos) + DigitsCountInt(fLen) + 3, '\0');	// + '=' + 2 TABS
+	sprintf(const_cast<char*>(res.c_str()), "=\t%u\t%d", pos, fLen);
+	return res;
+
+	//ostringstream ss;
+	//ss << "=\t" << ++pos << TAB << fLen;
+	//return ss.str();
 }
 
 void SamWriter::AddRead(const Read& read, bool reverse)
