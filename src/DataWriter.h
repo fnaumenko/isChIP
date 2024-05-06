@@ -81,7 +81,7 @@ class ReadName
 	Field <chr> has constant width for any chromosome. Possible alignment is filled by '=' symbol
 	*/
 private:
-	typedef void (ReadName::* tfAddNumber)(const Region&);
+	typedef void (ReadName::* tfAddNumber)(const Region&, LONG&);
 
 	static tfAddNumber fAddNumber;	// pointer to the 'Adds info to the name' method
 	static BYTE	Len;			// Maximum length of Read name
@@ -90,12 +90,11 @@ private:
 	char* _name = NULL;		// Read's name
 	BYTE _len = 0;			// total length of Read's name
 	BYTE _constLen;			// length of the constant part of name containing program's title and chrom's title
-	LONG& _rCnt;			// external Read counter
 
 	// methods called by pointer from AddNumber(...)
-	void AddNumb(const Region&);
-	void AddPosSE(const Region& frag);
-	void AddPosPE(const Region& frag);
+	void AddNumb(const Region&, LONG& rCn);
+	void AddPosSE(const Region& frag, LONG& rCnt);
+	void AddPosPE(const Region& frag, LONG& rCn);
 
 public:
 	static void Init();
@@ -104,8 +103,7 @@ public:
 	static BYTE MaxLength() { return Len; }
 
 	// Initializes instance by constant part of Read name
-	//	@param rCnt: external Read counter
-	ReadName(LONG& rCnt);
+	ReadName();
 
 	~ReadName() { delete[] _name; }
 
@@ -115,16 +113,14 @@ public:
 	// Gets length of Read name
 	BYTE Length() const { return _len; }
 
-	// Sets external primary read counter
-	//void SetReadCounter(LONG& cnt) { _rCnt = cnt; }
-
 	// Sets current chrom's mark
 	void SetChrom(const string& cMark);
 
 	// Adds Read number and other info into Read name
 	//	@param frag: added fragment
-	// Calls AddNumb() or AddPos() or AddPosPE()
-	void AddNumber(const Region& frag) { (this->*fAddNumber)(frag); }
+	//	@param rCnt: external Read counter
+	//  Calls AddNumb() or AddPos() or AddPosPE()
+	void AddNumber(const Region& frag, LONG& rCnt) { (this->*fAddNumber)(frag, rCnt); }
 };
 
 

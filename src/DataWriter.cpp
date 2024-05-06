@@ -20,23 +20,23 @@ BYTE ReadName::Len = 0;		// Initialized in ReadWriter::Init();
 BYTE ReadName::AddLen = Chrom::MaxMarkLength;	// + minimum one delimiter (DOT)
 
 
-void ReadName::AddNumb(const Region&)
+void ReadName::AddNumb(const Region&, LONG& rCnt)
 {
 	const BYTE len = _constLen + AddLen + 1;
-	_len = len + BYTE(sprintf(_name + len, "%ld", _rCnt));
+	_len = len + BYTE(sprintf(_name + len, "%ld", rCnt));
 }
 
-void ReadName::AddPosSE(const Region& frag)
+void ReadName::AddPosSE(const Region& frag, LONG& rCnt)
 {
 	const BYTE len = _constLen + AddLen + 1;
-	_len = len + BYTE(sprintf(_name + len, "%u%c%ld", frag.Start, DOT, _rCnt));
+	_len = len + BYTE(sprintf(_name + len, "%u%c%ld", frag.Start, DOT, rCnt));
 }
 
-void ReadName::AddPosPE(const Region& frag)
+void ReadName::AddPosPE(const Region& frag, LONG& rCnt)
 {
 	const BYTE len = _constLen + AddLen + 1;
 	_len = len + BYTE(sprintf(_name + len, "%u%c%u%c%ld",
-		frag.Start, Read::NmPos2Delimiter, frag.End, DOT, _rCnt));
+		frag.Start, Read::NmPos2Delimiter, frag.End, DOT, rCnt));
 }
 
 void ReadName::Init()
@@ -51,7 +51,7 @@ void ReadName::Init()
 	else						fAddNumber = &ReadName::AddNumb;
 }
 
-ReadName::ReadName(LONG& rCnt) : _rCnt(rCnt), _constLen(BYTE(Product::Title.length()))
+ReadName::ReadName() : _constLen(BYTE(Product::Title.length()))
 {
 	assert(Len != 0);
 	_name = new char[Len];
@@ -433,9 +433,8 @@ DataWriter::BioWriters::tfAddRead	DataWriter::BioWriters::fAddRead = &DataWriter
 float DataWriter::BioWriters::StrandErrProb;	// the probability of strand error
 
 DataWriter::BioWriters::BioWriters(const string& fName, LONG* prCnt, const ChromSizesExt& cSizes)
-	: _rName(*prCnt)
+	: _prCnt(prCnt)
 {
-	_prCnt = prCnt;
 	if (HasFormat(eFormat::BED))	_bedFile.reset(new RBedWriter(fName, _rName, CommLine()));
 	if (HasFormat(eFormat::SAM))	_samFile.reset(new SamWriter(fName, _rName, cSizes));
 	if (HasFormat(eFormat::FG))
@@ -459,9 +458,8 @@ DataWriter::BioWriters::BioWriters(const string& fName, LONG* prCnt, const Chrom
 }
 
 DataWriter::BioWriters::BioWriters(const BioWriters& primer)
-	: _rName(*primer._prCnt)
+	: _prCnt(primer._prCnt)
 {
-	_prCnt = primer._prCnt;
 	if (primer._fqFile1)	_fqFile1.reset(new FqWriter(*primer._fqFile1, _rName));
 	if (primer._fqFile2)	_fqFile2.reset(new FqWriter(*primer._fqFile2, _rName));
 	if (primer._bedFile)	_bedFile.reset(new RBedWriter(*primer._bedFile, _rName));
@@ -515,7 +513,7 @@ int DataWriter::BioWriters::AddReadSE(const Region& frag, readlen rLen, bool rev
 	if (_readWgFile)	_readWgFile->AddReadDens(read, reverse);// read frequency
 	if (InclReadName()) {
 		InterlockedIncrement(_prCnt);
-		_rName.AddNumber(frag);
+		_rName.AddNumber(frag, *_prCnt);
 		if (_fqFile1)	_fqFile1->AddRead(read, reverse);
 		if (_bedFile)	_bedFile->AddRead(read, reverse);
 		if (_samFile)	_samFile->AddRead(read, reverse);
@@ -539,7 +537,7 @@ int DataWriter::BioWriters::AddReadPE(const Region& frag, readlen rLen, bool rev
 						_readWgFile->AddReadDens(read2, reverse);
 	if (InclReadName()) {
 		InterlockedIncrement(_prCnt);
-		_rName.AddNumber(frag);
+		_rName.AddNumber(frag, *_prCnt);
 		if (_fqFile1)	_fqFile1->AddRead(read1, false),
 						_fqFile2->AddRead(read2, true);
 		if (_bedFile)	_bedFile->AddReads(read1, read2);
