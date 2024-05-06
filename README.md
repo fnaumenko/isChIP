@@ -238,7 +238,7 @@ Possible formats:<br>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 *including position for SE read*<br>
 \<prog title\>:\<chr\>:\<start fragment position\>-\<end fragment position\>.\<number\>
 &nbsp;*including position for PE read*<br>
@@ -246,7 +246,7 @@ Possible formats:<br>
 The \<chr\> field denotes the 'true' chromosome from which the read was generated.<br>
 It has constant width for any chromosome. Possible alignment is filled by '=' symbol.
 
-For BED, mate ('/1' or '/2') is added to the number in case of PE reads
+For BED, mate ('/1' or '/2') is added to the number in case of PE reads.
 
 Adding a position is regulated by `-l|--rd-pos` option.
 
