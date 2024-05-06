@@ -238,12 +238,16 @@ Possible formats:<br>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 *including position for SE read*<br>
 \<prog title\>:\<chr\>:\<start fragment position\>-\<end fragment position\>.\<number\>
 &nbsp;*including position for PE read*<br>
 
 The \<chr\> field denotes the 'true' chromosome from which the read was generated.<br>
-It has constant width for any chromosome. Possible alignment is filled by '=' symbol.<br>
+It has constant width for any chromosome. Possible alignment is filled by '=' symbol.
+
+For BED, mate ('/1' or '/2') is added to the number in case of PE reads
+
 Adding a position is regulated by `-l|--rd-pos` option.
 
 ### Options description
@@ -448,8 +452,7 @@ Default (if applied): 200:30
 
 `-l|--rd-pos`<br>
 Adds read’s actual start position (location) to its name in the output files. It is useful for verifying aligners.<br>
-See [Output read name format](#output-read-name-format).<br>
-For BED, mate ('/1' or '/2') is added to the number in case of PE reads
+See [Output read name format](#output-read-name-format).
 
 `--rd-Nlim <int>`<br>
 Maximum permitted number of ambiguous code N in read. Reads exceeding this limit are ignored. 
