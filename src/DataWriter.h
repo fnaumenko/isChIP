@@ -81,7 +81,7 @@ class ReadName
 	Field <chr> has constant width for any chromosome. Possible alignment is filled by '=' symbol
 	*/
 private:
-	typedef void (ReadName::* tfAddNumber)(const Region&, LONG&);
+	typedef void (ReadName::* tfAddNumber)(const Region&, LONG);
 
 	static tfAddNumber fAddNumber;	// pointer to the 'Adds info to the name' method
 	static BYTE	Len;			// Maximum length of Read name
@@ -92,9 +92,9 @@ private:
 	BYTE _constLen;			// length of the constant part of name containing program's title and chrom's title
 
 	// methods called by pointer from AddNumber(...)
-	void AddNumb(const Region&, LONG& rCn);
-	void AddPosSE(const Region& frag, LONG& rCnt);
-	void AddPosPE(const Region& frag, LONG& rCn);
+	void AddNumb(const Region&, LONG rCnt);
+	void AddPosSE(const Region& frag, LONG rCnt);
+	void AddPosPE(const Region& frag, LONG rCnt);
 
 public:
 	static void Init();
@@ -118,9 +118,9 @@ public:
 
 	// Adds Read number and other info into Read name
 	//	@param frag: added fragment
-	//	@param rCnt: external Read counter
+	//	@param rCnt: Read count
 	//  Calls AddNumb() or AddPos() or AddPosPE()
-	void AddNumber(const Region& frag, LONG& rCnt) { (this->*fAddNumber)(frag, rCnt); }
+	void AddNumber(const Region& frag, LONG rCnt) { (this->*fAddNumber)(frag, rCnt); }
 };
 
 
@@ -436,8 +436,8 @@ private:
 		static float	 StrandErrProb;	// the probability of strand error
 
 		ReadName		_rName;			// own copy for each clone
-		mutable LONG*	_prCnt = 0;		// total Read counter; managed by _rName, not used by clones
-		const ChromSeq* _seq{};			// current reference sequence
+		LONG&			_rCnt;			// clone Read counter
+		const ChromSeq* _seq;			// current reference sequence
 
 		unique_ptr<FqWriter>	_fqFile1{};		// FQ mate1 or single output
 		unique_ptr<FqWriter>	_fqFile2{};		// FQ mate2 output 
@@ -483,9 +483,9 @@ private:
 
 		// Creates and initializes new instance for writing.
 		//	@param fName: common file name without extention
-		//	@param prCnt: pointer to external Read counter
+		//	@param rCnt: external Read counter
 		//	@param cSizes: chrom sizes
-		BioWriters(const string& fName, LONG* prCnt, const ChromSizesExt& cSizes);
+		BioWriters(const string& fName, LONG& rCnt, const ChromSizesExt& cSizes);
 
 		// Clone constructor for multithreading
 		//	@param[in] primer: primer instance
