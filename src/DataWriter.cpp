@@ -1,6 +1,6 @@
 /**********************************************************
 DataWriter.cpp
-Last modified: 01/19/2024
+Last modified: 05/06/2024
 ***********************************************************/
 
 #include "DataWriter.h"
@@ -14,107 +14,65 @@ class DataWriter;
 
 /************************ ReadName ************************/
 
-ReadName::tfAddRInfo ReadName::fAddInfo;
-BYTE	ReadName::len = 0;		// Initialized in ReadWriter::Init();
-								// if initialize by declaration, seg fault by compiling with gcc 4.1.2
+ReadName::tfAddRInfo ReadName::fAddNumber;
+BYTE ReadName::Len = 0;		// Initialized in ReadWriter::Init();
+							// if initialize by declaration, seg fault by compiling with gcc 4.1.2
+BYTE ReadName::AddLen = Chrom::MaxMarkLength;	// + minimum one delimiter (DOT)
 
-//void ReadName::AddPos(const string& s)
-//{
-//	_len = BYTE(_headChrLen + s.length());
-//	move(s.begin(), s.end(), _name + _headChrLen);
-//}
 
 void ReadName::AddNumb(const Region&)
 {
-	//char* buf = _name + _headChrLen;
-	//*buf = Read::NmNumbDelimiter;
-	//const string s = to_string(CountIncr());
-	//move(s.begin(), s.end(), ++buf);
-	//_len = BYTE(_headChrLen + s.size() + 1);
-
-	_len = _headChrLen + BYTE(sprintf(_name + _headChrLen, "%c%llu", DOT, CountIncr()));
+	const BYTE len = _constLen + AddLen + 1;
+	_len = len + BYTE(sprintf(_name + len, "%ld", _rCnt));
 }
 
 void ReadName::AddPosSE(const Region& frag)
 {
-	//ostringstream ss;
-	//ss << frag.Start << Read::NmNumbDelimiter << CountIncr();
-	//AddPos(ss.str());
-
-	//#ifdef OS_Windows
-//	AddPos(frag.Start);
-//	AddNumb(_len);
-//	_len = _headChrLen + PrintNumbToBuff(_name + _headChrLen, frag.Start);
-//	_len = _len + PrintDelimNumbToBuff(_name + _len, Read::NmNumbDelimiter, CountIncr());
-//#else
-
-	_len = _headChrLen + BYTE(sprintf(_name + _headChrLen, "%u%c%llu", frag.Start, DOT, CountIncr()));
-
-	//#endif
+	const BYTE len = _constLen + AddLen + 1;
+	_len = len + BYTE(sprintf(_name + len, "%u%c%ld", frag.Start, DOT, _rCnt));
 }
 
 void ReadName::AddPosPE(const Region& frag)
 {
-	//ostringstream ss;
-	//ss << frag.Start << Read::NmPos2Delimiter << frag.End << Read::NmNumbDelimiter << CountIncr();
-	//AddPos(ss.str());
-
-//#ifdef OS_Windows
-//	AddPos(frag.Start);
-//	_len += PrintDelimNumbToBuff(_name + _len, Read::NmPos2Delimiter, frag.End);
-//	AddNumb(_len);
-//#else
-	_len = _headChrLen + BYTE(sprintf(_name + _headChrLen, "%u%c%u%c%llu",
-		frag.Start, Read::NmPos2Delimiter, frag.End, DOT, CountIncr()));
-	//#endif
+	const BYTE len = _constLen + AddLen + 1;
+	_len = len + BYTE(sprintf(_name + len, "%u%c%u%c%ld",
+		frag.Start, Read::NmPos2Delimiter, frag.End, DOT, _rCnt));
 }
 
 void ReadName::Init()
 {
-	len = BYTE(Product::Title.length()) + 1 +	// + delimiter
-		Chrom::MaxAbbrNameLength + 1 +		// chrom's name + delimiter
-		20 + ReadWriter::MateLen;			// number + Mate suffix
+	Len = BYTE(Product::Title.length()) + 1 +	// + delimiter
+		Chrom::MaxAbbrNameLength + 1 +			// chrom's name + delimiter
+		20 + ReadWriter::MateLen;				// number + Mate suffix
 
 	if (Read::IsPosInName())
-		if (SeqMode::IsPE())		fAddInfo = &ReadName::AddPosPE, len += 2 * CHRLEN_CAPAC + 1;
-		else				fAddInfo = &ReadName::AddPosSE, len += CHRLEN_CAPAC;
-	else					fAddInfo = &ReadName::AddNumb;
+		if (SeqMode::IsPE())	fAddNumber = &ReadName::AddPosPE, Len += 2 * CHRLEN_CAPAC + 1;
+		else					fAddNumber = &ReadName::AddPosSE, Len += CHRLEN_CAPAC;
+	else						fAddNumber = &ReadName::AddNumb;
 }
 
-ReadName::ReadName(ULLONG& rCnt) : _rCnt(rCnt), _headLen(BYTE(Product::Title.length()))
+ReadName::ReadName(LONG& rCnt) : _rCnt(rCnt), _constLen(BYTE(Product::Title.length()))
 {
-	_name = new char[len];
-	memcpy(_name, Product::Title.c_str(), _headLen);
-	_name[_headLen++] = Read::NmDelimiter;
+	assert(Len != 0);
+	_name = new char[Len];
+	memcpy(_name, Product::Title.c_str(), _constLen);
+	_name[_constLen++] = Read::NmDelimiter;
 	const BYTE cAbbrLen = BYTE(strlen(Chrom::Abbr));
-	memcpy(_name + _headLen, Chrom::Abbr, cAbbrLen);
-	_headLen += cAbbrLen;
+	memcpy(_name + _constLen, Chrom::Abbr, cAbbrLen);
+	_constLen += cAbbrLen;
+	memset(_name + _constLen, '=', Chrom::MaxMarkLength);
 }
 
-//ReadName::ReadName(const ReadName& rName) : _rCnt(rName._rCnt), _headLen(rName._headLen)
-//{
-//	_name = new char[len];
-//	memcpy(_name, rName._name, _headLen);
-//	//cout << "ReadName copy constructor\n";
-//}
-
-// Sets current chrom's mark
-void ReadName::SetChrom(const string&& cMark)
+void ReadName::SetChrom(const string& cMark)
 {
-	_headChrLen = BYTE(cMark.length());
-	move(cMark.begin(), cMark.end(), _name + _headLen);
-	//memcpy(_name + _headLen, cMark.c_str(), _headChrLen = BYTE(cMark.length()));
-	_headChrLen += _headLen;
-	if (Read::IsPosInName())
-		*(_name + _headChrLen++) = Read::NmPos1Delimiter;
+	memcpy(_name + _constLen, cMark.c_str(), cMark.length());
+	*(_name + _constLen + AddLen) = Read::IsPosInName() ? Read::NmPos1Delimiter : DOT;
 }
 
 /************************ ReadName: end ************************/
 
 /************************ class ReadQualPattern ************************/
 
-// Creates Read quality pattern buffer and fills it by first valid line from file.
-//	@rqPattFName: name of valid file with a quality line
 ReadWriter::ReadQualPattern::ReadQualPattern(const char* rqPattFName)
 {
 	const readlen rlen = DistrParams::IsRVL() ? Read::VarMinLen : Read::FixedLen;
@@ -140,15 +98,12 @@ ReadWriter::ReadQualPattern::ReadQualPattern(const char* rqPattFName)
 	}
 }
 
-// Fills external FQ|SAM template by variable Read quality pattern
-//	@templ: pointer to external FQ|SAM Read quality template
 void ReadWriter::ReadQualPattern::Fill(char* templ, readlen rlen) const
 {
 	Read::FillBySeqQual(templ, rlen);
 	memcpy(templ, _rqPatt.get(), _defLen);
 }
 
-// Returns Read quality pattern buffer to print
 const void ReadWriter::ReadQualPattern::Print() const
 {
 	cout << "pattern: ";
@@ -170,14 +125,11 @@ string ReadWriter::sReadConstLen;						// constant string "length=XX"
 
 unique_ptr<ReadWriter::ReadQualPattern> ReadWriter::RqPattern;	// Read quality pattern
 
-ReadWriter::tfAddReadName ReadWriter::fAddReadNames[] = {	// 'Add qualified Read name' methods
-	&ReadWriter::AddReadNameEmpty,
+ReadWriter::tfAddReadMate ReadWriter::fAddReadMate[] = {
+	&ReadWriter::LineNoAddReadMate,
 	&ReadWriter::LineAddReadMate
 };
 
-// Copies block of chars before the current position in the line write buffer.
-//	@src:  pointer to the block of chars
-//	@len: number of chars
 void ReadWriter::LineAddCharsBack(const char* src, size_t len)
 {
 	LineAddCharBack(_delim);		// add delimiter
@@ -185,30 +137,20 @@ void ReadWriter::LineAddCharsBack(const char* src, size_t len)
 	memcpy(_lineBuff + _lineBuffOffset, src, len);
 }
 
-// Copies default Read name and pos extention after current position in the line write buffer,
-//	and increases current position.
-//	@mate: mate number for PE Reads, or 0 for SE Read
 void ReadWriter::LineAddReadName(BYTE mate)
 {
 	LineAddChars(_rName.Name(), _rName.Length(), !mate);
-	(this->*fAddReadNames[bool(mate)])(mate);
+	(this->*fAddReadMate[bool(mate)])(mate);
 }
 
-// Copies qualified Read name started with '@' and read variable legth after current position
-//	in the line write buffer, and increases current position
-//	@len: Read length
-//	Used by FqWriter.
-void ReadWriter::LineAddReadVarName(readlen len)
+void ReadWriter::LineAddReadVarName(readlen rLen)
 {
 	LineAddChar(AT);
 	LineAddReadName(false);
 	LineAddStr(ReadLenTitle, false);
-	LineAddInt(len);
+	LineAddInt(rLen);
 }
 
-// Copies qualified Read name started with '@', positions and Read constant length before current position
-//	in the line write buffer, adds delimiter after Read Name and decreases current position.
-//	Invoked in FqWriter.
 void ReadWriter::LineAddReadConstNameBack()
 {
 	LineAddCharsBack(_rName.Name(), _rName.Length() + sReadConstLen.size());
@@ -216,8 +158,6 @@ void ReadWriter::LineAddReadConstNameBack()
 	LineAddCharBack(AT);
 }
 
-// Fills line by Read variable quality pattern from the current position and increases current position
-//	@rlen: Read's length
 void ReadWriter::LineFillReadVarPatt(readlen rlen)
 {
 	RqPattern->Fill(_lineBuff + CurrBuffPos(), rlen);
@@ -229,8 +169,6 @@ void ReadWriter::LineFillReadVarPatt(readlen rlen)
 SeqMode::eMode	SeqMode::mode;		// sequence mode
 ULLONG	SeqMode::maxFragCnt;	// up limit of saved fragments
 
-// Prints sequencing modes
-//	@signOut: output marker
 void SeqMode::Print(const char* signOut)
 {
 	cout << signOut << "Sequencing: " << modeTitles[IsPE()] << "-end"
@@ -240,7 +178,7 @@ void SeqMode::Print(const char* signOut)
 
 /************************ class RBedWriter ************************/
 
-RBedWriter::RBedWriter(const string& fName, const ReadName& rName, const string* commLine)
+RBedWriter::RBedWriter(const string& fName, ReadName& rName, const string* commLine)
 	: ReadWriter(FT::BED, fName, rName)
 {
 	if (commLine)	CommLineToIOBuff(*DataWriter::CommLine());
@@ -253,10 +191,10 @@ RBedWriter::RBedWriter(const string& fName, const ReadName& rName, const string*
 		1 + 2 + 6));					// strand + HASH + SPACE + 5 TABs + LF
 }
 
-void RBedWriter::SetChrom(const string& chr)
+void RBedWriter::SetChrom(chrid cid)
 {
 	LineSetOffset();
-	_offset = LineAddStr(chr);
+	_offset = LineAddStr(Chrom::AbbrName(cid));
 }
 
 void RBedWriter::AddRead(const Read& read, bool reverse, BYTE mate)
@@ -268,6 +206,13 @@ void RBedWriter::AddRead(const Read& read, bool reverse, BYTE mate)
 	LineToIOBuff(_offset);
 }
 
+void RBedWriter::AddReads(const Read& read1, const Read& read2)
+{
+	AddRead(read1, false, 1);
+	AddRead(read2, true, 2);
+}
+
+
 /************************ class RBedWriter: end ************************/
 
 /************************ class FqWriter ************************/
@@ -276,9 +221,6 @@ reclen FqWriter::ReadStartPos = 0;	// Read field constant start position
 
 FqWriter::fAddRead FqWriter::addRead;
 
-// Adds Read with fixed length
-//	@read: valid Read
-//	@reverse: if true then add complemented read 
 void FqWriter::AddFLRead(const Read& read, bool reverse)
 {
 	LineSetOffset(ReadStartPos);
@@ -287,9 +229,6 @@ void FqWriter::AddFLRead(const Read& read, bool reverse)
 	LineBackToBuffer();
 }
 
-// Adds Read with variable length
-//	@read: valid Read
-//	@reverse: if true then add complemented read 
 void FqWriter::AddVLRead(const Read& read, bool reverse)
 {
 	const readlen rlen = read.Length();
@@ -302,10 +241,7 @@ void FqWriter::AddVLRead(const Read& read, bool reverse)
 	LineToIOBuff();
 }
 
-// Creates new instance for writing
-//	@fName: file name without extention
-//	@rName: Read's name
-FqWriter::FqWriter(const string& fName, const ReadName& rName)
+FqWriter::FqWriter(const string& fName, ReadName& rName)
 	: ReadWriter(FT::FQ, fName, rName, LF)
 {
 	const readlen ReadMaxStrLen = readlen(to_string(Read::VarMaxLen).length());
@@ -381,10 +317,6 @@ string SamWriter::FLAG[2];		// FLAG value for SE/PE: nitialised in constructor
 
 SamWriter::tfAddRead SamWriter::fAddRead;
 
-// Adds Read with fixed length
-//	@read: valid Read
-//	@fld_7_9: prepared 7-9 fields (RNEXT,PNEXT,TLEN)
-//	@flag: FLAG field value
 void SamWriter::AddFLRead(const Read& read, const string& fld_7_9, const string& flag)
 {
 	LineSetOffset(ReadStartPos);
@@ -399,10 +331,6 @@ void SamWriter::AddFLRead(const Read& read, const string& fld_7_9, const string&
 	LineBackToBuffer();
 }
 
-// Adds Read with variable length
-//	@read: valid Read
-//	@fld_7_9: prepared 7-9 fields (RNEXT,PNEXT,TLEN)
-//	@flag: FLAG field value
 void SamWriter::AddVLRead(const Read& read, const string& fld_7_9, const string& flag)
 {
 	const readlen rlen = read.Length();
@@ -423,15 +351,11 @@ void SamWriter::AddVLRead(const Read& read, const string& fld_7_9, const string&
 	LineToIOBuff();
 }
 
-// Creates new instance for writing, initializes line write buffer writes header.
-//	@fName: file name without extention
-//	@rName: Read's name
-//	@cSizes: chrom sizes
-SamWriter::SamWriter(const string& fName, const ReadName& rName, const ChromSizes& cSizes)
+SamWriter::SamWriter(const string& fName, ReadName& rName, const ChromSizes& cSizes)
 	: ReadWriter(FT::SAM, fName, rName)
 {
 	if (SeqMode::IsPE())	FLAG[0] = "99", FLAG[1] = "147";
-	else				FLAG[0] = "0", FLAG[1] = "16";
+	else					FLAG[0] = "0", FLAG[1] = "16";
 
 	//== write header
 	StrToIOBuff("@HD\tVN:1.0\tSO:unsorted");
@@ -490,13 +414,12 @@ string GetPeFld_7_9(chrlen pos, int fLen)
 	return ss.str();
 }
 
-// Adds two mate Reads to the line's write buffer.
-//	@read1: valid first mate Read
-//	@read2: valid second mate Read
-//	@pos1: valid first mate Read's start position
-//	@pos2: valid second mate Read's start position
-//	@fLen: fragment's length
-void SamWriter::AddTwoReads(const Read& read1, const Read& read2, int fLen)
+void SamWriter::AddRead(const Read& read, bool reverse)
+{
+	(this->*fAddRead)(read, Fld_7_9, FLAG[reverse]);
+}
+
+void SamWriter::AddReads(const Read& read1, const Read& read2, int fLen)
 {
 	(this->*fAddRead)(read1, GetPeFld_7_9(read2.Start, fLen), FLAG[0]);
 	(this->*fAddRead)(read2, GetPeFld_7_9(read1.Start, -fLen), FLAG[1]);
@@ -509,8 +432,12 @@ void SamWriter::AddTwoReads(const Read& read1, const Read& read2, int fLen)
 DataWriter::BioWriters::tfAddRead	DataWriter::BioWriters::fAddRead = &DataWriter::BioWriters::AddReadSE;
 float DataWriter::BioWriters::StrandErrProb;	// the probability of strand error
 
-DataWriter::BioWriters::BioWriters(const string& fName, const ChromSizesExt& cSizes)
+DataWriter::BioWriters::BioWriters(const string& fName, LONG* prCnt, const ChromSizesExt& cSizes)
+	: _rName(*prCnt)
 {
+	_prCnt = prCnt;
+	if (HasFormat(eFormat::BED))	_bedFile.reset(new RBedWriter(fName, _rName, CommLine()));
+	if (HasFormat(eFormat::SAM))	_samFile.reset(new SamWriter(fName, _rName, cSizes));
 	if (HasFormat(eFormat::FG))
 		if (SeqMode::IsPE())
 			_fqFile1.reset(new FqWriter(fName + "_1", _rName)),
@@ -532,33 +459,29 @@ DataWriter::BioWriters::BioWriters(const string& fName, const ChromSizesExt& cSi
 }
 
 DataWriter::BioWriters::BioWriters(const BioWriters& primer)
+	: _rName(*primer._prCnt)
 {
-	_rName.SetReadCounter(primer._rCnt);
-
-	if (primer._fqFile1)	_fqFile1.reset(new FqWriter(*primer._fqFile1));
-	if (primer._fqFile2)	_fqFile2.reset(new FqWriter(*primer._fqFile2));
-	if (primer._bedFile)	_bedFile.reset(new RBedWriter(*primer._bedFile));
-	if (primer._samFile)	_samFile.reset(new SamWriter(*primer._samFile));
+	_prCnt = primer._prCnt;
+	if (primer._fqFile1)	_fqFile1.reset(new FqWriter(*primer._fqFile1, _rName));
+	if (primer._fqFile2)	_fqFile2.reset(new FqWriter(*primer._fqFile2, _rName));
+	if (primer._bedFile)	_bedFile.reset(new RBedWriter(*primer._bedFile, _rName));
+	if (primer._samFile)	_samFile.reset(new SamWriter (*primer._samFile, _rName));
 	if (primer._bgFiles)	_bgFiles.reset(new OrderedCover(*primer._bgFiles));
 	if (primer._fragWgFile)	_fragWgFile.reset(new OrderedFreq(*primer._fragWgFile));
 	if (primer._readWgFile)	_readWgFile.reset(new OrderedFreq(*primer._readWgFile));
 }
 
-// Start recording chrom
 void DataWriter::BioWriters::BeginWriteChrom(const ChromSeq& seq)
 {
-	const string chr = Chrom::AbbrName(seq.ID());
-
 	_seq = &seq;
 	_rName.SetChrom(Chrom::Mark(seq.ID()));
-	if (_bedFile)		_bedFile->SetChrom(chr);		// set chrom's name for writing.
-	if (_samFile)		_samFile->SetChrom(chr);		// set chrom's name for writing.
-	if (_bgFiles)		_bgFiles->SetChrom(seq.ID());	// set chrom's coverage as current
+	if (_bedFile)		_bedFile->SetChrom(seq.ID());
+	if (_samFile)		_samFile->SetChrom(seq.ID());
+	if (_bgFiles)		_bgFiles->SetChrom(seq.ID());
 	if (_fragWgFile)	_fragWgFile->SetChrom(seq.ID());
 	if (_readWgFile)	_readWgFile->SetChrom(seq.ID());
 }
 
-// Stop recording chrom
 void DataWriter::BioWriters::EndWriteChrom() const
 {
 	if (_bgFiles)		_bgFiles->WriteChrom(_seq->ID());
@@ -566,40 +489,33 @@ void DataWriter::BioWriters::EndWriteChrom() const
 	if (_readWgFile)	_readWgFile->WriteChrom(_seq->ID());
 }
 
-// Adds one SE Read
-//	@frag: added fragment
-//	@rLen: Read's length
-//	@reverse: if true then add complemented read
-//	return:	1: fragment is out of range (end of chrom)
-//			0: Read is added successfully
-//			-1: N limit is exceeded
 int DataWriter::BioWriters::AddReadSE(const Region& frag, readlen rLen, bool reverse)
 {
 	const chrlen rPos = reverse ? frag.End - rLen : frag.Start;	// Read's position
 	const Read read(_seq->Seq(rPos), rPos, rLen);
 	int ret = read.CheckNLimit();
 	if (ret)		return ret;
-	/*
-	if(RandomReverse && g==Gr::FG && _rng.Sample(BioWriters::StrandErrProb) ) {
-		reverse = !reverse;
-		//short diff = ftr->Centre() - rPos - (Read::FixedLen>>1);
-		//short halfDiffPeak = (200 - ftr->Length())>>1;
-		//if(reverse)		diff += halfDiffPeak;
-		//else			diff -= halfDiffPeak;
 
-		//short diff = short( reverse ? (rPos + Read::FixedLen - ftr->Start) : ftr->End - rPos);
-		//if(!_rng.Sample(float(diff) / fLen)) {
-			//if(diff/10 < _fDist.Length()) _fDist[diff/10]++;
-			//reverse = !reverse;			// imitate strand error
-		//}
-	}
-	*/
+	//if(RandomReverse && g==Gr::FG && _rng.Sample(BioWriters::StrandErrProb) ) {
+	//	reverse = !reverse;
+	//	//short diff = ftr->Centre() - rPos - (Read::FixedLen>>1);
+	//	//short halfDiffPeak = (200 - ftr->Length())>>1;
+	//	//if(reverse)		diff += halfDiffPeak;
+	//	//else			diff -= halfDiffPeak;
+
+	//	//short diff = short( reverse ? (rPos + Read::FixedLen - ftr->Start) : ftr->End - rPos);
+	//	//if(!_rng.Sample(float(diff) / fLen)) {
+	//		//if(diff/10 < _fDist.Length()) _fDist[diff/10]++;
+	//		//reverse = !reverse;			// imitate strand error
+	//	//}
+	//}
 
 	if (_bgFiles)		_bgFiles->AddFrag(frag, reverse);		// coverage
 	if (_fragWgFile)	_fragWgFile->AddFragDens(frag);			// frag frequency
 	if (_readWgFile)	_readWgFile->AddReadDens(read, reverse);// read frequency
 	if (InclReadName()) {
-		_rName.AddInfo(frag);
+		InterlockedIncrement(_prCnt);
+		_rName.AddNumber(frag);
 		if (_fqFile1)	_fqFile1->AddRead(read, reverse);
 		if (_bedFile)	_bedFile->AddRead(read, reverse);
 		if (_samFile)	_samFile->AddRead(read, reverse);
@@ -607,14 +523,6 @@ int DataWriter::BioWriters::AddReadSE(const Region& frag, readlen rLen, bool rev
 	return 0;
 }
 
-// Adds two PE Reads
-//	@frag: added fragment
-//	@rLen: Read's length
-///	@g: FG or BG; needs for strand error imitation; not used
-//	@reverse: not used
-//	return:	1: fragment is out of range (end of chrom)
-//			0: Reads are added successfully
-//			-1: N limit is exceeded
 int DataWriter::BioWriters::AddReadPE(const Region& frag, readlen rLen, bool reverse)
 {
 	const Read read1(_seq->Seq(frag.Start), frag.Start, rLen);
@@ -630,21 +538,17 @@ int DataWriter::BioWriters::AddReadPE(const Region& frag, readlen rLen, bool rev
 	if (_readWgFile)	_readWgFile->AddReadDens(read1, reverse),	// read frequency
 						_readWgFile->AddReadDens(read2, reverse);
 	if (InclReadName()) {
-		_rName.AddInfo(frag);
+		InterlockedIncrement(_prCnt);
+		_rName.AddNumber(frag);
 		if (_fqFile1)	_fqFile1->AddRead(read1, false),
 						_fqFile2->AddRead(read2, true);
-		if (_bedFile)	_bedFile->AddRead(read1, false, 1),
-						_bedFile->AddRead(read2, true, 2);
-		if (_samFile)	_samFile->AddTwoReads(read1, read2, frag.Length());
+		if (_bedFile)	_bedFile->AddReads(read1, read2);
+		if (_samFile)	_samFile->AddReads(read1, read2, frag.Length());
 	}
-
 
 	return 0;
 }
 
-// Prints output file formats and sequencing mode
-//	@signOut: output marker
-//	@predicate: 'output' marker
 void DataWriter::BioWriters::PrintFormat(const char* signOut, const char* predicate) const
 {
 	if (HasFormat(eFormat::FG)) {
@@ -767,12 +671,6 @@ bool	DataWriter::isStrand;
 const char* DataWriter::entityTitles[] = { "fragment", Read::title };
 const string* DataWriter::commLine;			// command line
 
-// Initializes static members
-//	@fFormat: types of output files
-//	@mapQual: the mapping quality
-//	@bgStrand: true if bedGraphs with different strands should be generated
-//	@strandErrProb: the probability of strand error
-//	@zipped: true if output files should be zipped
 void DataWriter::Init(int fFormat, BYTE mapQual, bool bgStrand, float strandErrProb, bool zipped)
 {
 	Format = int(eFormat(fFormat));
@@ -793,60 +691,47 @@ void DataWriter::PrintItemTitle()
 	cout << COLON;
 }
 
-// Prints item title ("reads/fragments") according to output formats
-//	@fCnt: number of fragments
-void DataWriter::PrintItemCount(ULLONG fCnt)
+void DataWriter::PrintItemCount(size_t fCnt)
 {
 	if (SeqMode::IsPE())	PrintItemsSummary(2 * fCnt, fCnt);
-	else				cout << fCnt;
+	else					cout << fCnt;
 }
 
-// Creates new instance for writing.
-//	@fName: common file name without extention
-//	@control: if true, then control ('input') is generated
-//	@cmLine: command line to add as a comment in the first file line
-//	@cSizes: chrom sizes, or NULL
 DataWriter::DataWriter(
 	const string& fName, bool control, const string& cmLine, const ChromSizesExt& cSizes)
-	: _dists(new DistrWriters(fName, HasFormat(eFormat::FDIST), HasFormat(eFormat::RDIST))),
-	_gMode(BYTE(GM::eMode::Test))
+	: _dists(new DistrWriters(
+		fName,
+		HasFormat(eFormat::FDIST), HasFormat(eFormat::RDIST))),
+		_gMode(BYTE(GM::eMode::Test)
+		)
 {
 	commLine = &cmLine;
-	_writers[0].reset(new BioWriters(fName, cSizes));
-	if (control)	_writers[1].reset(new BioWriters(fName + "_input", cSizes));
+	_writers[0].reset(new BioWriters(fName, &_rCnt[0], cSizes));
+	if (control)
+		_writers[1].reset(new BioWriters(fName + "_input", &_rCnt[1], cSizes));
 }
 
-// Clone constructor for multithreading.
-//	@file: original instance
 DataWriter::DataWriter(const DataWriter& file) : _dists(file._dists), _gMode(file._gMode)
 {
 	_writers[0].reset(new BioWriters(*file._writers[0]));
-	if (file._writers[1])	_writers[1].reset(new BioWriters(*file._writers[1]));
+	if (file._writers[1])
+		_writers[1].reset(new BioWriters(*file._writers[1]));
 }
 
-// Starts recording chrom
 void DataWriter::BeginWriteChrom(const ChromSeq& seq)
 {
 	_writers[0]->BeginWriteChrom(seq);
 	if (_writers[1])	_writers[1]->BeginWriteChrom(seq);
 }
 
-// Stops recording chrom
 void DataWriter::EndWriteChrom()
 {
 	_writers[0]->EndWriteChrom();
-	if (_writers[1])	_writers[1]->EndWriteChrom();
+	if (_writers[1])
+		_writers[1]->EndWriteChrom();
 }
 
-// Adds read(s) to output file
-//	@pos: current fragment's position
-//	@flen: length of current fragment
-///	@g: FG or BG; needs for strand error imitation
-//	@reverse: if true then add complemented read
-//	return:	1: fragment is out of range (end chrom)
-//			0: Read(s) is(are) added, or nothing (trial)
-//			-1: N limit is exceeded; Read(s) is(are) not added
-int DataWriter::AddRead(chrlen pos, fraglen flen, /*Gr::eType g,*/ bool reverse)
+int DataWriter::AddRead(chrlen pos, fraglen flen, bool reverse)
 {
 	/*****
 	 1) Fill distribution files doesn't need by the trial pass,
@@ -866,8 +751,6 @@ int DataWriter::AddRead(chrlen pos, fraglen flen, /*Gr::eType g,*/ bool reverse)
 	return _writers[_gMode]->AddRead(Region(pos, pos + flen), rlen, reverse);
 }
 
-// Prints output file formats and sequencing mode
-//	@signOut: output marker
 void DataWriter::PrintFormat(const char* signOut) const
 {
 	const char* output = "Output ";
@@ -877,8 +760,6 @@ void DataWriter::PrintFormat(const char* signOut) const
 	if (_writers[1])	cout << signOut << output << "control supplied\n";
 }
 
-// Prints Read quality settins
-//	@signOut: output marker
 void DataWriter::PrintReadQual(const char* signOut) const
 {
 	if (!InclReadName())	return;

@@ -2,7 +2,7 @@
 DataWriter.h
 Provides bioinfo writers functionality
 2014 Fedor Naumenko (fedor.naumenko@gmail.com)
-Last modified: 05/01/2024
+Last modified: 05/06/2024
 ***********************************************************/
 #pragma once
 
@@ -44,8 +44,8 @@ private:
 
 public:
 	// Initializes data
-	//	@smode: sequence mode
-	//	@rLimit: maximum possible number of writed Reads
+	//	@param smode: sequence mode
+	//	@param rLimit: maximum possible number of writed Reads
 	static void Init(int smode, ULONG rLimit) {
 		maxFragCnt = rLimit >> (mode = eMode(smode));	// reduce twice in case if PE
 	}
@@ -60,10 +60,10 @@ public:
 	static ULLONG FragsLimit() { return maxFragCnt; }
 
 	// Returns maximum possible number of recorded Reads
-	static float	ReadsLimit() { return float(maxFragCnt << mode); }	// increase twice for PE
+	static float ReadsLimit() { return float(maxFragCnt << mode); }	// increase twice for PE
 
 	// Prints sequencing modes
-	//	@signOut: output marker
+	//	@param signOut: output marker
 	static void Print(const char* signOut);
 } seq;
 
@@ -71,24 +71,28 @@ public:
 //	'qualified' means included app, chrom, unique number, [position], [mate]
 class ReadName
 {
+	/*
+	Read's name representation:
+
+	<progTitle>:<chr>.<number>												simple (default)
+	<progTitle>:<chr>:<start read position>.<number>						with position for SE reads
+	<progTitle>:<chr>:<start frag position>-<end frag position>.<number>	with position for PE reads
+
+	Field <chr> has constant width for any chromosome. Possible alignment is filled by '=' symbol
+	*/
 private:
 	typedef void (ReadName::* tfAddRInfo)(const Region&);
 
-	static tfAddRInfo	fAddInfo;	// pointer to the 'Adds info to the name' method
-	static BYTE		len;			// Maximum length of Read name
+	static tfAddRInfo fAddNumber;	// pointer to the 'Adds info to the name' method
+	static BYTE	Len;			// Maximum length of Read name
+	static BYTE AddLen;			// length of the additional part of name containing different delimiters
 
 	char* _name = NULL;		// Read's name
-	BYTE _headLen;			// length of the constant head part containing program's title and chrom's title
-	BYTE _headChrLen = 0;	// length of the constant head plus current chrom mark
 	BYTE _len = 0;			// total length of Read's name
-	ULLONG& _rCnt;			// external Read counter
+	BYTE _constLen;			// length of the constant part of name containing program's title and chrom's title
+	LONG& _rCnt;			// external Read counter
 
-	ULLONG CountIncr() { return InterlockedIncrement(&_rCnt); }
-
-	// Adds to Read name its position as string
-	//void AddPos(const string& s);
-
-	// methods called by pointer from AddInfo(...)
+	// methods called by pointer from AddNumber(...)
 	void AddNumb(const Region&);
 	void AddPosSE(const Region& frag);
 	void AddPosPE(const Region& frag);
@@ -97,14 +101,11 @@ public:
 	static void Init();
 
 	// Returns maximum length of Read's name
-	static BYTE MaxLength() { return len; }
+	static BYTE MaxLength() { return Len; }
 
 	// Initializes instance by constant part of Read name
-	//	@rCnt: external Read counter
-	ReadName(ULLONG& rCnt);
-
-	// Copy constructor
-	//ReadName(const ReadName& rName);
+	//	@param rCnt: external Read counter
+	ReadName(LONG& rCnt);
 
 	~ReadName() { delete[] _name; }
 
@@ -112,17 +113,18 @@ public:
 	char* Name() const { return _name; }
 
 	// Gets length of Read name
-	BYTE	Length() const { return _len; }
+	BYTE Length() const { return _len; }
 
 	// Sets external primary read counter
-	void SetReadCounter(ULLONG& cnt) { _rCnt = cnt; }
+	void SetReadCounter(LONG& cnt) { _rCnt = cnt; }
 
 	// Sets current chrom's mark
-	void SetChrom(const string&& cMark);
+	void SetChrom(const string& cMark);
 
-	// Adds info into Read name
+	// Adds Read number and other info into Read name
+	//	@param frag: added fragment
 	// Calls AddNumb() or AddPos() or AddPosPE()
-	void AddInfo(const Region& frag) { (this->*fAddInfo)(frag); }
+	void AddNumber(const Region& frag) { (this->*fAddNumber)(frag); }
 };
 
 
@@ -158,75 +160,74 @@ class ReadWriter : public TxtWriter
 	static string sReadConstLen;	// constant string "length=XX"
 	static unique_ptr<ReadQualPattern> RqPattern;	// Read quality pattern
 
-	using tfAddReadName = void(ReadWriter::*)(BYTE);
-	// 'Add qualified Read name' methods: [0] - empty method, [1] - with mate extention
-	static tfAddReadName fAddReadNames[2];
+	using tfAddReadMate = void(ReadWriter::*)(BYTE);
+	// Add Read mate methods: [0] - empty method, [1] - with mate
+	static tfAddReadMate fAddReadMate[2];
 
-	const ReadName& _rName;			// Read's name
+	ReadName& _rName;	// external Read's name
 
-	void AddReadNameEmpty(BYTE) {}
+
+	void LineNoAddReadMate(BYTE) {}
 
 	// Adds Read mate to name after current position in the line write buffer,
 	//	and increases current position.
-	//	@mate: mate number for PE Reads, or 0 for SE Read
+	//	@param mate: mate number for PE Reads, or 0 for SE Read
 	void LineAddReadMate(BYTE mate) { LineAddChars(Mate[mate - 1], MateLen); }
 
 	// Copies block of chars before the current position in the line write buffer.
-	//	@src:  pointer to the block of chars
-	//	@len: number of chars
+	//	@param src:  pointer to the block of chars
+	//	@param len: number of chars
 	void LineAddCharsBack(const char* src, size_t len);
 
 protected:
-	static const string ReadLenTitle;				// string " length="
+	static const string ReadLenTitle;		// string " length="
 
 	// Creates new instance for writing and initializes line write buffer.
-	//	@ftype: type of file
-	//	@fName: file name with extention
-	//	@rName: Read's name
-	//	@trName: dynamic part of Read's name contained chroms number and Read's number|position,
-	//	or NULL for empty name
-	//	@commLine: command line to add as a comment in the first line
-	ReadWriter(FT::eType ftype, const string& fName, const ReadName& rName, char delim = TAB)
+	//	@param ftype: type of file
+	//	@param fName: file name with extention
+	//	@param rName: external Read's name
+	//	@param delim: delimiter
+	ReadWriter(FT::eType ftype, const string& fName, ReadName& rName, char delim = TAB)
 		: _rName(rName), TxtWriter(ftype, fName, delim) {}
 
 	// Copy constructor for multithreading
-	//	@rName: Read's name
-	ReadWriter(const ReadWriter& file)
-		: _rName(file._rName), TxtWriter(file) {}
+	//	@param file: primer file
+	//	@param rName: external Read's name
+	ReadWriter(const ReadWriter& file, ReadName& rName) : _rName(rName), TxtWriter(file) {}
 
 	// Returns a pointer to the line write buffer at current position.
 	char* LineCurrPosBuf() const { return _lineBuff + _lineBuffOffset; }
 
 	// Sets byte in the line write buffer to the specified value.
-	//	@offset: shift of buffer start position
-	//	@ch: byte to be set
+	//	@param offset: shift of buffer start position
+	//	@param ch: byte to be set
 	void LineSetChar(reclen offset, char ch) { _lineBuff[offset] = ch; }
 
-	// Adds byte before the current position of the line write buffer and decreases current position.
-	//	@chr: value to be set
+	// Adds character before the current position of the line write buffer and decreases current position.
+	//	@param ch: character to be set
 	void LineAddCharBack(char ch) { _lineBuff[--_lineBuffOffset] = ch; }
 
 	// Copies the string before the current position in the line write buffer,
 	//	adds delimiter after string and decreases current position.
-	//	@str: string to be copied
+	//	@param str: string to be copied
 	void LineAddStrBack(const string& str) { LineAddCharsBack(str.c_str(), str.length()); }
 
 	// Copies qualified Read name and positions after current position in the line write buffer,
 	//	and increases current position.
-	//	@addDelim: if true then adds delimiter after string and increases current position
+	//	@param addDelim: if true then adds delimiter after string and increases current position
 	void LineAddReadName(bool addDelim = true) { LineAddChars(_rName.Name(), _rName.Length(), addDelim); }
 
 	// Copies qualified Read name and positions after current position in the line write buffer,
 	//	and increases current position.
-	//	@mate: mate number for PE Reads, or 0 for SE Read
-	//	Invoked in BedOutFile.
+	//	@param mate: mate number for PE Reads, or 0 for SE Read
+	//	Invoked in RBedWriter.
 	void LineAddReadName(BYTE mate);
 
 	// Copies qualified Read name started with '@' and read variable legth after current position
 	//	in the line write buffer, and increases current position
-	//	@len: Read length
+	//	@param rLen: Read length
 	//	Invoked in FqWriter.
-	void LineAddReadVarName(readlen len);
+	void LineAddReadVarName(readlen rLen);
 
 	// Copies qualified Read name before current position in the line write buffer,
 	//	adds delimiter after Read Nameand decreases current position.
@@ -244,7 +245,7 @@ protected:
 	void LineFillReadConstPatt(reclen pos) const { RqPattern->Fill(_lineBuff + pos); }
 
 	// Fills line by Read variable quality pattern from the current position and increases current position
-	//	@rlen: Read's length
+	//	@param rlen: Read length
 	void LineFillReadVarPatt(readlen rlen);
 
 #ifdef _DEBUG
@@ -258,7 +259,7 @@ public:
 	static const BYTE MateLen;		// The length of Mate suffix
 
 	// Sets Read quality pattern and const Read length
-	//	@rqPattFName: valid file name of the Read quality pattern
+	//	@param rqPattFName: valid file name of the Read quality pattern
 	static void SetReadQualityPatt(const char* rqPattFName) {
 		RqPattern.reset(new ReadQualPattern(rqPattFName));
 		if (!DistrParams::IsRVL())	sReadConstLen = ReadLenTitle + to_string(Read::FixedLen);
@@ -277,59 +278,66 @@ class RBedWriter : public ReadWriter
 
 public:
 	// Creates new instance for writing and initializes line write buffer.
-	//	@fName: file name without extention
-	//	@rName: Read's name
-	//	@commLine: command line to add as a comment in the first line, or nullptr
-	RBedWriter(const string& fName, const ReadName& rName, const string* commLine = nullptr);
+	//	@param fName: file name without extention
+	//	@param rName: external Read's name
+	//	@param commLine: command line to add as a comment in the first line, or nullptr
+	RBedWriter(const string& fName, ReadName& rName, const string* commLine = nullptr);
 
 	// Clone constructor for multithreading
-	RBedWriter(const RBedWriter& file) : ReadWriter(file) {}
+	//	@param file: primer file
+	//	@param rName: external Read's name
+	RBedWriter(const RBedWriter& file, ReadName& rName) : ReadWriter(file, rName) {}
 
-	// Sets treated chrom's name to line write buffer
-	//void SetChrom(chrid cID);
-	void SetChrom(const string& chr);
+	// Sets treated chromosome's name to line write buffer
+	void SetChrom(chrid cid);
 
 	// Adds Read to the line's write buffer.
-	//	@read: valid Read
-	//	@reverse: if true then set reverse strand, otherwise set forward
-	//	@mate: mate number for PE Reads, or 0 for SE Read
+	//	@param read: valid Read
+	//	@param reverse: if true then set reverse strand, otherwise set forward
+	//	@param mate: mate number for PE Reads, or 0 for SE Read
 	void AddRead(const Read& read, bool reverse, BYTE mate = 0);
+
+	// Adds two mate Reads to the line's write buffer.
+	//	@param read1: valid first mate Read
+	//	@param read2: valid second mate Read
+	void AddReads(const Read& read1, const Read& read2);
 };
 
 // 'FqWriter' implements methods for writing FQ file
 class FqWriter : public ReadWriter
-	// 'public' to allow implicit conversion in ReadWriter(const FqWriter&) invoke
 {
-	static reclen ReadStartPos;		// fixed Read field start position
-
 	typedef void(FqWriter::* fAddRead)(const Read&, bool);
-	// Current 'add read' method: with fixed or variable length 
-	static fAddRead addRead;
+
+	static fAddRead addRead;	// Current 'add read' method: with fixed or variable length
+	static reclen ReadStartPos;	// fixed Read field start position
 
 	// Adds Read with fixed length to the line's write buffer.
-	//	@read: valid Read
-	//	@reverse: if true then add complemented read 
+	//	@param read: valid Read
+	//	@param reverse: if true then add complemented read 
 	void AddFLRead(const Read& read, bool reverse);
 
 	// Adds Read with variable length
-	void AddVLRead(const Read& read, bool reverse);
+	//	@param read: valid Read
+	//	@param reverse: if true then add complemented read 
+	void AddVLRead(const Read& read,  bool reverse);
 
 public:
 	// initializes static members
 	static void Init() { addRead = DistrParams::IsRVL() ? &FqWriter::AddVLRead : &FqWriter::AddFLRead; }
 
 	// Creates new instance for writing
-	//	@fName: file name without extention
-	//	@rName: Read's name
-	FqWriter(const string& fName, const ReadName& rName);
+	//	@param fName: file name without extention
+	//	@param rName: external Read's name
+	FqWriter(const string& fName, ReadName& rName);
 
 	// Clone constructor for multithreading
-	FqWriter(const FqWriter& file) : ReadWriter(file) {}
-
+	//	@param fName: primer file
+	//	@param rName: external Read's name
+	FqWriter(const FqWriter& file, ReadName& rName) : ReadWriter(file, rName) {}
 
 	// Forms Read from fragment and adds it to the file.
-	//	@read: valid Read
-	//	@reverse: if true then add complemented read 
+	//	@param read: valid Read
+	//	@param reverse: if true then add complemented read 
 	void AddRead(const Read& read, bool reverse) { (this->*addRead)(read, reverse); }
 };
 
@@ -351,12 +359,15 @@ class SamWriter : public ReadWriter
 	string	_cName;						// current chrom's name
 
 	// Adds Read with fixed length to the line's write buffer.
-	//	@read: valid Read
-	//	@fld_7_9: prepared 7-9 fields (RNEXT,PNEXT,TLEN)
-	//	@flag: FLAG field value to the line's write buffer.
+	//	@param read: valid Read
+	//	@param fld_7_9: prepared 7-9 fields (RNEXT,PNEXT,TLEN)
+	//	@param flag: FLAG field value to the line's write buffer.
 	void AddFLRead(const Read& read, const string& fld_7_9, const string& flag);
 
-	// Adds Read with variable length
+	// Adds Read with variable length to the line's write buffer.
+	//	@param read: valid Read
+	//	@param fld_7_9: prepared 7-9 fields (RNEXT,PNEXT,TLEN)
+	//	@param flag: FLAG field value to the line's write buffer.
 	void AddVLRead(const Read& read, const string& fld_7_9, const string& flag);
 
 public:
@@ -366,30 +377,31 @@ public:
 	}
 
 	// Creates new instance for writing, initializes line write buffer writes header.
-	//	@fName: file name without extention
-	//	@rName: Read's name
-	//	@cSizes: chrom sizes
-	SamWriter(const string& fName, const ReadName& rName, const ChromSizes& cSizes);
+	//	@param fName: file name without extention
+	//	@param rName: external Read's name
+	//	@param cSizes: chrom sizes
+	SamWriter(const string& fName, ReadName& rName, const ChromSizes& cSizes);
 
 	// Clone constructor for multithreading
-	SamWriter(const SamWriter& file) : ReadWriter(file) {}
+	//	@param file: primer file
+	//	@param rName: external Read's name
+	SamWriter(const SamWriter& file, ReadName& rName) : ReadWriter(file, rName) {}
 
-	// Sets current treated chrom
-	void SetChrom(const string& chr) { _cName = chr; }
+	// Stars writing next chromosome
+	void SetChrom(chrid cid) { _cName = Chrom::AbbrName(cid); }
 
 	// Adds Read to the line's write buffer.
-	//	@read: valid Read
-	//	@pos: Read's start position
-	//	@len: Read's length
-	//	@reverse: if true then add complemented read
-	void AddRead(const Read& read, bool reverse) { (this->*fAddRead)(read, Fld_7_9, FLAG[reverse]); }
+	//	@param read: valid Read
+	//	@param reverse: if true then add complemented read
+	void AddRead(const Read& read, bool reverse);
 
 	// Adds two mate Reads to the line's write buffer.
-	//	@read1: valid first mate Read
-	//	@read2: valid second mate Read
-	//	@fLen: fragment's length
-	void AddTwoReads(const Read& read1, const Read& read2, int fLen);
+	//	@param read1: valid first mate Read
+	//	@param read2: valid second mate Read
+	//	@param fLen: fragment length
+	void AddReads(const Read& read1, const Read& read2, int fLen);
 };
+
 
 // 'DataWriter' wraps writers, including test and control
 class DataWriter
@@ -427,56 +439,57 @@ private:
 		static tfAddRead fAddRead;
 		static float	 StrandErrProb;	// the probability of strand error
 
-		mutable ULLONG	_rCnt = 0;		// total Read counter; managed by _rName, not used by clones
+		ReadName		_rName;			// own copy for each clone
+		mutable LONG*	_prCnt = 0;		// total Read counter; managed by _rName, not used by clones
 		const ChromSeq* _seq{};			// current reference sequence
-		ReadName	 _rName{ _rCnt };	// Read's name; local for clone independence by setting different chroms
-		unique_ptr<FqWriter>		_fqFile1{};		// FQ mate1 or single output
-		unique_ptr<FqWriter>		_fqFile2{};		// FQ mate2 output 
-		unique_ptr<RBedWriter>		_bedFile{};		// BED output
-		unique_ptr<SamWriter>		_samFile{};		// SAM output
-		unique_ptr<OrderedCover>	_bgFiles{};		// bedGraph output
-		unique_ptr<OrderedFreq>		_fragWgFile{};	// frag density wig output
-		unique_ptr<OrderedFreq>		_readWgFile{};	// read density wig output
+
+		unique_ptr<FqWriter>	_fqFile1{};		// FQ mate1 or single output
+		unique_ptr<FqWriter>	_fqFile2{};		// FQ mate2 output 
+		unique_ptr<RBedWriter>	_bedFile{};		// BED output
+		unique_ptr<SamWriter>	_samFile{};		// SAM output
+		unique_ptr<OrderedCover>_bgFiles{};		// bedGraph output
+		unique_ptr<OrderedFreq>	_fragWgFile{};	// frag density wig output
+		unique_ptr<OrderedFreq>	_readWgFile{};	// read density wig output
+
+
+		// Empty (trial) method
+		int AddReadEmpty(const Region&, readlen, bool) { return 0; }
 
 		// Adds one SE Read
-		//	@frag: added fragment
-		//	@rLen: Read's length
-		//	@reverse: if true then add complemented read
-		//	return:	1: fragment is out of range (end of chrom)
+		//	@param frag: added fragment
+		//	@param rLen: Read's length
+		//	@param reverse: if true then add complemented read
+		//	@returns 1: fragment is out of range (end of chrom)
 		//			0: Read is added successfully
 		//			-1: N limit is exceeded
 		int AddReadSE(const Region& frag, readlen rlen, bool reverse);
 
 		// Adds two PE Reads
-		//	@frag: added fragment
-		//	@rLen: Read's length
-		//	@reverse: not used
-		//	return:	1: fragment is out of range (end of chrom)
+		//	@param frag: added fragment
+		//	@param rLen: Read's length
+		//	@param reverse: not used
+		//	@returns 1: fragment is out of range (end of chrom)
 		//			0: Reads are added successfully
 		//			-1: N limit is exceeded
 		int AddReadPE(const Region& frag, readlen rlen, bool reverse);
 
-		// Empty (trial) method
-		//int AddReadEmpty (DataWriter*, const Region&, /*Gr::eType,*/ bool)	{ return 0; }
-		int AddReadEmpty(const Region&, readlen, bool) { return 0; }
-
 	public:
 		// Initializes static members
-		//	@singleThread: true if single thread is set
-		//	@sErrProb: the probability of strand error
+		//	@param sErrProb: the probability of strand error
 		static void Init(float sErrProb) { StrandErrProb = sErrProb; }
 
 		// Sets sequense mode.
-		//	@trial: if true, then set empty mode, otherwise current working mode
+		//	@param trial: if true, then set empty mode, otherwise current working mode
 		static void SetSeqMode(bool trial) {
 			fAddRead = trial ? &DataWriter::BioWriters::AddReadEmpty :
 				(SeqMode::IsPE() ? &DataWriter::BioWriters::AddReadPE : &DataWriter::BioWriters::AddReadSE);
 		}
 
 		// Creates and initializes new instance for writing.
-		//	@fName: common file name without extention
-		//	@cSizes: chrom sizes
-		BioWriters(const string& fName, const ChromSizesExt& cSizes);
+		//	@param fName: common file name without extention
+		//	@param prCnt: pointer to external Read counter
+		//	@param cSizes: chrom sizes
+		BioWriters(const string& fName, LONG* prCnt, const ChromSizesExt& cSizes);
 
 		// Clone constructor for multithreading
 		//	@param[in] primer: primer instance
@@ -489,20 +502,19 @@ private:
 		void EndWriteChrom() const;
 
 		// Adds read(s) to output file
-		//	@frag: added fragment
-		//	@rLen: Read's length
-		///	@g: FG or BG; needs for strand error imitation
-		//	@reverse: if true then add complemented read
-		//	return:	1: fragment is out of range (end chrom)
+		//	@param frag: added fragment
+		//	@paramr Len: Read's length
+		//	@param reverse: if true then add complemented read
+		//	@returns 1: fragment is out of range (end chrom)
 		//			0: Read(s) is(are) added, or nothing (trial)
 		//			-2: N limit is exceeded; Read(s) is(are) not added
-		int AddRead(const Region& frag, readlen rlen, /*Gr::eType g,*/ bool reverse) {
+		int AddRead(const Region& frag, readlen rlen, bool reverse) {
 			return (this->*fAddRead)(frag, rlen, reverse);
 		}
 
 		// Prints output file formats and sequencing mode
-		//	@signOut: output marker
-		//	@predicate: 'output' marker
+		//	@param signOut: output marker
+		//	@param predicate: 'output' marker
 		void PrintFormat(const char* signOut, const char* predicate) const;
 	};
 
@@ -553,11 +565,11 @@ private:
 	// Returns true if both formats is defined
 	static bool HasBothFormats(eFormat f1, eFormat f2) { return OnesCount(Format & (int(f1) | int(f2))) == 2; }
 
+	mutable LONG	_rCnt[2]{ 0,0 };	// test [0] and control [1] total Read counters
 	unique_ptr<BioWriters> _writers[2];	// test [0] and control [1] writers
 	shared_ptr<DistrWriters> _dists;	// frag's & read's distribution; common for duplicates
-	Random	_rng;					// random generator; needed for Read variable length generation
-	BYTE	_gMode;					// current generation mode as int,
-									// corresponding to the index to call test/control files
+	Random	_rng;		// random generator; needed for Read variable length generation
+	BYTE	_gMode;		// current generation mode as int, corresponding to the index to call test/control files
 
 	// Prints item title or count
 	template <typename T>
@@ -577,41 +589,41 @@ public:
 	static const string* CommLine() { return commLine; }
 
 	// Initializes static members
-	//	@fFormat: types of output files
-	//	@cmLine: command line to add as a comment in the first file line
-	//	@mapQual: the mapping quality
-	//	@bgStrand: true if bedGraphs with different strands should be generated
-	//	@strandErrProb: the probability of strand error
-	//	@zipped: true if output files should be zipped
+	//	@param fFormat: types of output files
+	//	@param mapQual: the mapping quality
+	//	@param bgStrand: true if bedGraphs with different strands should be generated
+	//	@param strandErrProb: the probability of strand error
+	//	@param zipped: true if output files should be zipped
 	static void Init(int fFormat, BYTE mapQual, bool bgStrand, float strandErrProb, bool zipped);
 
 	// Sets sequense mode.
-	//	@trial: if true, then set empty mode, otherwise current working mode
+	//	@param trial: if true, then set empty mode, otherwise current working mode
 	static void SetSeqMode(bool trial) { BioWriters::SetSeqMode(trial); }
 
-	// Sets Read quality pattern by valid file name.
+	// Sets Read quality pattern
+	//	@param rqPattFName: valid file name of the Read quality pattern
 	static void SetReadQualPatt(const char* rqPattFName) { ReadWriter::SetReadQualityPatt(rqPattFName); }
 
 	// Prints item title ("reads/fragments") according to output formats
 	static void PrintItemTitle();
 
 	// Prints item count (reads/fragments) according to output formats
-	//	@fCnt: number of fragments
-	static void PrintItemCount(ULLONG fCnt);
+	//	@param fCnt: number of fragments
+	static void PrintItemCount(size_t fCnt);
 
 	// Creates new instance for writing.
-	//	@fName: common file name without extention
-	//	@control: if true, then control ('input') is generated
-	//	@cmLine: command line to add as a comment in the first file line
-	//	@cSizes: chrom sizes, or NULL
+	//	@param fName: common file name without extention
+	//	@param control: if true, then control ('input') is generated
+	//	@param cmLine: command line to add as a comment in the first file line
+	//	@param cSizes: chrom sizes
 	DataWriter(const string& fName, bool control, const string& cmLine, const ChromSizesExt& cSizes);
 
 	// Clone constructor for multithreading.
-	//	@file: original instance
+	//	@param file: original instance
 	DataWriter(const DataWriter& file);
 
 	// Set generation mode
-   //	@testMode: if true, set Test mode, otherwhise Control mode
+   //	@param testMode: if true, set Test mode, otherwhise Control mode
 	void SetGMode(GM::eMode gm) { _gMode = BYTE(gm); }
 
 	// Starts recording chrom
@@ -621,20 +633,19 @@ public:
 	void EndWriteChrom();
 
 	// Adds read(s) to output file
-	//	@pos: current fragment's position
-	//	@flen: length of current fragment
-	///	@g: FG or BG; needs for strand error imitation
-	//	@reverse: if true then add complemented read
-	//	return:	1: fragment is out of range (end chrom)
+	//	@param pos: current fragment's position
+	//	@param flen: length of current fragment
+	//	@param reverse: if true then add complemented read
+	//	@returns 1: fragment is out of range (end chrom)
 	//			0: Read(s) is(are) added, or nothing (trial)
 	//			-1: N limit is exceeded; Read(s) is(are) not added
-	int AddRead(chrlen pos, fraglen flen, /*Gr::eType g,*/ bool reverse);
+	int AddRead(chrlen pos, fraglen flen, bool reverse);
 
 	// Prints output file formats and sequencing mode
-	//	@signOut: output marker
+	//	@param signOut: output marker
 	void PrintFormat(const char* signOut) const;
 
 	// Prints Read quality settins
-	//	@signOut: output marker
+	//	@param signOut: output marker
 	void PrintReadQual(const char* signOut) const;
 };
