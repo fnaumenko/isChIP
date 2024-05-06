@@ -14,7 +14,7 @@ class DataWriter;
 
 /************************ ReadName ************************/
 
-ReadName::tfAddRInfo ReadName::fAddNumber;
+ReadName::tfAddNumber ReadName::fAddNumber;
 BYTE ReadName::Len = 0;		// Initialized in ReadWriter::Init();
 							// if initialize by declaration, seg fault by compiling with gcc 4.1.2
 BYTE ReadName::AddLen = Chrom::MaxMarkLength;	// + minimum one delimiter (DOT)
@@ -60,13 +60,13 @@ ReadName::ReadName(LONG& rCnt) : _rCnt(rCnt), _constLen(BYTE(Product::Title.leng
 	const BYTE cAbbrLen = BYTE(strlen(Chrom::Abbr));
 	memcpy(_name + _constLen, Chrom::Abbr, cAbbrLen);
 	_constLen += cAbbrLen;
-	memset(_name + _constLen, '=', Chrom::MaxMarkLength);
+	*(_name + _constLen + AddLen) = Read::IsPosInName() ? Read::NmPos1Delimiter : DOT;
 }
 
 void ReadName::SetChrom(const string& cMark)
 {
+	memset(_name + _constLen, '=', Chrom::MaxMarkLength);
 	memcpy(_name + _constLen, cMark.c_str(), cMark.length());
-	*(_name + _constLen + AddLen) = Read::IsPosInName() ? Read::NmPos1Delimiter : DOT;
 }
 
 /************************ ReadName: end ************************/

@@ -81,9 +81,9 @@ class ReadName
 	Field <chr> has constant width for any chromosome. Possible alignment is filled by '=' symbol
 	*/
 private:
-	typedef void (ReadName::* tfAddRInfo)(const Region&);
+	typedef void (ReadName::* tfAddNumber)(const Region&);
 
-	static tfAddRInfo fAddNumber;	// pointer to the 'Adds info to the name' method
+	static tfAddNumber fAddNumber;	// pointer to the 'Adds info to the name' method
 	static BYTE	Len;			// Maximum length of Read name
 	static BYTE AddLen;			// length of the additional part of name containing different delimiters
 
@@ -116,7 +116,7 @@ public:
 	BYTE Length() const { return _len; }
 
 	// Sets external primary read counter
-	void SetReadCounter(LONG& cnt) { _rCnt = cnt; }
+	//void SetReadCounter(LONG& cnt) { _rCnt = cnt; }
 
 	// Sets current chrom's mark
 	void SetChrom(const string& cMark);
