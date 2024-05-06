@@ -222,7 +222,7 @@ Optional track definition line is ignored.
 Read name makes sense for [FQ](https://en.wikipedia.org/wiki/FASTQ_format), 
 [BED](https://genome.ucsc.edu/FAQ/FAQformat.html#format1) and [SAM](https://en.wikipedia.org/wiki/SAM_(file_format)) outputs.
 
-Possible formats:<br>
+Possible name formats:<br>
 \<prog title\>:\<chr\>.\<number\>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
@@ -243,7 +243,7 @@ Possible formats:<br>
 \<prog title\>:\<chr\>:\<start fragment position\>-\<end fragment position\>.\<number\>
 &nbsp;*including position for PE read*<br>
 
-The \<chr\> field denotes the 'true' chromosome from which the read was generated.<br>
+The \<chr\> field denotes the 'true' chromosome from which the read was isolated.<br>
 It has constant width for any chromosome. Possible alignment is filled by '=' symbol.
 
 For BED, mate ('/1' or '/2') is added to the number in case of PE reads.
