@@ -220,12 +220,20 @@ Optional track definition line is ignored.
 
 ### Output read name format
 Read name makes sense for [FQ](https://en.wikipedia.org/wiki/FASTQ_format), 
-[BED](https://genome.ucsc.edu/FAQ/FAQformat.html#format1) and [SAM](https://en.wikipedia.org/wiki/SAM_(file_format) outputs.
+[BED](https://genome.ucsc.edu/FAQ/FAQformat.html#format1) and [SAM](https://en.wikipedia.org/wiki/SAM_(file_format)) outputs.
 
 Possible formats:<br>
-\<prog title\>:\<chr\>.<\number\>														default<br>
-\<prog title\>:\<chr\>:<\start read position\>.\<number\>								including position for SE read<br>
-\<prog title\>:\<chr\>:<\start fragment position\>-\<end fragment position\>.\<number\>	including position for PE read<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+default<br>
+\<prog title\>:\<chr\>:\<start read position\>.\<number\>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+including position for SE read<br>
+\<prog title\>:\<chr\>:\<start fragment position\>-\<end fragment position\>.\<number\>&nbsp;including position for PE read<br>
 
 The \<chr\> field denotes the 'true' chromosome from which the read was generated.<br>
 It has constant width for any chromosome. Possible alignment is filled by '=' symbol.<br>
@@ -434,7 +442,7 @@ Default (if applied): 200:30
 `-l|--rd-pos`<br>
 Adds read’s actual start position (location) to its name in the output files. It is useful for verifying aligners.<br>
 See [Output read name format](#output-read-name-format).<br>
-For BED, mate ('/1' or '/2') is added to the number
+For BED, mate ('/1' or '/2') is added to the number in case of PE reads
 
 `--rd-Nlim <int>`<br>
 Maximum permitted number of ambiguous code N in read. Reads exceeding this limit are ignored. 
