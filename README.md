@@ -244,7 +244,8 @@ Possible name formats:<br>
 &nbsp;*including position for PE read*<br>
 
 The \<chr\> field denotes the 'true' chromosome from which the read was isolated.<br>
-It has constant width for any chromosome. Possible alignment is filled by '=' symbol.
+It has constant width for any chromosome. Possible alignment is filled by '=' symbol.<br>
+\<position\> fields also indicate 'true' positions.
 
 For BED, mate ('/1' or '/2') is added to the number in case of PE reads.
 
