@@ -2,7 +2,7 @@
 Imitator.cpp
 Provides chip-seq imitation functionality
 2014 Fedor Naumenko (fedor.naumenko@gmail.com)
-Last modified: 05/03/2024
+Last modified: 05/06/2024
 ***********************************************************/
 
 #include "isChIP.h"
@@ -278,7 +278,7 @@ Imitator::ChromCutter::ChromCutter(const Imitator* imitator, Average* avr, bool 
 	_master(master),
 	_gMode(GM::eMode::Test)
 {
-	DataWriter::SetSeqMode(avr);
+	DataWriter::SetSeqMode(/*avr*/);
 	_fragCnt.Clear();
 	_fragCnt.SetGMode(GM::eMode::Test);
 	_writer = master ? &(imitator->_writer) : new DataWriter(imitator->_writer);

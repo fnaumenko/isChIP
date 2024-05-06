@@ -476,9 +476,10 @@ private:
 
 		// Sets sequense mode.
 		//	@param trial: if true, then set empty mode, otherwise current working mode
-		static void SetSeqMode(bool trial) {
-			fAddRead = trial ? &DataWriter::BioWriters::AddReadEmpty :
-				(SeqMode::IsPE() ? &DataWriter::BioWriters::AddReadPE : &DataWriter::BioWriters::AddReadSE);
+		static void SetSeqMode(/*bool trial*/) {
+			//fAddRead = trial ? &DataWriter::BioWriters::AddReadEmpty :
+			//	(SeqMode::IsPE() ? &DataWriter::BioWriters::AddReadPE : &DataWriter::BioWriters::AddReadSE);
+			fAddRead = SeqMode::IsPE() ? &DataWriter::BioWriters::AddReadPE : &DataWriter::BioWriters::AddReadSE;
 		}
 
 		// Creates and initializes new instance for writing.
@@ -594,7 +595,7 @@ public:
 
 	// Sets sequense mode.
 	//	@param trial: if true, then set empty mode, otherwise current working mode
-	static void SetSeqMode(bool trial) { BioWriters::SetSeqMode(trial); }
+	static void SetSeqMode(/*bool trial*/) { BioWriters::SetSeqMode(/*trial*/); }
 
 	// Sets Read quality pattern
 	//	@param rqPattFName: valid file name of the Read quality pattern
