@@ -33,7 +33,7 @@ const string OutFileTip = "location of output files or existing folder\n[TEST mo
 	"CONTROL mode: " + DefFileName[CONTROL] + ".*]";
 
 // --smode option
-const char* smodes[] = { "SE","PE" };				// corresponds to BioWriters::eMode
+const char* smodes[] = { "SE","PE" };				// corresponds to DataWriter::eMode
 // --format option: format notations
 const char* formats[] = { "FQ","BED","SAM","BG","FDENS","RDENS","FDIST","RDIST" };	// corresponds to DataWriter::oFormat	
 // --verbose option: verbose notations
