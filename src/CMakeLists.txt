@@ -6,7 +6,7 @@ project(${PROJECT_NAME})
 add_compile_definitions(
 	_ISCHIP
 	_FEATURES
-	_FILE_WRITE
+	_TXT_WRITER
 	_MULTITHREAD
 	)
 	
