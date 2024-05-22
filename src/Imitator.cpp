@@ -547,7 +547,7 @@ void Imitator::PrintHeader(bool header)
 		w += ChromView::PrintHeaderGaps();
 		cout << LF;
 	}
-	PrintHorLine(w + 1);
+	PrintSolidLine(w + 1);
 }
 
 void Imitator::PrintTotal()
