@@ -2,7 +2,7 @@
 Imitator.cpp
 Provides chip-seq imitation functionality
 2014 Fedor Naumenko (fedor.naumenko@gmail.com)
-Last modified: 05/06/2024
+Last modified: 05/22/2024
 ***********************************************************/
 
 #include "isChIP.h"
@@ -547,7 +547,7 @@ void Imitator::PrintHeader(bool header)
 		w += ChromView::PrintHeaderGaps();
 		cout << LF;
 	}
-	PrintHorLine(w);
+	PrintHorLine(w + 1);
 }
 
 void Imitator::PrintTotal()
