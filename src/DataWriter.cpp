@@ -1,6 +1,6 @@
 /**********************************************************
 DataWriter.cpp
-Last modified: 05/06/2024
+Last modified: 05/24/2024
 ***********************************************************/
 
 #include "DataWriter.h"
@@ -628,7 +628,7 @@ DataWriter::DistrWriters::~DistrWriters()
 					DistrParams::PrintFragDistr(s, sSet, false);
 					if (!DistrParams::IsSS())	dtype = Distrib::eCType::LNORM;
 				}
-				_dist[i]->Print(s, dtype);
+				_dist[i]->Print(s, dtype, false, true);
 				s.close();
 			}
 			else
