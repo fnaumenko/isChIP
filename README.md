@@ -684,7 +684,7 @@ Peak amplitudes are displayed proportional:
 
 ![Coverages](https://github.com/fnaumenko/isChIP/blob/master/pict/test_ampl_col.png) 
 
-Coverages in strands (read - positive, blue - negative):
+Coverages in strands (read - forward, blue - reverse):
 
 ![Coverages](https://github.com/fnaumenko/isChIP/blob/master/pict/test_ampl_strand_col.png) 
 
