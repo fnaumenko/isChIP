@@ -4,7 +4,7 @@ The model is based on the real ChIP-seq protocol
 
 Fedor Naumenko (fedor.naumenko@gmail.com)
 -------------------------
-Last modified: 05/03/2024
+Last modified: 07/17/2024
 -------------------------
 
 This program is free software.
@@ -221,10 +221,9 @@ int main(int argc, char* argv[])
 		if (fBedName) {
 			//Obj::Ambig::SetSupplAlarm(Obj::Ambig::SHORT, "for given binding Imitator::FlatLenlength");
 			templ = new Features(fBedName, cSizes,
-				Options::GetBVal(oOVERL),
 				Options::GetIVal(oBS_SCORE),
-				0, //readlen(Options::GetUIVal(oBS_LEN)),	// binding length
-				false										// print name
+				Options::GetBVal(oOVERL),
+				0 //readlen(Options::GetUIVal(oBS_LEN))	// binding length
 			);
 			//templ->Print();
 			//if(flattens.Values().second)
