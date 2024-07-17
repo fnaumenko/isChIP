@@ -6,6 +6,7 @@ project(${PROJECT_NAME})
 add_compile_definitions(
 	_ISCHIP
 	_FEATURES
+	_FEATR_SCORE
 	_TXT_WRITER
 	_MULTITHREAD
 	)
