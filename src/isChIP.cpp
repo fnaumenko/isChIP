@@ -4,7 +4,7 @@ The model is based on the real ChIP-seq protocol
 
 Fedor Naumenko (fedor.naumenko@gmail.com)
 -------------------------
-Last modified: 07/17/2024
+Last modified: 07/25/2024
 -------------------------
 
 This program is free software.
@@ -133,11 +133,11 @@ If the option is not specified, the read length is fixed", NULL },
 #ifdef _ZLIB
 	{ 'z',"gzip",	tOpt::NONE,	tENUM,	gOUTPUT, FALSE, vUNDEF, 2, NULL, "compress the output", NULL},
 #endif
-	{ 't',	sTime,	tOpt::NONE,	tENUM,	gOTHER,	FALSE,	vUNDEF, 2, NULL, sPrTime, NULL },
+	{ 't',	sTime,	tOpt::NONE,	tENUM,	gOTHER,	FALSE,	vUNDEF, 2, NULL, sHelpTime, NULL },
 	{ 'V',"verbose",tOpt::NONE,	tENUM,	gOTHER, float(eVerb::PAR), float(eVerb::CRIT), ArrCnt(verbs), (char*)verbs,
 	"set verbose level:\n? -\tsilent mode (show critical messages only)\n? -\tshow result summary\n?  -\tshow run-time information\n? -\tshow actual parameters\n? -\tshow debug messages", NULL },
-	{ 'v',	sVers,	tOpt::NONE,	tVERS,	gOTHER,	vUNDEF, vUNDEF, 0, NULL, sPrVersion, NULL },
-	{ 'h',	sHelp,	tOpt::NONE,	tHELP,	gOTHER,	vUNDEF, vUNDEF, 0, NULL, sPrUsage, NULL }
+	{ 'v',	sVers,	tOpt::NONE,	tVERS,	gOTHER,	vUNDEF, vUNDEF, 0, NULL, sHelpVersion, NULL },
+	{ 'h',	sHelp,	tOpt::NONE,	tHELP,	gOTHER,	vUNDEF, vUNDEF, 0, NULL, sHelpUsage, NULL }
 };
 const BYTE	Options::OptCount = ArrCnt(Options::List);
 
