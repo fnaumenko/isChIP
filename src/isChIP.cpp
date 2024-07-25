@@ -285,6 +285,8 @@ void PrintParams(const ChromSizesExt& cSizes, const char* templName,
 		cout << SignPar << "Service folder" << SepCl << cSizes.ServPath() << LF;
 	// # template
 	if (templName) {
+		const char* sTemplate = "template";
+
 		cout << SignPar << sTemplate << SepDCl << templName << SepCl;
 		templ->PrintItemCount(FT::BED, false);
 		cout << SepSCl;
