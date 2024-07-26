@@ -4,7 +4,7 @@ The model is based on the real ChIP-seq protocol
 
 Fedor Naumenko (fedor.naumenko@gmail.com)
 -------------------------
-Last modified: 07/25/2024
+Last modified: 07/26/2024
 -------------------------
 
 This program is free software.
@@ -78,7 +78,7 @@ in percent of all/foreground.\nIn control mode background is ignored ", NULL },
 If the option is not specified, ChIP-exo is not applied", NULL },
 	{ 'D',"mda",	tOpt::NONE,	tENUM,	gTREAT,	FALSE,	vUNDEF, 2, NULL, "apply MDA technique", NULL },
 	{ 'a',"pcr",	tOpt::NONE,	tINT,	gTREAT, 0, 0, 10, NULL, "number of PCR cycles", NULL },
-	{ 'c',Chrom::Abbr,tOpt::NONE,tNAME,	gTREAT, vUNDEF, 0, 0, NULL,
+	{ 'c', sChrom,	tOpt::NONE,	tNAME,	gTREAT, NO_DEF, 0, 0, NULL,
 	"generate output for the specified chromosome only", NULL },
 	{ HPH,"bg-all",	tOpt::NONE,	tENUM,	gTREAT, TRUE, 0, 2, (char*)Booleans,
 	"turn on/off generation background for all chromosomes.\n", ForTest },
