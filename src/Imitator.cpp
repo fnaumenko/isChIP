@@ -746,16 +746,16 @@ void Imitator::SetSample()
 	for (ChromSizes::cIter it = _cSizes.cBegin(); it != _cSizes.cEnd(); it++) {
 		if (!_cSizes.IsTreated(it))	continue;
 		
-		chrlen	enRgnLen = 0;				// length of enriched regions
+		chrlen	enrRgnLen = 0;				// length of enriched regions
 		// count is estimated according to diploid (numerical) sign,
 		// but density is not, because basic length is single!
 		if (Templ && Templ->FindChrom(CID(it))) {
-			enRgnLen = Templ->EnrRegnLength(CID(it), 0, FragMean);
-			rTotalCnt += GetEstimReadsCnt(Gr::FG, enRgnLen, countFactor, 0, rMaxCnt, rMaxDens);
+			enrRgnLen = Templ->EnrRegnLength(CID(it), 0, FragMean);
+			rTotalCnt += GetEstimReadsCnt(Gr::FG, enrRgnLen, countFactor, 0, rMaxCnt, rMaxDens);
 		}
 		rTotalCnt += GetEstimReadsCnt(
 			Gr::BG,
-			_cSizes.DefEffLength(it) - enRgnLen,
+			_cSizes.DefEffLength(it) - enrRgnLen,
 			countFactor,
 			Chrom::IsAutosome(CID(it)),
 			rMaxCnt,
