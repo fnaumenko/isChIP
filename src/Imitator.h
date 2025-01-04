@@ -637,9 +637,9 @@ public:
 		bool		allBg,
 		//bool	uniformScore,		// true if uniform template score is assigned
 		//readlen bindLen,
-		//const pairVal& flattens
+		//const fpair& flattens
 		fraglen		unstBindLen,			// unstable binding length
-		const pairVal&	samples
+		const fpair&	samples
 	);
 
 	// Creates singleton instance.

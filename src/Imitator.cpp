@@ -669,9 +669,9 @@ void	Imitator::Init(
 	bool		allBg,				// true if all background mode is assigned
 	//bool	uniScore,			// true if uniform template score is assigned
 	//readlen bindLen,
-	//const pairVal& flattens
+	//const fpair& flattens
 	fraglen		unstBindLen,			// unstable binding length
-	const pairVal&	samples
+	const fpair&	samples
 ) {
 	TMode = tmode;
 	MakeControl = TestMode ? input : false;
