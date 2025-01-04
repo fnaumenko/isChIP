@@ -162,6 +162,7 @@ int main(int argc, char* argv[])
 	Features* templ = NULL;
 	const char* fBedName = fileInd == argc ? NULL : argv[fileInd];	// template name
 
+	std::ios_base::sync_with_stdio(false);
 	// initialize SeqMode before Read::Init()
 	SeqMode::Init(Options::GetIVal(oSMODE), ULONG(Options::GetFVal(oRD_LIMIT)));
 	// initialize Read before DataWriter::Init()
