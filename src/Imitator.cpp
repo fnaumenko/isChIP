@@ -2,7 +2,7 @@
 Imitator.cpp
 Provides chip-seq imitation functionality
 2014 Fedor Naumenko (fedor.naumenko@gmail.com)
-Last modified: 05/22/2024
+Last modified: 01/04/2025
 ***********************************************************/
 
 #include "isChIP.h"

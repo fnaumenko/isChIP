@@ -2,7 +2,7 @@
 Imitator.h
 Provides chip-seq imitation functionality
 2014 Fedor Naumenko (fedor.naumenko@gmail.com)
-Last modified: 04/18/2024
+Last modified: 01/04/2025
 ***********************************************************/
 #pragma once
 
@@ -16,8 +16,6 @@ using a_cycle	= int16_t;	// type PCR amplification cycles
 using a_coeff	= BYTE;		// type coefficient of PCR amplification
 
 #define FRAG_MAX	UINT32_MAX		// maximum fragment length
-
-extern const PairVals grounds;
 
 // Task modes
 enum eMode { TEST, CONTROL };	// using 'enum class' in this case is inconvenient

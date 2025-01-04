@@ -4,7 +4,7 @@ The model is based on the real ChIP-seq protocol
 
 Fedor Naumenko (fedor.naumenko@gmail.com)
 -------------------------
-Last modified: 07/26/2024
+Last modified: 01/04/2025
 -------------------------
 
 This program is free software.
@@ -27,7 +27,7 @@ Ensembl hg38 genome:	ftp://ftp.ensembl.org/pub/release-100/fasta/homo_sapiens/dn
 using namespace std;
 
 const string Product::Title = "isChIP";
-const string Product::Version = "2.0";
+const string Product::Version = "3.0";
 const string Product::Descr = "ChIP-seq simulator";
 
 const string DefFileName[] = { "mTest", "mInput" };
@@ -42,16 +42,16 @@ const char* formats[] = { "FQ","BED","SAM","BG","FDENS","RDENS","FDIST","RDIST" 
 // --verbose option: verbose notations
 const char* verbs[] = { "SL","RES","RT","PAR","DBG" };
 // --ground option
-const PairVals grounds(50, 1, 0, 0, 100, 100);		// defFG, defBG, minFG, minBG, maxFG, maxFG
+const Options::fpairLimits grounds(50, 1, 0, 0, 100, 100);		// defFG, defBG, minFG, minBG, maxFG, maxFG
 // --lndist option
-//const PairVals lnd(5.26f, 0.3f, 3, 0.01f, 9, 1);	// defMean, defSD, minMean, minSD, maxMean, maxSD
-const PairVals lnd(5.26f, 0.3f, 3, 0, 400, 1);	// defMean, defSD, minMean, minSD, maxMean, maxSD
+//const Options::fpairLimits lnd(5.26f, 0.3f, 3, 0.01f, 9, 1);	// defMean, defSD, minMean, minSD, maxMean, maxSD
+const Options::fpairLimits lnd(5.26f, 0.3f, 3, 0, 400, 1);	// defMean, defSD, minMean, minSD, maxMean, maxSD
 // --ssddist option
-const PairVals ssd(vUNDEF, 30, 50, 2, 2000, 500);	// "auto", defSD, minMean, minSD, maxMean, maxSD
+const Options::fpairLimits ssd(vUNDEF, 30, 50, 2, 2000, 500);	// "auto", defSD, minMean, minSD, maxMean, maxSD
 // --rd-dist option
-const PairVals rdd(200, 20, 50, 2, 1000, 300);		// defMean, defSD, minMean, minSD, maxMean, maxSD
+const Options::fpairLimits rdd(200, 20, 50, 2, 1000, 300);		// defMean, defSD, minMean, minSD, maxMean, maxSD
 // --flat-len option
-//const PairVals flattens(0, 0, 0, 0, 50, 50);
+//const Options::fpairLimits flattens(0, 0, 0, 0, 50, 50);
 
 const BYTE Options::Option::IndentInTabs = 3;
 
