@@ -626,6 +626,7 @@ public:
 	//	@param verb: verbosity level
 	//	@param allBg: true if all background mode is assigned
 	//	@param unstBindLen: unstable binding length
+	//	@param samples: FG & BG samples
 	static void	Init(
 		eMode		tmode,
 		bool		input,
@@ -639,7 +640,8 @@ public:
 		//bool	uniformScore,		// true if uniform template score is assigned
 		//readlen bindLen,
 		//const pairVal& flattens
-		UINT		unstBindLen			// unstable binding length
+		fraglen		unstBindLen,			// unstable binding length
+		const pairVal&	samples
 	);
 
 	// Creates singleton instance.

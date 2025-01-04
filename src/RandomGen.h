@@ -28,8 +28,8 @@ public:
 	typedef std::pair<float, float> pairVal;
 	typedef std::pair<int, int> rdParams;
 
-	static float lnMean;	// mean of lognormal distribution ('wide' by default)
-	static float lnSigma;	// sigma of lognormal distribution ('wide' by default)
+	static float lnMean;	// mean of lognormal distribution
+	static float lnSigma;	// sigma of lognormal distribution
 	static float ssMean;	// mean of 'size selection' normal distribution,
 							// or 0 if SS is off, or mean of lognormal distribution by default
 	static int	 ssSigma;	// sigma of 'size selection' normal distribution
@@ -44,11 +44,14 @@ public:
 	//	@param isRD: true if Read variable length mode is set
 	static void Init(const pairVal& ln, const pairVal& ss, bool isSS, const pairVal& rd, bool isRD);
 
-	// Returns mean of lognormal distribtion
-	static float LnMean() { return exp(lnMean + lnSigma * lnSigma / 2); }
+	// Returns mean of lognormal distribution
+	static float LnMean() { return IsLn() ? exp(lnMean + lnSigma * lnSigma / 2) : 1.5f * lnMean; }
 
-	// Returns mode of lognormal distribtion
+	// Returns mode of lognormal distribution
 	static float LnMode() { return exp(lnMean - lnSigma * lnSigma); }
+
+	// Returns true if lognormal distribution is ON
+	static bool IsLn() { return lnSigma; }
 
 	// Returns true if size selection is ON
 	static bool IsSS() { return bool(ssMean); }
@@ -59,8 +62,8 @@ public:
 	// Prints title and the fragment distribution parameters
 	//	@param s: outstream to print
 	//	@param title: pre-title to print first
-	//	@param all: if true then print both frag dist and size selection, otherwise only one of them
-	static void PrintFragDistr(std::ostream& s, const char* title, bool all);
+	//	@param bothDistrs: if true then print both frag dist and size selection, otherwise only one of them
+	static void PrintFragDistr(std::ostream& s, const char* title, bool bothDistrs);
 	
 	// Prints title and the read distribution parameters
 	//	@param s: outstream to print

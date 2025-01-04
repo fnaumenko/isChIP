@@ -21,6 +21,9 @@ Ensembl hg38 genome:	ftp://ftp.ensembl.org/pub/release-100/fasta/homo_sapiens/dn
 #include "Options.h"
 #include "Imitator.h"
 
+#define	SAMPLE_FG()		grounds.Values().first
+#define	SAMPLE_BG()		grounds.Values().second
+
 using namespace std;
 
 const string Product::Title = "isChIP";
@@ -41,7 +44,8 @@ const char* verbs[] = { "SL","RES","RT","PAR","DBG" };
 // --ground option
 const PairVals grounds(50, 1, 0, 0, 100, 100);		// defFG, defBG, minFG, minBG, maxFG, maxFG
 // --lndist option
-const PairVals lnd(5.26f, 0.3f, 3, 0.01f, 9, 1);	// defMean, defSD, minMean, minSD, maxMean, maxSD
+//const PairVals lnd(5.26f, 0.3f, 3, 0.01f, 9, 1);	// defMean, defSD, minMean, minSD, maxMean, maxSD
+const PairVals lnd(5.26f, 0.3f, 3, 0, 400, 1);	// defMean, defSD, minMean, minSD, maxMean, maxSD
 // --ssddist option
 const PairVals ssd(vUNDEF, 30, 50, 2, 2000, 500);	// "auto", defSD, minMean, minSD, maxMean, maxSD
 // --rd-dist option
@@ -197,7 +201,8 @@ int main(int argc, char* argv[])
 		//!Options::GetBVal(oBS_SCORE),
 		//readlen(Options::GetUIVal(oBS_LEN)),
 		//flattens.Values()
-		Options::GetUIVal(oFLAT_LEN)
+		Options::GetUIVal(oFLAT_LEN),
+		grounds.Values()
 	);
 	ChromSeq::LetGaps = Options::GetBVal(oLET_GAPS);
 	ChromSeq::StatGaps = Imitator::Verbose(eVerb::PAR);		// Imitator::Init() should be called before

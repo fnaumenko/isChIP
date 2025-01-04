@@ -27,31 +27,37 @@ void DistrParams::Init(const pairVal& ln, const pairVal& ss, bool isSS, const pa
 {
 	lnMean = ln.first,
 	lnSigma = ln.second;
-	if (isSS)
-		ssMean = ss.first == -1 ? LnMean() : ss.first,
-		ssSigma = int(ss.second);
-	if (isRD)
-		rdMean = int(rd.first),
-		rdSigma = int(rd.second);
+	if (IsLn()) {
+		if (isSS)
+			ssMean = ss.first == -1 ? LnMean() : ss.first,
+			ssSigma = int(ss.second);
+		if (isRD)
+			rdMean = int(rd.first),
+			rdSigma = int(rd.second);
+	}
 }
 
 #define LF	'\n'
 
-void DistrParams::PrintFragDistr(std::ostream& s, const char* title, bool all)
+void DistrParams::PrintFragDistr(std::ostream& s, const char* title, bool bothDistrs)
 {
-	const char* sFrag = all ? "Fragment" : "fragment";
+	const char* sFragment[]{ "fragment","Fragment" };
 
-	if (all || !IsSS()) {
-		s << title << sFrag << " lognorm size " << sDistrib
-		  << SepCl << sMean << Equel << lnMean
-		  << SepSCl << sSigma << Equel << lnSigma;
-		if (all)
-			s << SepSCl << "Mean" << Equel << std::setprecision(5) << LnMean()
-			  << SepSCl << "Mode" << Equel << LnMode();
+	if (bothDistrs || !IsSS()) {
+		s << title << sFragment[bothDistrs] << " lognorm size " << sDistrib << SepCl;
+		if (IsLn()) {
+			s << sMean << Equel << lnMean << SepSCl << sSigma << Equel << lnSigma;
+			if (bothDistrs)
+				s << SepSCl << "Mean" << Equel << std::setprecision(5) << LnMean()
+				<< SepSCl << "Mode" << Equel << LnMode();
+		}
+		else {
+			s << "OFF" << SepSCl << sFragment[0] << " length" << Equel << lnMean;
+		}
 		s << LF;
 	}
-	if (all || IsSS()) {
-		s << title << sFrag << " size selection " << sDistrib << SepCl;
+	if (bothDistrs || IsSS()) {
+		s << title << sFragment[bothDistrs] << " size selection " << sDistrib << SepCl;
 		if (IsSS())
 			s << sMean << Equel << std::setprecision(5) << ssMean
 			  << SepSCl << sSigma << Equel << ssSigma << LF;

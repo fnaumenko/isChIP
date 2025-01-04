@@ -8,9 +8,6 @@ Provides option emum
 ***********************************************************/
 #pragma once
 
-#define	SAMPLE_FG()		grounds.Values().first
-#define	SAMPLE_BG()		grounds.Values().second
-
 static const char* Equel = " = ";
 
 enum optValue {
