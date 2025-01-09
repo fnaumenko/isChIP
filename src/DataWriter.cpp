@@ -1,6 +1,6 @@
 /**********************************************************
 DataWriter.cpp
-Last modified: 05/24/2024
+Last modified: 01/09/2025
 ***********************************************************/
 
 #include "DataWriter.h"
@@ -600,11 +600,11 @@ DataWriter::DistrWriters::DistrWriters(const string& fName, bool isFragDist, boo
 {
 	if (isFragDist) {
 		_dist[0] = new Distrib();
-		_fAddFrag = [&](fraglen flen) {_dist[0]->AddVal(flen); };
+		_fAddFrag = [&](fraglen flen) {_dist[0]->IncrFreq(flen); };
 	}
 	if (isReadDist) {
 		_dist[1] = new Distrib();
-		_fAddRead = [&](readlen rlen) {_dist[1]->AddVal(rlen); };
+		_fAddRead = [&](readlen rlen) {_dist[1]->IncrFreq(rlen); };
 	}
 }
 
