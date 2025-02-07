@@ -1,6 +1,6 @@
 /**********************************************************
 DataWriter.cpp
-Last modified: 01/09/2025
+Last modified: 02/07/2025
 ***********************************************************/
 
 #include "DataWriter.h"
@@ -615,7 +615,7 @@ DataWriter::DistrWriters::~DistrWriters()
 
 	for (BYTE i = 0; i < ND; ++i)
 		if (_dist[i]) {
-			Distrib::eCType dtype = Distrib::eCType::NORM;
+			Distrib::eDType dtype = Distrib::eDType::NORM;
 			ofstream s;
 			s.open(FileName(i));
 			if (s.is_open()) {
@@ -626,9 +626,9 @@ DataWriter::DistrWriters::~DistrWriters()
 						s << sSet << "constant " << Read::title << " length" << LF;
 				else {		// fragments
 					DistrParams::PrintFragDistr(s, sSet, false);
-					if (!DistrParams::IsSS())	dtype = Distrib::eCType::LNORM;
+					if (!DistrParams::IsSS())	dtype = Distrib::eDType::LNORM;
 				}
-				_dist[i]->Print(s, dtype, false, true);
+				_dist[i]->PrintADParams(s, false, true);
 				s.close();
 			}
 			else

@@ -2,7 +2,7 @@
 Imitator.cpp
 Provides chip-seq imitation functionality
 2014 Fedor Naumenko (fedor.naumenko@gmail.com)
-Last modified: 01/09/2025
+Last modified: 02/07/2025
 ***********************************************************/
 
 #include "isChIP.h"
@@ -611,8 +611,8 @@ size_t Imitator::GetEstimReadsCnt(Gr::eType gr, chrlen effLen, float factor,
 			so that it fits into the initial 'overarching' lognormal one.
 			*/
 			float ratio =	// from about 0.1 to 0.5
-				float(Distrib::GetApprValue(Distrib::eCType::LNORM, DistrParams::lnMean, DistrParams::lnSigma, fraglen(DistrParams::ssMean))) /
-				float(Distrib::GetApprValue(Distrib::eCType::NORM, DistrParams::ssMean, float(DistrParams::ssSigma), fraglen(DistrParams::ssMean)));
+				float(Distrib::GetApprValue(Distrib::eDType::LNORM, DistrParams::lnMean, DistrParams::lnSigma, fraglen(DistrParams::ssMean))) /
+				float(Distrib::GetApprValue(Distrib::eDType::NORM, DistrParams::ssMean, float(DistrParams::ssSigma), fraglen(DistrParams::ssMean)));
 
 			if (IsMDA)
 				ratio *= GetMDAfactor(
