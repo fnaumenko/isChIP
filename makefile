@@ -1,5 +1,5 @@
 PROG=isChIP
-COPT=-c -O3 -std=c++11
+COPT=-c -O3 -std=c++11 -Wno-unused-result
 LOPT=-lpthread
 ifeq ($(shell whereis zlib | wc -l),0)
 	COPT+= -D_NO_ZLIB
@@ -20,7 +20,7 @@ all: print_warning $(HDR) $(SRC) $(PROG)
 $(PROG): $(OBJ)
 	$(CC) $(LOPT) $(OBJ) -o $@
 	@echo "$(PROG) compilation complete."
-	cp $@ ..
+#	cp $@ ..
 
 .cpp.o:
 	$(CC) $(COPT) $< -o $@
@@ -30,4 +30,4 @@ print_warning:
 .PHONY: print_warning
 
 clean:
-	rm $(SRC_DIR)/*o
+	rm $(SRC_DIR)/*.o

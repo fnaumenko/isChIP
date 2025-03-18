@@ -2,7 +2,7 @@
 common.h (c) 2014 Fedor Naumenko (fedor.naumenko@gmail.com)
 All rights reserved.
 -------------------------
-Last modified: 07.01.2022
+Last modified: 03/18/2025
 -------------------------
 Provides common functionality
 ***********************************************************/
@@ -29,7 +29,7 @@ Provides common functionality
 	#include <stdlib.h>
 	#include <memory>
 	#include <limits.h>
-	//#include <math.h>
+	#include <math.h>
 	#include <dirent.h>
 	#include <stdio.h>
 #ifdef _MULTITHREAD

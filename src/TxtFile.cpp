@@ -2,7 +2,7 @@
 TxtFile.cpp (c) 2014 Fedor Naumenko (fedor.naumenko@gmail.com)
 All rights reserved.
 -------------------------
-Last modified: 07.01.2022
+Last modified: 03/18/2025
 -------------------------
 Provides read|write text file functionality
 ***********************************************************/
@@ -521,7 +521,7 @@ rowlen TxtOutFile::LineAddChars(const char* src, rowlen num, bool addDelim)
 //	@addDelim: if true then adds delimiter and increases current position
 void TxtOutFile::LineAddInt(LLONG v, bool addDelim)
 {
-	_lineBuffOffset += sprintf(_lineBuff + _lineBuffOffset, "%d", v);
+	_lineBuffOffset += sprintf(_lineBuff + _lineBuffOffset, "%lld", v);
 	LineAddDelim(addDelim);
 	//LineAddStr(to_string(val), addDelim);
 }
@@ -533,7 +533,7 @@ void TxtOutFile::LineAddInt(LLONG v, bool addDelim)
 //	@addDelim: if true then adds delimiter and increases current position
 void TxtOutFile::LineAddInts(ULONG v1, ULONG v2, bool addDelim)
 {
-	_lineBuffOffset += sprintf(_lineBuff + _lineBuffOffset, "%u%c%u", v1, _delim, v2);
+	_lineBuffOffset += sprintf(_lineBuff + _lineBuffOffset, "%lu%c%lu", v1, _delim, v2);
 	LineAddDelim(addDelim);
 	//ostringstream ss;
 	//ss << v1 << _delim << v2;
@@ -548,7 +548,7 @@ void TxtOutFile::LineAddInts(ULONG v1, ULONG v2, bool addDelim)
 //	@addDelim: if true then adds delimiter and increases current position
 void TxtOutFile::LineAddInts(ULONG v1, ULONG v2, ULONG v3, bool addDelim)
 {
-	_lineBuffOffset += sprintf(_lineBuff + _lineBuffOffset, "%u%c%u%c%u", v1, _delim, v2, _delim, v3);
+	_lineBuffOffset += sprintf(_lineBuff + _lineBuffOffset, "%lu%c%lu%c%lu", v1, _delim, v2, _delim, v3);
 	LineAddDelim(addDelim);
 	//ostringstream ss;
 	//ss << v1 << _delim << v2 << _delim << v3;
