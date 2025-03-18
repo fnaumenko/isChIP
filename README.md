@@ -69,7 +69,7 @@ Alternative:
 ```
 wget -O isChIP.zip https://github.com/fnaumenko/isChIP/archive/v2.0.zip
 unzip isChIP.zip
-cd isChIP-1.0
+cd isChIP-2.0
 make
 ```
 If **zlib** is not installed on your system, the program will be compiled without the ability to read/write compressed files.
@@ -109,8 +109,8 @@ isChIP [options] -g|--gen <name> [<template>]
 generates 'input' sequences in FastQ with read length of 50 and average read density of about 9 read/kbs, 
 comparable with what is experimentally observed.
 
-`isChIP -g ref_genome –tz –n 200 –r 36 –f fq,sam templ.bed`<br>
-generates test sequences in zipped FastQ and SAM, with read length of 36 and typical real average foreground/background read density.
+`isChIP -g ref_genome –tz –n 80 –r 40 –f fq,sam templ.bed`<br>
+generates test sequences in zipped FastQ and SAM, with read length of 40 and typical real average foreground/background read density.
 
 ### Help
 ```
