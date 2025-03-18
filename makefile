@@ -18,7 +18,7 @@ CC=g++
 all: print_warning $(HDR) $(SRC) $(PROG)
 
 $(PROG): $(OBJ)
-	$(CC) $(LOPT) $(OBJ) -o $@
+	$(CC) $(OBJ) -o $@ $(LOPT)
 	@echo "$(PROG) compilation complete."
 #	cp $@ ..
 
